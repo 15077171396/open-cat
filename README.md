@@ -84,7 +84,7 @@ docker compose up -d
 **部署** Docker Compose · nginx · 可选 Sentry
 
 ```
-backend/         FastAPI 应用（254 端点，141 管理端）
+backend/         FastAPI 应用（256 端点，141 管理端）
 admin-frontend/  管理后台 SPA（base=/admin/）
 deploy/          compose + nginx
 docs/            文档

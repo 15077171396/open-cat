@@ -25,6 +25,8 @@ SENSITIVE_PATHS = {
     "/api/v1/auth/login",
     "/api/v1/auth/register",
     "/api/v1/auth/refresh",
+    # 安装向导：创建首个管理员，未初始化期间对全网可达，Redis 挂了更不能放行
+    "/api/v1/setup/init",
     # 小程序登录/绑定：同样接受账号密码，且静默登录会在每次冷启动触发
     "/api/v1/auth/miniapp/login",
     "/api/v1/auth/miniapp/bind",

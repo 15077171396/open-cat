@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Card, Form, Input, Button, Typography, Alert, Space, Tag } from 'antd'
 import { LockOutlined, UserOutlined, SafetyOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
 import { getErrorMessage, getErrorData } from '../utils/error'
+import { apiGet } from '../api/client'
 
 interface LoginFormValues {
   account: string
@@ -20,6 +21,23 @@ export default function Login() {
   // 二次验证是**第二步**：后端在密码正确但缺码时回 401 + data.totp_required，
   // 这里据此展开验证码输入框（不能靠匹配 message 文案，文案一改就静默失效）
   const [totpRequired, setTotpRequired] = useState(false)
+
+  // 空库时把用户直接送到安装向导：否则第一个管理员永远进不来
+  // （后端 /setup/init 一旦有管理员就 409，所以这里只在 needs_setup 时跳）
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const data = await apiGet<{ needs_setup: boolean }>('/setup/status')
+        if (alive && data.needs_setup) navigate('/setup', { replace: true })
+      } catch {
+        // 状态查不到就留在登录页：连不上后端时跳转到向导也只会看到另一个报错
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [navigate])
 
   const handleSubmit = async (values: LoginFormValues) => {
     const { account, password, totpCode } = values

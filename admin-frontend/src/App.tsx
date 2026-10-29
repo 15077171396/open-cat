@@ -6,6 +6,7 @@ import { RequirePerm } from './components/PermGuard'
 // 性能：布局与路由守卫均懒加载，入口 chunk 仅含 react 全家桶 + 零依赖的
 // ErrorBoundary / CSS spinner，antd 等重组件随首个业务页面按需并行加载
 const Login = lazy(() => import('./pages/Login'))
+const Setup = lazy(() => import('./pages/Setup'))
 const RequireAdmin = lazy(() => import('./routes/RequireAdmin'))
 const AdminLayout = lazy(() => import('./components/Layout/AdminLayout'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
@@ -78,6 +79,8 @@ export default function App() {
         >
           <Routes>
             <Route path="/login" element={<Login />} />
+            {/* 安装向导：必须在 RequireAdmin 之外 —— 空库时还没有任何账号可登录 */}
+            <Route path="/setup" element={<Setup />} />
             <Route element={<RequireAdmin />}>
               <Route element={<AdminLayout />}>
                 <Route path="/" element={perm('dashboard:view', <Dashboard />)} />

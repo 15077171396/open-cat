@@ -29,6 +29,7 @@ from app.api.feedbacks import router as feedbacks_router
 from app.api.reports import router as reports_router
 from app.api.comments import router as comments_router
 from app.api.payments import router as payments_router
+from app.api.setup import router as setup_router
 from app.schemas.admin import ActionAck
 
 api_router = APIRouter(prefix="/api/v1")
@@ -54,6 +55,9 @@ api_router.include_router(feedbacks_router, prefix="/feedbacks", tags=["问题�
 api_router.include_router(reports_router, prefix="/reports", tags=["内容举报"])
 api_router.include_router(comments_router, prefix="/comments", tags=["内容评论"])
 api_router.include_router(payments_router, prefix="/payments", tags=["支付"])
+# 安装向导：必须在 /admin 之外（admin 路由有 fail-closed 权限依赖，
+# 系统里还没有管理员时会把自己锁死）
+api_router.include_router(setup_router, prefix="/setup", tags=["安装向导"])
 api_router.include_router(images_router, tags=["图片代理"])
 api_router.include_router(sitemap_router, tags=["SEO"])
 api_router.include_router(llms_txt_router, tags=["SEO"])
