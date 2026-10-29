@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, DatePicker, Form, Input, InputNumber, Modal, Progress, Radio, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Progress, Radio, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { CopyOutlined, EyeOutlined, GiftOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
@@ -13,8 +13,8 @@ import { copyText } from '../../utils/clipboard'
 import { formatDate, formatDateTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /** 展示状态 → 标签（与后端 eff_status 口径一致：作废 > 过期 > 兑完 > 进行中） */
 const EFF_STATUS_MAP: Record<string, { color: string; text: string }> = {
   active: { color: 'green', text: '进行中' },
@@ -392,26 +392,10 @@ export default function RedeemCodesList() {
       />
 
       {/* 工具条：状态筛选 + 批量作废 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={status}
-              onChange={(v) => {
-                setStatus(String(v))
-                setSelectedIds([])
-                setPage(1)
-              }}
-              options={STATUS_FILTER_OPTIONS}
-            />
-            {hasFilter && (
-              <Tooltip title="清空关键词与筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Space size={12}>
             {selectedIds.length > 0 && (
               <span className="adm-selinfo">
@@ -438,45 +422,32 @@ export default function RedeemCodesList() {
               </Button>
             </Tooltip>
           </Space>
-        </div>
-      </Card>
-
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<RedemptionCode>
-          className="adm-table"
-          dataSource={codes}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1210 }}
-          rowSelection={{
-            selectedRowKeys: selectedIds,
-            onChange: (keys) => setSelectedIds(keys as number[]),
+        )}
+      >
+        <Segmented
+          value={status}
+          onChange={(v) => {
+            setStatus(String(v))
+            setSelectedIds([])
+            setPage(1)
           }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的兑换码'
-                emptyText='还没有兑换码，先生成一批吧'
-                onReset={handleResetFilters}
-                create={{ perm: 'redeem_code:create', icon: <GiftOutlined />, label: '生成兑换码', onClick: () => setCreateOpen(true) }}
-              />
-          ),
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: (p) => {
-              setSelectedIds([])
-              setPage(p)
-            },
-            showTotal: (t) => `共 ${t} 个兑换码`,
-            showSizeChanger: false,
-          }}
+          options={STATUS_FILTER_OPTIONS}
         />
-      </Card>
+      </ListToolbar>
+
+      <DataTable<RedemptionCode>
+        dataSource={codes}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1210}
+        rowSelection={{
+        selectedRowKeys: selectedIds,
+        onChange: (keys) => setSelectedIds(keys as number[]),
+        }}
+        pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的兑换码", emptyText: "还没有兑换码，先生成一批吧", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：兑换码是积分的入金口，生成即等于凭空造出「积分 × 每人上限 × 数量」的潜在积分债务；

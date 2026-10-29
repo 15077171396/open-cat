@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, Card, DatePicker, Image, Input, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Image, Input, Select, Space, Switch, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { DeleteOutlined, MessageOutlined, ReloadOutlined, RollbackOutlined } from '@ant-design/icons'
@@ -10,8 +10,8 @@ import { getErrorMessage } from '../../utils/error'
 import { formatTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /**
  * 内容评论管理。四条刻意的设计（改造后仍保持不变）：
  * - 删除为**软删除**且可恢复（误删可逆 + 留痕）；
@@ -303,100 +303,75 @@ export default function CommentsList() {
       />
 
       {/* 工具条：内容类型 / 内容 ID / 含已删除 / 时间范围 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Select
-              allowClear
-              placeholder="全部内容类型"
-              value={targetType || undefined}
-              onChange={(v) => {
-                setTargetType(v ?? '')
-                setPage(1)
-              }}
-              style={{ width: 140 }}
-              options={Object.entries(TARGET_TYPE_META).map(([value, meta]) => ({
-                value,
-                label: meta.label,
-              }))}
-            />
-            <Input
-              allowClear
-              placeholder="按内容 ID 筛选"
-              value={targetIdInput}
-              onChange={(e) => setTargetIdInput(e.target.value)}
-              onPressEnter={(e) => {
-                setTargetId((e.target as HTMLInputElement).value.trim())
-                setPage(1)
-              }}
-              style={{ width: 140 }}
-            />
-            <DatePicker.RangePicker
-              value={range}
-              onChange={(dates) => {
-                setRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)
-                setPage(1)
-              }}
-              placeholder={['开始日期', '结束日期']}
-              allowClear
-            />
-            <Space size={6}>
-              <Switch
-                checked={includeDeleted}
-                onChange={(v) => {
-                  setIncludeDeleted(v)
-                  setPage(1)
-                }}
-                size="small"
-              />
-              <Typography.Text type="secondary" style={{ fontSize: 13 }}>
-                含已删除
-              </Typography.Text>
-            </Space>
-            {hasFilter && (
-              <Tooltip title="清空全部筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Tooltip title="重新拉取当前条件下的评论">
             <Button icon={<ReloadOutlined />} onClick={refresh}>
               刷新
             </Button>
           </Tooltip>
-        </div>
-      </Card>
-
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<CommentItem>
-          className="adm-table"
-          dataSource={items}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1270 }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的评论'
-                emptyText='暂无评论'
-                onReset={handleResetFilters}
-              />
-          ),
+        )}
+      >
+        <Select
+          allowClear
+          placeholder="全部内容类型"
+          value={targetType || undefined}
+          onChange={(v) => {
+            setTargetType(v ?? '')
+            setPage(1)
           }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: setPage,
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
+          style={{ width: 140 }}
+          options={Object.entries(TARGET_TYPE_META).map(([value, meta]) => ({
+            value,
+            label: meta.label,
+          }))}
         />
-      </Card>
+        <Input
+          allowClear
+          placeholder="按内容 ID 筛选"
+          value={targetIdInput}
+          onChange={(e) => setTargetIdInput(e.target.value)}
+          onPressEnter={(e) => {
+            setTargetId((e.target as HTMLInputElement).value.trim())
+            setPage(1)
+          }}
+          style={{ width: 140 }}
+        />
+        <DatePicker.RangePicker
+          value={range}
+          onChange={(dates) => {
+            setRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)
+            setPage(1)
+          }}
+          placeholder={['开始日期', '结束日期']}
+          allowClear
+        />
+        <Space size={6}>
+          <Switch
+            checked={includeDeleted}
+            onChange={(v) => {
+              setIncludeDeleted(v)
+              setPage(1)
+            }}
+            size="small"
+          />
+          <Typography.Text type="secondary" style={{ fontSize: 13 }}>
+            含已删除
+          </Typography.Text>
+        </Space>
+      </ListToolbar>
+
+      <DataTable<CommentItem>
+        dataSource={items}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1270}
+        pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的评论", emptyText: "暂无评论", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：删除评论会<b>连带软删其回复</b>（可从「含已删除」里找回并恢复）；处置记录写入操作审计。

@@ -10,6 +10,7 @@ import type { SearchKeywordReport, SearchKeywordRow, SearchZeroRow } from '../..
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { ListToolbar } from '../../components/ui'
 
 /**
  * 站内搜索词分析：**只读**页面。
@@ -150,22 +151,10 @@ export default function SearchKeywords() {
       />
 
       {/* 工具条 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={days}
-              onChange={(value) => setDays(String(value))}
-              options={RANGE_OPTIONS}
-            />
-            {zeroRate !== null && zeroRate !== undefined ? (
-              <Tooltip title="零结果占比越高，说明站内越缺用户要找的内容（建议 >30% 就开始补内容）">
-                <Tag color={zeroRate >= 0.3 ? 'warning' : 'default'}>
-                  零结果占比 {(zeroRate * 100).toFixed(1)}%
-                </Tag>
-              </Tooltip>
-            ) : null}
-          </Space>
+      <ListToolbar
+        hasFilter={days !== '30'}
+        onReset={() => setDays('30')}
+        extra={(
           <Space size={8} wrap>
             {(report.modules ?? []).map((item) => (
               <Tag key={item.module}>
@@ -173,8 +162,21 @@ export default function SearchKeywords() {
               </Tag>
             ))}
           </Space>
-        </div>
-      </Card>
+        )}
+      >
+        <Segmented
+          value={days}
+          onChange={(value) => setDays(String(value))}
+          options={RANGE_OPTIONS}
+        />
+        {zeroRate !== null && zeroRate !== undefined ? (
+          <Tooltip title="零结果占比越高，说明站内越缺用户要找的内容（建议 >30% 就开始补内容）">
+            <Tag color={zeroRate >= 0.3 ? 'warning' : 'default'}>
+              零结果占比 {(zeroRate * 100).toFixed(1)}%
+            </Tag>
+          </Tooltip>
+        ) : null}
+      </ListToolbar>
 
       {!available ? (
         <Card className="adm-tablecard" variant="outlined">

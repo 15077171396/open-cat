@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
-import { Avatar, Button, Card, Input, Modal, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Avatar, Button, Input, Modal, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
-import { DeleteOutlined, EyeOutlined, MinusCircleOutlined, PlusOutlined, ReloadOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EyeOutlined, MinusCircleOutlined, PlusOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
 import { apiDelete, apiGet, apiPost } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
 import UserDetailDrawer, { AUTH_STATUS_MAP, formatDuration } from './UserDetailDrawer'
@@ -16,9 +16,9 @@ import { shouldRetreatOnePage } from '../../utils/pagination'
 import { DEFAULT_PAGE_SIZE } from '../../constants'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import ExportButton from '../../components/ui/ExportButton'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /** 角色筛选项（value 直接映射后端 role 字段） */
 const ROLE_FILTER_OPTIONS = [
   { value: '', label: '全部角色' },
@@ -148,11 +148,6 @@ export default function UsersList() {
     load({ page: 1, accountStatus: next })
   }
 
-  const handlePageChange = (p: number) => {
-    setSelectedIds([])
-    setPage(p)
-    load({ page: p })
-  }
 
   const isDeletedView = accountStatus === 'deleted'
   const hasFilter = !!keyword.trim() || !!role || accountStatus !== 'active'
@@ -496,29 +491,10 @@ export default function UsersList() {
       />
 
       {/* 工具条：筛选 + 批量操作 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Select
-              value={role}
-              onChange={handleFilterChange}
-              options={ROLE_FILTER_OPTIONS}
-              style={{ width: 150 }}
-            />
-            <Select
-              value={accountStatus}
-              onChange={handleStatusChange}
-              options={ACCOUNT_STATUS_OPTIONS}
-              style={{ width: 130 }}
-            />
-            {hasFilter && (
-              <Tooltip title="清空关键词与筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Space size={12}>
             {selectedIds.length > 0 && (
               <span className="adm-selinfo">
@@ -543,46 +519,40 @@ export default function UsersList() {
               </PermGuard>
             )}
           </Space>
-        </div>
-      </Card>
+        )}
+      >
+        <Select
+          value={role}
+          onChange={handleFilterChange}
+          options={ROLE_FILTER_OPTIONS}
+          style={{ width: 150 }}
+        />
+        <Select
+          value={accountStatus}
+          onChange={handleStatusChange}
+          options={ACCOUNT_STATUS_OPTIONS}
+          style={{ width: 130 }}
+        />
+      </ListToolbar>
 
       {/* 列表 */}
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<User>
-          className="adm-table"
-          dataSource={users}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1412 }}
-          rowSelection={
-            isDeletedView
-              ? undefined
-              : {
-                  selectedRowKeys: selectedIds,
-                  onChange: (keys) => setSelectedIds(keys as number[]),
-                }
-          }
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的用户'
-                emptyText='还没有用户'
-                onReset={handleResetFilters}
-              />
-          ),
-          }}
-          pagination={{
-            current: page,
-            pageSize: DEFAULT_PAGE_SIZE,
-            total,
-            onChange: handlePageChange,
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
-        />
-      </Card>
+      <DataTable<User>
+        dataSource={users}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1412}
+        rowSelection={
+        isDeletedView
+        ? undefined
+        : {
+        selectedRowKeys: selectedIds,
+        onChange: (keys) => setSelectedIds(keys as number[]),
+        }
+        }
+        pagination={{ page: page, pageSize: DEFAULT_PAGE_SIZE, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的用户", emptyText: "还没有用户", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：删除为软删除 —— 账号标记为「已注销」并保留全部数据，可在「账号状态 → 已注销」中查看并恢复。

@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { Button, Card, ColorPicker, DatePicker, Form, Input, Modal, Segmented, Select, Space, Switch, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, ColorPicker, DatePicker, Form, Input, Modal, Segmented, Select, Space, Switch, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
-import { CloudDownloadOutlined, CloudUploadOutlined, DeleteOutlined, EditOutlined, ReloadOutlined, SoundOutlined } from '@ant-design/icons'
+import { CloudDownloadOutlined, CloudUploadOutlined, DeleteOutlined, EditOutlined, SoundOutlined } from '@ant-design/icons'
 import { apiPost, apiPut } from '../../api/client'
 import { useCrudList } from '../../hooks/useCrudList'
 import { PermGuard } from '../../components/PermGuard'
@@ -12,8 +12,8 @@ import { shouldRetreatOnePage } from '../../utils/pagination'
 import { formatTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 interface Announcement {
   id: number
   title: string
@@ -367,34 +367,10 @@ export default function AnnouncementsList() {
       />
 
       {/* 工具条：筛选 + 批量操作 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Select
-              value={tagFilter}
-              onChange={(v) => {
-                setTagFilter(v)
-                handleFilterChange()
-              }}
-              options={[{ value: '', label: '全部标签' }, ...TAG_OPTIONS]}
-              style={{ width: 130 }}
-            />
-            <Segmented
-              value={publishFilter}
-              onChange={(v) => {
-                setPublishFilter(String(v))
-                handleFilterChange()
-              }}
-              options={PUBLISH_FILTER_OPTIONS}
-            />
-            {hasFilter && (
-              <Tooltip title="清空关键词与筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Space size={12}>
             {selectedIds.length > 0 && (
               <span className="adm-selinfo">
@@ -436,46 +412,41 @@ export default function AnnouncementsList() {
               </Button>
             </PermGuard>
           </Space>
-        </div>
-      </Card>
+        )}
+      >
+        <Select
+          value={tagFilter}
+          onChange={(v) => {
+            setTagFilter(v)
+            handleFilterChange()
+          }}
+          options={[{ value: '', label: '全部标签' }, ...TAG_OPTIONS]}
+          style={{ width: 130 }}
+        />
+        <Segmented
+          value={publishFilter}
+          onChange={(v) => {
+            setPublishFilter(String(v))
+            handleFilterChange()
+          }}
+          options={PUBLISH_FILTER_OPTIONS}
+        />
+      </ListToolbar>
 
       {/* 列表 */}
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<Announcement>
-          className="adm-table"
-          dataSource={items}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1130 }}
-          rowSelection={{
-            selectedRowKeys: selectedIds,
-            onChange: (keys) => setSelectedIds(keys as number[]),
-          }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的公告'
-                emptyText='还没有公告，先创建一条吧'
-                onReset={handleResetFilters}
-                create={{ perm: 'announcement:create', icon: <SoundOutlined />, label: '新增公告', onClick: openCreate }}
-              />
-          ),
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: (p) => {
-              setSelectedIds([])
-              setPage(p)
-            },
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
-        />
-      </Card>
+      <DataTable<Announcement>
+        dataSource={items}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1130}
+        rowSelection={{
+        selectedRowKeys: selectedIds,
+        onChange: (keys) => setSelectedIds(keys as number[]),
+        }}
+        pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的公告", emptyText: "还没有公告，先创建一条吧", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：首页公告条按发布时间倒序轮播<strong>最新 5 条</strong>已发布公告；撤下后重新发布

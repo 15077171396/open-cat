@@ -10,6 +10,7 @@ import { formatTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /**
  * 内容审核中心：机审留痕（纠正误报）与用户举报（处理）放同一页两个 Tab，
  * 两者看的是同一批 UGC 的不合规信号。查看与处理动作权限分开控制。
@@ -305,79 +306,51 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div>
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={statusFilter}
-              onChange={(v) => {
-                setStatusFilter(String(v))
-                setPage(1)
-              }}
-              options={[{ value: '', label: '全部' }, ...statusOptions]}
-            />
-            <Select
-              allowClear
-              placeholder="全部内容类型"
-              value={contentType || undefined}
-              onChange={(v) => {
-                setContentType(v ?? '')
-                setPage(1)
-              }}
-              options={contentTypeOptions}
-              style={{ width: 150 }}
-            />
-            {hasFilter && (
-              <Tooltip title="清空筛选条件">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<ReloadOutlined />}
-                  onClick={() => {
-                    setStatusFilter('')
-                    setContentType('')
-                    setPage(1)
-                  }}
-                >
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={() => { setStatusFilter(''); setContentType('') }}
+        extra={(
           <Tooltip title="重新拉取当前条件下的留痕">
             <Button icon={<ReloadOutlined />} onClick={refresh}>
               刷新
             </Button>
           </Tooltip>
-        </div>
-      </Card>
-
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<ModerationLogItem>
-          className="adm-table"
-          dataSource={items}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1150 }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={hasFilter ? '没有符合筛选条件的留痕' : '暂无机审留痕'}
-              />
-            ),
+        )}
+      >
+        <Segmented
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(String(v))
+            setPage(1)
           }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: setPage,
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
+          options={[{ value: '', label: '全部' }, ...statusOptions]}
         />
-      </Card>
+        <Select
+          allowClear
+          placeholder="全部内容类型"
+          value={contentType || undefined}
+          onChange={(v) => {
+            setContentType(v ?? '')
+            setPage(1)
+          }}
+          options={contentTypeOptions}
+          style={{ width: 150 }}
+        />
+      </ListToolbar>
+
+      <DataTable<ModerationLogItem>
+        dataSource={items}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1150}
+        pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
+        empty={{
+        hasFilter: hasFilter,
+        filteredText: '没有符合筛选条件的审核记录',
+        emptyText: '暂无机器审核记录',
+        }}
+      />
 
       <ReviewModal
         title={`复核机审判定 #${active?.id ?? ''}`}

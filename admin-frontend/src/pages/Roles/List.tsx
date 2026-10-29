@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Card, Drawer, Form, Input, Modal, Segmented, Space, Spin, Table, Tag, Tooltip, Tree, Typography } from 'antd'
+import { Alert, Button, Drawer, Form, Input, Modal, Segmented, Space, Spin, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import type { TableProps } from 'antd'
 import { DeleteOutlined, EditOutlined, KeyOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
@@ -9,8 +9,8 @@ import { getErrorMessage, isFormValidationError } from '../../utils/error'
 import type { RbacPermissionGroup, RbacRole } from '../../types'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /**
  * 角色管理：角色决定管理后台的菜单可见性与按钮级操作权限。
  *
@@ -406,55 +406,36 @@ export default function RolesList() {
         }
       />
 
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={typeFilter}
-              onChange={(v) => setTypeFilter(String(v) as TypeFilter)}
-              options={[
-                { value: '', label: '全部' },
-                { value: 'system', label: '内置' },
-                { value: 'custom', label: '自定义' },
-              ]}
-            />
-            {hasFilter && (
-              <Tooltip title="清空搜索与筛选">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Tooltip title="重新拉取角色与权限数">
             <Button icon={<ReloadOutlined />} onClick={loadRoles}>
               刷新
             </Button>
           </Tooltip>
-        </div>
-      </Card>
-
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<RbacRole>
-          className="adm-table"
-          rowKey="id"
-          columns={columns}
-          dataSource={visibleRoles}
-          loading={loading}
-          scroll={{ x: 1180 }}
-          pagination={false}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的角色'
-                emptyText='暂无角色'
-                onReset={handleResetFilters}
-              />
-          ),
-          }}
+        )}
+      >
+        <Segmented
+          value={typeFilter}
+          onChange={(v) => setTypeFilter(String(v) as TypeFilter)}
+          options={[
+            { value: '', label: '全部' },
+            { value: 'system', label: '内置' },
+            { value: 'custom', label: '自定义' },
+          ]}
         />
-      </Card>
+      </ListToolbar>
+
+      <DataTable<RbacRole>
+        rowKey="id"
+        columns={columns}
+        dataSource={visibleRoles}
+        loading={loading}
+        scrollX={1180}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的角色", emptyText: "暂无角色", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：业务角色为 admin 的账号登录后台后，按此处分配的角色权限渲染菜单与按钮；

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Card, DatePicker, Form, Image, Input, Modal, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Form, Image, Input, Modal, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { CommentOutlined, DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
@@ -11,8 +11,8 @@ import { formatTime } from '../../utils/datetime'
 import type { FeedbackStatus } from '../../types'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /**
  * 用户反馈：用户在前台右侧工具栏提交，后台审阅（改状态 / 写内部备注 / 删除）。
  *
@@ -309,68 +309,43 @@ export default function FeedbackList() {
       />
 
       {/* 工具条：状态 + 提交时间区间 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={statusFilter}
-              onChange={(v) => {
-                setStatusFilter(String(v))
-                setPage(1)
-              }}
-              options={[{ value: '', label: '全部' }, ...statusOptions]}
-            />
-            <DatePicker.RangePicker
-              value={range}
-              onChange={(dates) => {
-                setRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)
-                setPage(1)
-              }}
-              placeholder={['提交开始日期', '提交结束日期']}
-              allowClear
-            />
-            {hasFilter && (
-              <Tooltip title="清空搜索与筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             时间按本地时区取整日，查询时自动换算为库内 UTC
           </Typography.Text>
-        </div>
-      </Card>
-
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<FeedbackItem>
-          className="adm-table"
-          dataSource={items}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1190 }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的反馈'
-                emptyText='暂无用户反馈'
-                onReset={handleResetFilters}
-              />
-          ),
+        )}
+      >
+        <Segmented
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(String(v))
+            setPage(1)
           }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: setPage,
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
+          options={[{ value: '', label: '全部' }, ...statusOptions]}
         />
-      </Card>
+        <DatePicker.RangePicker
+          value={range}
+          onChange={(dates) => {
+            setRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null)
+            setPage(1)
+          }}
+          placeholder={['提交开始日期', '提交结束日期']}
+          allowClear
+        />
+      </ListToolbar>
+
+      <DataTable<FeedbackItem>
+        dataSource={items}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1190}
+        pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的反馈", emptyText: "暂无用户反馈", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：状态流转为 待处理 → 处理中 → 已解决 / 已关闭；「管理员备注」仅内部可见，

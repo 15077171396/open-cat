@@ -21,15 +21,27 @@ export interface DataTableEmptyConfig {
   }
 }
 
-export interface DataTableProps<T> {
+/**
+ * 在 antd `TableProps` 之上只覆盖「分页 / 空态 / 滚动宽度」三项：
+ * 其余属性（rowSelection / expandable / rowClassName / onRow / size …）原样透传，
+ * 页面不必为了用一个 Table 特性就去绕开本组件 —— 那正是「封装一半」最常见的退化方式。
+ */
+export interface DataTableProps<T>
+  extends Omit<
+    TableProps<T>,
+    'columns' | 'dataSource' | 'rowKey' | 'loading' | 'scroll' | 'pagination' | 'locale' | 'className'
+  > {
   columns: TableProps<T>['columns']
   dataSource: T[]
   rowKey?: string | ((record: T) => string)
   loading?: boolean
   /** 横向滚动宽度：列宽之和（含固定操作列），不给则窄屏会挤压 */
   scrollX?: number
-  /** 分页：直接接收 `useCrudList` 的返回值 */
-  pagination: {
+  /**
+   * 分页：直接接收 `useCrudList` 的返回值。
+   * 不传 = 不渲染分页（客户端一次性渲染的树/小表，例如角色、分类、部门）。
+   */
+  pagination?: {
     page: number
     pageSize: number
     total: number
@@ -71,6 +83,7 @@ export default function DataTable<T extends object>({
   pagination,
   empty,
   className,
+  ...rest
 }: DataTableProps<T>) {
   const emptyNode = (
     <TableEmpty
@@ -87,6 +100,7 @@ export default function DataTable<T extends object>({
   return (
     <Card className="adm-tablecard" variant="outlined">
       <Table<T>
+        {...rest}
         className={className ? `adm-table ${className}` : 'adm-table'}
         dataSource={dataSource}
         columns={columns}
@@ -95,7 +109,7 @@ export default function DataTable<T extends object>({
         scroll={scrollX ? { x: scrollX } : undefined}
         locale={{ emptyText: emptyNode }}
         pagination={
-          isEmpty
+          isEmpty || !pagination
             ? false
             : {
                 current: pagination.page,

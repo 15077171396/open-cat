@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Card, Empty, Form, Input, Modal, Radio, Segmented, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, Form, Input, Modal, Radio, Segmented, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { apiGet, apiPut } from '../../api/client'
@@ -11,6 +11,7 @@ import type { AuthRequest } from '../../types'
 
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /**
  * 实名审核（知识星球认证）：通过后按所选时长开通 VIP（在现有剩余时长上叠加）。
  *
@@ -221,50 +222,39 @@ export default function AuthRequestsList() {
         }
       />
 
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Segmented
-            value={statusFilter}
-            onChange={(v) => {
-              setStatusFilter(String(v))
-              setPage(1)
-            }}
-            options={[{ value: '', label: '全部' }, ...statusOptions]}
-          />
+      <ListToolbar
+        hasFilter={!!statusFilter}
+        onReset={() => setStatusFilter('pending')}
+        extra={(
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             按提交时间正序（先到先审）；审批过的记录可在「已通过 / 已驳回」里回查
           </Typography.Text>
-        </div>
-      </Card>
-
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<AuthRequest>
-          className="adm-table"
-          dataSource={items}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1090 }}
-          locale={{
-            emptyText: (
-              <Empty
-                image={Empty.PRESENTED_IMAGE_SIMPLE}
-                description={
-                  statusFilter === 'pending' ? '没有待审核的申请' : '该状态下暂无申请'
-                }
-              />
-            ),
+        )}
+      >
+        <Segmented
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(String(v))
+            setPage(1)
           }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: setPage,
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
+          options={[{ value: '', label: '全部' }, ...statusOptions]}
         />
-      </Card>
+      </ListToolbar>
+
+      <DataTable<AuthRequest>
+        dataSource={items}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1090}
+        pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
+        empty={{
+        hasFilter: !!statusFilter,
+        filteredText: '没有符合筛选条件的认证申请',
+        emptyText: '暂无待处理的认证申请',
+        onReset: () => setStatusFilter('pending'),
+        }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：通过认证会在用户<b>现有剩余时长上叠加</b>（不会覆盖），避免已持有长期 VIP 的用户换绑星球号时被缩短；

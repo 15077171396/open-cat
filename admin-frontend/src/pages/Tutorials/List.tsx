@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, Card, Input, Modal, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, Input, Modal, Segmented, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
-import { BookOutlined, CloudDownloadOutlined, CloudUploadOutlined, DeleteOutlined, EditOutlined, EyeOutlined, PushpinFilled, ReloadOutlined, StarFilled, UndoOutlined } from '@ant-design/icons'
+import { BookOutlined, CloudDownloadOutlined, CloudUploadOutlined, DeleteOutlined, EditOutlined, EyeOutlined, PushpinFilled, StarFilled, UndoOutlined } from '@ant-design/icons'
 import client, { apiPost } from '../../api/client'
 import { useCrudList } from '../../hooks/useCrudList'
 import ContentThumb from '../../components/ContentThumb'
@@ -17,9 +17,8 @@ import { TUTORIAL_CATEGORIES, TUTORIAL_STATUSES } from '../../constants'
 import type { Tutorial } from '../../types'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import ExportButton from '../../components/ui/ExportButton'
-import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar, PageHeader } from '../../components/ui'
 /** 发布状态筛选项（value 直接映射 is_published 布尔值） */
 const PUBLISH_FILTER_OPTIONS = [
   { value: '', label: '全部' },
@@ -415,60 +414,10 @@ export default function TutorialsList() {
       />
 
       {/* 工具条：筛选 + 批量操作 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={recycleView}
-              onChange={(v) => {
-                setRecycleView(String(v))
-                handleFilterChange()
-              }}
-              options={RECYCLE_VIEW_OPTIONS}
-            />
-            <Select
-              value={category}
-              onChange={(v) => {
-                setCategory(v)
-                handleFilterChange()
-              }}
-              options={[{ value: '', label: '全部分类' }, ...categories.map((c) => ({ value: c, label: c }))]}
-              style={{ width: 140 }}
-            />
-            <Select
-              value={status}
-              onChange={(v) => {
-                setStatus(v)
-                handleFilterChange()
-              }}
-              options={[{ value: '', label: '全部更新状态' }, ...TUTORIAL_STATUSES]}
-              style={{ width: 140 }}
-            />
-            <Segmented
-              value={publishFilter}
-              onChange={(v) => {
-                setPublishFilter(String(v))
-                handleFilterChange()
-              }}
-              options={PUBLISH_FILTER_OPTIONS}
-            />
-            <Select
-              value={accessMode}
-              onChange={(v) => {
-                setAccessMode(v)
-                handleFilterChange()
-              }}
-              options={ACCESS_MODE_FILTER_OPTIONS}
-              style={{ width: 130 }}
-            />
-            {hasFilter && (
-              <Tooltip title="清空关键词与筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Space size={12}>
             {selectedIds.length > 0 && (
               <span className="adm-selinfo">
@@ -525,46 +474,67 @@ export default function TutorialsList() {
               </>
             )}
           </Space>
-        </div>
-      </Card>
+        )}
+      >
+        <Segmented
+          value={recycleView}
+          onChange={(v) => {
+            setRecycleView(String(v))
+            handleFilterChange()
+          }}
+          options={RECYCLE_VIEW_OPTIONS}
+        />
+        <Select
+          value={category}
+          onChange={(v) => {
+            setCategory(v)
+            handleFilterChange()
+          }}
+          options={[{ value: '', label: '全部分类' }, ...categories.map((c) => ({ value: c, label: c }))]}
+          style={{ width: 140 }}
+        />
+        <Select
+          value={status}
+          onChange={(v) => {
+            setStatus(v)
+            handleFilterChange()
+          }}
+          options={[{ value: '', label: '全部更新状态' }, ...TUTORIAL_STATUSES]}
+          style={{ width: 140 }}
+        />
+        <Segmented
+          value={publishFilter}
+          onChange={(v) => {
+            setPublishFilter(String(v))
+            handleFilterChange()
+          }}
+          options={PUBLISH_FILTER_OPTIONS}
+        />
+        <Select
+          value={accessMode}
+          onChange={(v) => {
+            setAccessMode(v)
+            handleFilterChange()
+          }}
+          options={ACCESS_MODE_FILTER_OPTIONS}
+          style={{ width: 130 }}
+        />
+      </ListToolbar>
 
       {/* 列表 */}
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<Tutorial>
-          className="adm-table"
-          dataSource={tutorials}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1164 }}
-          rowSelection={{
-            selectedRowKeys: selectedIds,
-            onChange: (keys) => setSelectedIds(keys as number[]),
-          }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的教程'
-                emptyText={inRecycle ? '回收站是空的（删除的教程会出现在这里）' : '还没有教程，先创建第一篇吧'}
-                onReset={handleResetFilters}
-                create={{ perm: 'tutorial:create', icon: <BookOutlined />, label: '新建教程', onClick: () => navigate('/tutorials/new') }}
-              />
-          ),
-          }}
-          pagination={{
-            current: page,
-            pageSize,
-            total,
-            onChange: (p) => {
-              setSelectedIds([])
-              setPage(p)
-            },
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
-        />
-      </Card>
+      <DataTable<Tutorial>
+        dataSource={tutorials}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1164}
+        rowSelection={{
+        selectedRowKeys: selectedIds,
+        onChange: (keys) => setSelectedIds(keys as number[]),
+        }}
+        pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的教程", emptyText: "inRecycle ? '回收站是空的（删除的教程会出现在这里）' : '还没有教程，先创建第一篇吧'", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：批量删除会一并清除所选教程的章节与购买记录，操作不可恢复。

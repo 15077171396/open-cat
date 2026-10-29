@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { Key } from 'react'
-import { Button, Card, Form, Input, InputNumber, Modal, Space, Table, Tooltip, TreeSelect, Typography } from 'antd'
+import { Button, Form, Input, InputNumber, Modal, Space, Tooltip, TreeSelect, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { ApartmentOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { apiDelete, apiGet, apiPost, apiPut } from '../../api/client'
@@ -9,8 +9,8 @@ import { getErrorMessage, isFormValidationError } from '../../utils/error'
 import type { Department } from '../../types'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable } from '../../components/ui'
 /**
  * 部门管理：部门是用户的**组织归属**（在用户管理中分配），用于后台分组与筛选展示，
  * **不参与权限判定** —— 权限只看角色（角色管理）。
@@ -346,33 +346,19 @@ export default function DepartmentsList() {
         }
       />
 
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<DeptRow>
-          className="adm-table"
-          rowKey="id"
-          columns={columns}
-          dataSource={visibleRows}
-          loading={loading}
-          pagination={false}
-          scroll={{ x: 900 }}
-          expandable={{
-            expandedRowKeys: expandedKeys,
-            onExpandedRowsChange: (keys) => setExpandedKeys([...keys]),
-            childrenColumnName: 'children',
-          }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={!!keyword}
-                filteredText="没有匹配的部门"
-                emptyText="还没有部门，先建一个吧"
-                onReset={() => setKeywordInput('')}
-                create={{ perm: 'department:create', icon: <PlusOutlined />, label: '新建部门', onClick: () => openCreate() }}
-              />
-            ),
-          }}
-        />
-      </Card>
+      <DataTable<DeptRow>
+        rowKey="id"
+        columns={columns}
+        dataSource={visibleRows}
+        loading={loading}
+        scrollX={900}
+        expandable={{
+        expandedRowKeys: expandedKeys,
+        onExpandedRowsChange: (keys) => setExpandedKeys([...keys]),
+        childrenColumnName: 'children',
+        }}
+        empty={{ hasFilter: !!keyword, filteredText: "没有匹配的部门", emptyText: "还没有部门，先建一个吧", onReset: () => setKeywordInput('') }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：部门是用户的<b>组织归属</b>（在「用户管理」里分配），用于后台分组与筛选展示，

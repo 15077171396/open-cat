@@ -7,7 +7,7 @@ import { useCrudList } from '../../hooks/useCrudList'
 import type { PointTransaction } from '../../types'
 import { POINT_TX_TYPE_MAP } from '../../constants'
 import { formatDateTime } from '../../utils/datetime'
-import { DataTable, ExportButton, ListToolbar, PageHeader } from '../../components/ui'
+import { PageHeader, DataTable, ExportButton, ListToolbar } from '../../components/ui'
 
 /** 类型筛选项（取值与后端 VALID_TYPES 一致） */
 const TYPE_FILTER_OPTIONS = [
@@ -228,10 +228,10 @@ export default function PointsList() {
         scrollX={1250}
         pagination={{ page, pageSize, total, onPageChange: setPage }}
         empty={{
-          hasFilter,
-          filteredText: '没有符合筛选条件的流水',
-          emptyText: '暂无积分流水',
-          onReset: handleResetFilters,
+        hasFilter,
+        filteredText: '没有符合筛选条件的流水',
+        emptyText: '暂无积分流水',
+        onReset: handleResetFilters,
         }}
       />
 

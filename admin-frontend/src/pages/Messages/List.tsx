@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   Button,
-  Card,
   Form,
   Input,
   Modal,
   Radio,
   Select,
   Space,
-  Table,
   Tag,
   Tooltip,
   Typography,
@@ -17,12 +15,12 @@ import type { TableProps } from 'antd'
 import { NotificationOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import { apiGet, apiPost } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
-import { TableEmpty } from '../../components/TableEmpty'
 import { getErrorMessage, isFormValidationError } from '../../utils/error'
 import { formatTime } from '../../utils/datetime'
 import { toast } from '../../utils/toast'
 import type { PaginatedResponse, AdminUser } from '../../types'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable } from '../../components/ui'
 
 /**
  * 站内消息通知：给用户发系统通知（全站 / 指定用户）。
@@ -207,34 +205,15 @@ export default function MessageList() {
         }
       />
 
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<MessageBatch>
-          className="adm-table"
-          dataSource={items}
-          columns={columns}
-          rowKey="batch_id"
-          loading={loading}
-          scroll={{ x: 900 }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={false}
-                emptyText="还没有发过系统通知"
-                filteredText="没有符合条件的通知"
-                onReset={() => setPage(1)}
-              />
-            ),
-          }}
-          pagination={{
-            current: page,
-            pageSize: PAGE_SIZE,
-            total,
-            onChange: setPage,
-            showTotal: (t) => `共 ${t} 批次`,
-            showSizeChanger: false,
-          }}
-        />
-      </Card>
+      <DataTable<MessageBatch>
+        dataSource={items}
+        columns={columns}
+        rowKey="batch_id"
+        loading={loading}
+        scrollX={900}
+        pagination={{ page: page, pageSize: PAGE_SIZE, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: false, filteredText: "没有符合条件的通知", emptyText: "还没有发过系统通知", onReset: () => setPage(1) }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：一次群发会给每个接收用户各写一条站内消息，上表按批次聚合展示送达与已读情况；

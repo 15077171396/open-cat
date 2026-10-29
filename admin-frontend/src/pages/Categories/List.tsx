@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Alert, Button, Card, Input, Modal, Popconfirm, Segmented, Space, Table, Tabs, Tooltip, Typography } from 'antd'
+import { Alert, Button, Input, Modal, Popconfirm, Segmented, Space, Tabs, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
-import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined, SearchOutlined, TagsOutlined } from '@ant-design/icons'
+import { ArrowDownOutlined, ArrowUpOutlined, DeleteOutlined, EditOutlined, PlusOutlined, SearchOutlined, TagsOutlined } from '@ant-design/icons'
 import { apiDelete, apiGet, apiPost, apiPut } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
 import { clearCategoryCache } from '../../utils/categories'
@@ -9,8 +9,8 @@ import { formatDate } from '../../utils/datetime'
 import { getErrorMessage } from '../../utils/error'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar } from '../../components/ui'
 /** 可管理的分类模块（与后端 MODULE_TABLE_MAP 一致；`tool` 曾因 schema 白名单漏配而无法新增） */
 type ModuleKey = 'tutorial' | 'resource' | 'node' | 'plugin' | 'tool'
 
@@ -380,51 +380,31 @@ export default function CategoriesList() {
       )}
 
       {/* 工具条 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={usageFilter}
-              onChange={(v) => setUsageFilter(String(v))}
-              options={USAGE_FILTER_OPTIONS}
-            />
-            {hasFilter && (
-              <Tooltip title="清空搜索与筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             列表顺序即前台展示顺序，用操作列的 ↑ ↓ 调整
           </Typography.Text>
-        </div>
-      </Card>
+        )}
+      >
+        <Segmented
+          value={usageFilter}
+          onChange={(v) => setUsageFilter(String(v))}
+          options={USAGE_FILTER_OPTIONS}
+        />
+      </ListToolbar>
 
       {/* 列表 */}
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<CategoryRow>
-          className="adm-table"
-          dataSource={rows}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 942 }}
-          pagination={false}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的分类'
-                emptyText={`${activeLabel}模块还没有分类，先新增一个吧`}
-                onReset={handleResetFilters}
-                create={{ perm: 'category:create', icon: <PlusOutlined />, label: '新增分类', onClick: openCreate }}
-              />
-          ),
-          }}
-        />
-      </Card>
+      <DataTable<CategoryRow>
+        dataSource={rows}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={942}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的分类", emptyText: "`${activeLabel", onReset: handleResetFilters }}
+      />
 
       <Modal
         title={editingRow === null ? `新增${activeLabel}分类` : '编辑分类'}

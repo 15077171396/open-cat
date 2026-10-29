@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, Card, DatePicker, Input, Segmented, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Input, Segmented, Select, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { AuditOutlined, ReloadOutlined } from '@ant-design/icons'
@@ -8,8 +8,9 @@ import { getErrorMessage } from '../../utils/error'
 import { formatDateTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
-import { TableEmpty } from '../../components/TableEmpty'
 import PageHeader from '../../components/ui/PageHeader'
+import { DEFAULT_PAGE_SIZE } from '../../constants'
+import { DataTable, ListToolbar } from '../../components/ui'
 /**
  * 管理操作审计：**只读**页面（能改能删的审计等于没有审计，故不用 useCrudList）。
  *
@@ -262,98 +263,73 @@ export default function AuditLogsList() {
       />
 
       {/* 工具条：四个筛选维度 */}
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Select
-              allowClear
-              placeholder="按动作筛选"
-              value={action || undefined}
-              onChange={(v) => resetPageAnd(() => setAction(v ?? ''))}
-              options={actionOptions}
-              style={{ width: 170 }}
-            />
-            <Select
-              allowClear
-              placeholder="按目标类型筛选"
-              value={targetType || undefined}
-              onChange={(v) => resetPageAnd(() => setTargetType(v ?? ''))}
-              options={targetTypeOptions}
-              style={{ width: 150 }}
-            />
-            <Segmented
-              value={risk}
-              onChange={(v) => resetPageAnd(() => setRisk(String(v)))}
-              options={[{ value: '', label: '全部' }, ...riskOptions]}
-            />
-            <DatePicker.RangePicker
-              value={range}
-              onChange={(dates) =>
-                resetPageAnd(() => setRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null))
-              }
-              placeholder={['开始日期', '结束日期']}
-              allowClear
-            />
-            <Input
-              allowClear
-              placeholder="操作者 ID"
-              value={adminIdInput}
-              onChange={(e) => setAdminIdInput(e.target.value)}
-              onPressEnter={(e) => {
-                const v = (e.target as HTMLInputElement).value
-                resetPageAnd(() => setAdminId(v.trim()))
-              }}
-              style={{ width: 130 }}
-            />
-            {hasFilter && (
-              <Tooltip title="清空全部筛选条件">
-                <Button type="text" size="small" icon={<ReloadOutlined />} onClick={handleResetFilters}>
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={handleResetFilters}
+        extra={(
           <Tooltip title="重新拉取当前条件下的审计记录">
             <Button icon={<ReloadOutlined />} onClick={load}>
               刷新
             </Button>
           </Tooltip>
-        </div>
-      </Card>
-
-      <Card className="adm-tablecard" variant="outlined">
-        <Table<AuditLogItem>
-          className="adm-table"
-          dataSource={items}
-          columns={columns}
-          rowKey="id"
-          loading={loading}
-          scroll={{ x: 1190 }}
-          locale={{
-            emptyText: (
-              <TableEmpty
-                hasFilter={hasFilter}
-                filteredText='没有符合筛选条件的审计记录'
-                emptyText='暂无审计记录'
-                onReset={handleResetFilters}
-              />
-          ),
-          }}
-          pagination={{
-            current: page,
-            pageSize: 20,
-            total,
-            onChange: setPage,
-            showTotal: (t) => `共 ${t} 条`,
-            showSizeChanger: false,
-          }}
-          expandable={{
-            // 明细默认收起：一屏要能扫过更多记录，需要细节时再展开
-            expandedRowRender: (row) => <AuditDetail row={row} />,
-            rowExpandable: (row) => !!row.detail || !!row.ip || !!row.request_id,
-          }}
+        )}
+      >
+        <Select
+          allowClear
+          placeholder="按动作筛选"
+          value={action || undefined}
+          onChange={(v) => resetPageAnd(() => setAction(v ?? ''))}
+          options={actionOptions}
+          style={{ width: 170 }}
         />
-      </Card>
+        <Select
+          allowClear
+          placeholder="按目标类型筛选"
+          value={targetType || undefined}
+          onChange={(v) => resetPageAnd(() => setTargetType(v ?? ''))}
+          options={targetTypeOptions}
+          style={{ width: 150 }}
+        />
+        <Segmented
+          value={risk}
+          onChange={(v) => resetPageAnd(() => setRisk(String(v)))}
+          options={[{ value: '', label: '全部' }, ...riskOptions]}
+        />
+        <DatePicker.RangePicker
+          value={range}
+          onChange={(dates) =>
+            resetPageAnd(() => setRange(dates && dates[0] && dates[1] ? [dates[0], dates[1]] : null))
+          }
+          placeholder={['开始日期', '结束日期']}
+          allowClear
+        />
+        <Input
+          allowClear
+          placeholder="操作者 ID"
+          value={adminIdInput}
+          onChange={(e) => setAdminIdInput(e.target.value)}
+          onPressEnter={(e) => {
+            const v = (e.target as HTMLInputElement).value
+            resetPageAnd(() => setAdminId(v.trim()))
+          }}
+          style={{ width: 130 }}
+        />
+      </ListToolbar>
+
+      <DataTable<AuditLogItem>
+        dataSource={items}
+        columns={columns}
+        rowKey="id"
+        loading={loading}
+        scrollX={1190}
+        expandable={{
+        // 明细默认收起：一屏要能扫过更多记录，需要细节时再展开
+        expandedRowRender: (row) => <AuditDetail row={row} />,
+        rowExpandable: (row) => !!row.detail || !!row.ip || !!row.request_id,
+        }}
+        pagination={{ page: page, pageSize: DEFAULT_PAGE_SIZE, total: total, onPageChange: setPage }}
+        empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的审计记录", emptyText: "暂无审计记录", onReset: handleResetFilters }}
+      />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         提示：审计保留 365 天；操作者账号是{' '}
