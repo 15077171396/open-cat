@@ -201,6 +201,12 @@ class Settings(BaseSettings):
     # 可选国外文章平台出站代理，仅对国内无法直连的国外社区平台 (X/Twitter、Reddit、Medium、Hacker News) 生效，格式同 GITHUB_PROXY
     ARTICLE_PROXY: str = ""
 
+    # ---- 模块开关 ----
+    # 逗号分隔的模块 key；留空 = 按各模块默认（支付/积分/实名为默认关闭）。
+    # 非空时**只启用列出的模块**（核心模块始终启用），用于给不同站点做裁剪。
+    # 可选值见 app/module_registry.py 的 MODULES。
+    ENABLED_MODULES: str = ""
+
     # ---- 文件存储驱动 ----
     # local = 落本机磁盘（开源默认，不需要任何云账号）；cos = 腾讯云对象存储（生产/CDN）
     STORAGE_DRIVER: str = "local"

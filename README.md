@@ -149,7 +149,7 @@ docs/            文档
 ## 路线图
 
 - [x] 按钮级 RBAC + 审计 + 审核 + AI 写作
-- [x] 模块开关（`module_registry`）
+- [x] 模块开关（`module_registry`，默认关闭支付 / 积分 / 实名）
 - [ ] 存储抽象（local / S3 / COS）
 - [ ] 安装向导 + 最小化 compose
 - [ ] 列表导出（CSV / XLSX）

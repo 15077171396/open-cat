@@ -155,19 +155,35 @@ def _item_to_dict(item: MenuItem) -> dict:
     return data
 
 
-def menu_tree() -> dict:
-    """菜单树（GET /admin/menus 的 data 部分）"""
-    return {
-        "groups": [
+def menu_tree(only_enabled: bool = True) -> dict:
+    """菜单树（GET /admin/menus 的 data 部分）。
+
+    :param only_enabled: 按 `module_registry` 的模块开关过滤。
+        关掉的模块不该留下入口——否则点进去只会拿到「模块未启用」的 403。
+        空分组会被整组丢弃，避免侧边栏出现只有标题的折叠块。
+    """
+    from app import module_registry
+
+    def keeps(item: MenuItem) -> bool:
+        return not only_enabled or module_registry.menu_visible(item.key)
+
+    groups = []
+    for group in MENU_GROUPS:
+        items = [item for item in group.items if keeps(item)]
+        if not items:  # 整组被裁光时不渲染
+            continue
+        groups.append(
             {
                 "key": group.key,
                 "label": group.label,
                 "icon": group.icon,
-                "items": [_item_to_dict(item) for item in group.items],
+                "items": [_item_to_dict(item) for item in items],
             }
-            for group in MENU_GROUPS
-        ],
-        "footer": [_item_to_dict(item) for item in MENU_FOOTER],
+        )
+
+    return {
+        "groups": groups,
+        "footer": [_item_to_dict(item) for item in MENU_FOOTER if keeps(item)],
     }
 
 

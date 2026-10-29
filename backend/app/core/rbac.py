@@ -14,6 +14,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.core.exceptions import PermissionDeniedError
 from app.models.user import User
+from app import module_registry
 from app.services import rbac_service
 
 # 路径参数占位：OpenAPI 模板 {xxx} → 段级通配
@@ -314,6 +315,13 @@ async def check_route_permission(
 ) -> None:
     """管理端路由级权限校验依赖（挂在 admin router 的 dependencies 上）：
     匹配且权限码为空 → 仅需 admin 门槛；非空 → any-of 校验；未匹配规则 → fail-closed 403"""
+    # 模块开关先于权限判定：被裁掉的模块，其接口对任何人都不可用
+    # （含 super_admin），否则「关掉支付」只是把菜单藏了，接口仍可调。
+    if not module_registry.is_path_enabled(request.url.path):
+        module = module_registry.module_for_path(request.url.path)
+        label = module.label if module else "该模块"
+        raise PermissionDeniedError(f"{label} 未启用（ENABLED_MODULES 中未包含）")
+
     required = match_route_permission(request.method, request.url.path)
     if required is None:
         raise PermissionDeniedError(f"该接口未配置访问权限: {request.method} {request.url.path}")
