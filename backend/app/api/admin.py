@@ -12,6 +12,8 @@ from app.api import (  # noqa: F401
     # 列表导出（CSV）：数据外带，权限与各自列表页一致，每次导出写审计
     admin_export,
     admin_tutorials,
+    # 分类分组：分类页左栏（组）与右栏（分类）的组织结构
+    admin_category_groups,
     admin_users,
     admin_redeem_codes,
     admin_announcements,

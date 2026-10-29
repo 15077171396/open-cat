@@ -3,12 +3,19 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.content_types import label_for
 from app.database import get_db
 from app.core.rbac import require_permission
 from app.core.permissions import require_admin
 from app.models.user import User
 from app.core.exceptions import success_response, AppException
-from app.schemas.category import CategoryCreate, CategoryUpdate, CategoryReorder
+from app.schemas.category import (
+    CategoryCreate,
+    CategoryModuleItem,
+    CategoryModulesData,
+    CategoryReorder,
+    CategoryUpdate,
+)
 from app.schemas.common import ApiResponse
 from app.services.category_service import (
     get_cached_categories,
@@ -22,6 +29,24 @@ from app.services.category_service import (
 from app.schemas.admin import ActionAck, CreatedResult, StatsResult
 
 router = APIRouter()
+
+
+@router.get("", response_model=ApiResponse[CategoryModulesData])
+async def list_category_modules():
+    """可管理分类的内容类型清单（前端 Tab / 分组**从这里取**，不再硬编码）。
+
+    为什么单独有这么一条：分类页原先在前端写死了 `tutorial/resource/node/plugin/tool`
+    五个 Tab，模块下线后前端不会报错，只会留下「点进去 422」的死入口。
+    清单派生自 `MODULE_TABLE_MAP`（= 内容类型注册表），与后端校验同源。
+    """
+    return success_response(
+        CategoryModulesData(
+            modules=[
+                CategoryModuleItem(key=module, label=label_for(module))
+                for module in MODULE_TABLE_MAP
+            ]
+        )
+    )
 
 
 def _assert_known_module(module: str) -> None:
@@ -76,9 +101,15 @@ async def create_category_endpoint(
 ):
     """创建分类(管理员，需 category:create 权限)。require_admin 与 require_permission 缺一不可：
     后者只查 RBAC 权限码，而 user 角色账号也能被分配权限，单靠它会让业务上非管理员的账号写站内公共数据"""
-    category = await create_category(db, body.module, body.name)
+    category = await create_category(db, body.module, body.name, body.group_id)
     return success_response(
-        {"id": category.id, "module": category.module, "name": category.name, "sort_order": category.sort_order},
+        {
+            "id": category.id,
+            "module": category.module,
+            "name": category.name,
+            "group_id": category.group_id,
+            "sort_order": category.sort_order,
+        },
         "创建成功",
     )
 
@@ -92,9 +123,15 @@ async def update_category_endpoint(
     _: User = Depends(require_permission("category:edit")),
 ):
     """更新分类(管理员，需 category:edit 权限)——闸口说明见 create_category_endpoint"""
-    category = await update_category(db, category_id, body.name)
+    category = await update_category(db, category_id, body.name, body.group_id)
     return success_response(
-        {"id": category.id, "module": category.module, "name": category.name, "sort_order": category.sort_order},
+        {
+            "id": category.id,
+            "module": category.module,
+            "name": category.name,
+            "group_id": category.group_id,
+            "sort_order": category.sort_order,
+        },
         "更新成功",
     )
 

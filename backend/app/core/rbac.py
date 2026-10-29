@@ -87,6 +87,16 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("POST", "/api/v1/admin/translate-content", _CONTENT_EDIT_ANY),
     ("GET", "/api/v1/admin/translate-content/{task_id}", _CONTENT_EDIT_ANY),
 
+    # 分类分组（分类页左下栏）：权限码复用 category:*，理由见 api/admin_category_groups.py
+    # ⚠️ reorder 必须排在 /{group_id} 之前：{group_id} 的通配正则会同时匹配 "reorder"
+    ("GET", "/api/v1/admin/category-groups", ["category:view"]),
+    ("POST", "/api/v1/admin/category-groups", ["category:create"]),
+    ("PUT", "/api/v1/admin/category-groups/reorder", ["category:edit"]),
+    ("PUT", "/api/v1/admin/category-groups/{group_id}", ["category:edit"]),
+    ("DELETE", "/api/v1/admin/category-groups/{group_id}", ["category:delete"]),
+    # 把分类移入/移出分组
+    ("PUT", "/api/v1/admin/categories/{category_id}/group", ["category:edit"]),
+
     # 用户管理
     ("GET", "/api/v1/admin/users", ["user:view"]),
     ("POST", "/api/v1/admin/users", ["user:create"]),

@@ -86,7 +86,8 @@
 
 /* ---- 工具条卡片 ---- */
 .adm-toolbar.ant-card,
-.adm-tablecard.ant-card {
+.adm-tablecard.ant-card,
+.adm-sidecard.ant-card {
   border-radius: var(--app-radius);
   border-color: var(--app-border-light);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
@@ -122,6 +123,11 @@
 .adm-selinfo strong {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
+}
+
+/* ---- 侧栏卡片（分组/树这类非表格容器）---- */
+.adm-sidecard.ant-card .ant-card-body {
+  padding: 4px 0;
 }
 
 /* ---- 表格 ---- */

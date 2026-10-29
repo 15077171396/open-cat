@@ -124,3 +124,48 @@ class ReorderTests(_CategoryFixture):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CategoryModulesEndpointTests(unittest.IsolatedAsyncioTestCase):
+    """分类页的「内容类型分组」必须来自后端，不能前端硬编码。
+
+    回归背景：资源/知识百科/扩展/在线工具下线后，分类页仍渲染五个写死的 Tab，
+    点进去新增分类直接 422 —— 前端不报错，只是多出四个死入口。
+    """
+
+    async def test_modules_derive_from_content_type_registry(self):
+        from app.api.categories import list_category_modules
+        from app.services.category_service import MODULE_TABLE_MAP
+
+        resp = await list_category_modules()
+        modules = resp["data"].modules
+
+        self.assertEqual([m.key for m in modules], list(MODULE_TABLE_MAP))
+        for item in modules:
+            self.assertTrue(item.label, f"{item.key} 缺中文名，前端 Tab 会显示裸键")
+
+    async def test_no_removed_module_leaks_into_the_list(self):
+        from app.api.categories import list_category_modules
+
+        keys = {m.key for m in (await list_category_modules())["data"].modules}
+        for gone in ("resource", "node", "plugin", "tool"):
+            self.assertNotIn(gone, keys, f"{gone} 已下线，不该再出现在分类分组里")
+
+
+class CategoryModulesHttpTests(unittest.IsolatedAsyncioTestCase):
+    """走真实路由再验一次：直接调函数会绕过 `response_model` 序列化。
+
+    第一版把 `response_model` 写成 `ApiResponse[list]` 却返回 `{"modules": [...]}`，
+    直调测试全绿、真实请求 500 —— 这类形状错只有 HTTP 层能抓到。
+    """
+
+    async def test_modules_endpoint_serializes(self):
+        from tests.conftest import async_client
+
+        async with async_client(include_auth=False) as client:
+            resp = await client.get("/api/v1/categories")
+
+        self.assertEqual(resp.status_code, 200)
+        payload = resp.json()["data"]["modules"]
+        self.assertEqual([m["key"] for m in payload], ["tutorial"])
+        self.assertEqual(payload[0]["label"], "教程")

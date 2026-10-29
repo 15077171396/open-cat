@@ -84,7 +84,11 @@ MODULES: tuple[ModuleDef, ...] = (
         key="category",
         label="分类",
         default_enabled=True,
-        path_prefixes=("/api/v1/categories",),
+        path_prefixes=(
+            "/api/v1/categories",
+            "/api/v1/admin/categories",
+            "/api/v1/admin/category-groups",
+        ),
         menu_keys=("/categories",),
     ),
     ModuleDef(

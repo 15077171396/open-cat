@@ -7,7 +7,7 @@ from app.models.ai_model import AiModel
 from app.models.ai_writing_prompt import AiWritingPrompt
 from app.models.announcement import Announcement, NotificationSetting
 from app.models.auth_request import AuthRequest
-from app.models.category import Category
+from app.models.category import Category, CategoryGroup
 from app.models.comment import ContentComment
 from app.models.content_view import ContentView
 from app.models.download import Download
@@ -37,6 +37,7 @@ __all__ = [
     "NotificationSetting",
     "AuthRequest",
     "Category",
+    "CategoryGroup",
     "ContentComment",
     "ContentView",
     "Download",

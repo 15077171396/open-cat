@@ -95,7 +95,7 @@ docker compose exec app python seed_demo.py
 **部署** Docker Compose · nginx · 可选 Sentry
 
 ```
-backend/         FastAPI 应用（215 端点，116 管理端）
+backend/         FastAPI 应用（222 端点，122 管理端）
 admin-frontend/  管理后台 SPA（base=/admin/）
 deploy/          compose + nginx
 docs/            文档
@@ -109,7 +109,7 @@ docs/            文档
 
 | 能力 | 本项目 | 同类开源后台常见情况 |
 |------|--------|-------------------|
-| 后端测试 | **137 个文件 / 1684 个用例**，全程离线可跑（不需 MySQL/Redis） | 0 ～ 数十 |
+| 后端测试 | **138 个文件 / 1699 个用例**，全程离线可跑（不需 MySQL/Redis） | 0 ～ 数十 |
 | 架构守卫 | 权限覆盖 / 审计覆盖 / 菜单一致性 / 任务注册表，均有用例守着 | 少见 |
 | 密钥存储 | Fernet 加密落库 + 掩码哨兵 | 明文存表或存配置文件 |
 | 审计 | 写操作强制留痕，缺失即测试失败 | 有日志但无覆盖保障 |

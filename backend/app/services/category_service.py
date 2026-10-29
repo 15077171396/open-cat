@@ -8,7 +8,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.content_types import CONTENT_TYPES
 from app.core.exceptions import AppException, NotFoundError
-from app.models.category import Category
+from app.services.admin_audit_service import record_admin_action
+from app.models.category import Category, CategoryGroup
+from app.models.user import User
 # 仅 `list_categories_with_tutorial_count` 需要（教程分类计数，不是通用映射）
 from app.models.tutorial import Tutorial
 from app.redis import log_redis_degraded, redis_client
@@ -39,6 +41,168 @@ async def list_categories(db: AsyncSession, module: str) -> list[Category]:
         .order_by(Category.sort_order.asc(), Category.id.asc())
     )
     return list(result.scalars().all())
+
+
+# ---------------------------------------------------------------------------
+# 分类分组（同一内容类型内部的次级组织，不参与内容筛选）
+# ---------------------------------------------------------------------------
+
+
+async def list_groups(db: AsyncSession, module: str) -> list[CategoryGroup]:
+    """某内容类型下的分组，按 sort_order、id 升序（顺序即页面左侧展示顺序）。"""
+    rows = await db.execute(
+        select(CategoryGroup)
+        .where(CategoryGroup.module == module)
+        .order_by(CategoryGroup.sort_order.asc(), CategoryGroup.id.asc())
+    )
+    return list(rows.scalars().all())
+
+
+async def _get_group(db: AsyncSession, group_id: int) -> CategoryGroup:
+    group = (
+        await db.execute(select(CategoryGroup).where(CategoryGroup.id == group_id))
+    ).scalar_one_or_none()
+    if group is None:
+        raise AppException(code=404, message="分组不存在")
+    return group
+
+
+async def _assert_group_belongs_to_module(
+    db: AsyncSession, group_id: int, module: str
+) -> CategoryGroup:
+    """把分类挂到别的内容类型的分组下是越界组合：在写入口就拒掉。"""
+    group = await _get_group(db, group_id)
+    if group.module != module:
+        raise AppException(code=400, message="该分组不属于当前内容类型")
+    return group
+
+
+async def create_group(
+    db: AsyncSession, module: str, name: str, admin: User | None = None
+) -> CategoryGroup:
+    existing = await db.execute(
+        select(CategoryGroup).where(CategoryGroup.module == module, CategoryGroup.name == name)
+    )
+    if existing.scalar_one_or_none():
+        raise AppException(code=400, message=f"分组 '{name}' 已存在")
+
+    max_order = await db.execute(
+        select(func.coalesce(func.max(CategoryGroup.sort_order), 0)).where(
+            CategoryGroup.module == module
+        )
+    )
+    group = CategoryGroup(module=module, name=name, sort_order=(max_order.scalar() or 0) + 1)
+    db.add(group)
+    await db.flush()
+    if admin is not None:
+        record_admin_action(
+            db, admin, "category_group_create",
+            target_type="category_group", target_id=group.id,
+            summary=f"新建分类分组「{name}」（{module}）",
+        )
+    await db.commit()
+    await db.refresh(group)
+    return group
+
+
+async def rename_group(
+    db: AsyncSession, group_id: int, name: str, admin: User | None = None
+) -> CategoryGroup:
+    group = await _get_group(db, group_id)
+    if name != group.name:
+        existing = await db.execute(
+            select(CategoryGroup).where(
+                CategoryGroup.module == group.module,
+                CategoryGroup.name == name,
+                CategoryGroup.id != group_id,
+            )
+        )
+        if existing.scalar_one_or_none():
+            raise AppException(code=400, message=f"分组 '{name}' 已存在")
+        group.name = name
+        if admin is not None:
+            record_admin_action(
+                db, admin, "category_group_update",
+                target_type="category_group", target_id=group_id,
+                summary=f"重命名分类分组为「{name}」",
+            )
+    await db.commit()
+    await db.refresh(group)
+    return group
+
+
+async def delete_group(db: AsyncSession, group_id: int, admin: User | None = None) -> None:
+    """删除分组。组下还有分类时**拒绝**（不级联删分类）：分类被内容引用着，
+
+    静默连同分类一起删会让内容指向一个不存在的分类（前台筛选直接筛空）。
+    """
+    group = await _get_group(db, group_id)
+    count = int(
+        (
+            await db.execute(
+                select(func.count()).select_from(Category).where(Category.group_id == group_id)
+            )
+        ).scalar()
+        or 0
+    )
+    if count > 0:
+        raise AppException(
+            code=400, message=f"该分组下还有 {count} 个分类，请先移出或删除分类"
+        )
+    await db.delete(group)
+    if admin is not None:
+        record_admin_action(
+            db, admin, "category_group_delete",
+            target_type="category_group", target_id=group_id,
+            summary=f"删除分类分组「{group.name}」（{group.module}）",
+        )
+    await db.commit()
+
+
+async def reorder_groups(
+    db: AsyncSession, module: str, ids: list[int], admin: User | None = None
+) -> list[dict]:
+    """按给定顺序重排分组，sort_order 从 1 起连续赋值（与分类重排同口径）。"""
+    groups = await list_groups(db, module)
+    known = {g.id for g in groups}
+    if set(ids) != known:
+        raise AppException(code=400, message="排序列表必须包含该模块的全部分组")
+
+    by_id = {g.id: g for g in groups}
+    for order, gid in enumerate(ids, start=1):
+        by_id[gid].sort_order = order
+    if admin is not None:
+        record_admin_action(
+            db, admin, "category_group_update",
+            target_type="category_group", target_id=None,
+            summary=f"调整分类分组顺序（{module}，{len(ids)} 个）",
+            detail={"ids": ids},
+        )
+    await db.commit()
+    return [{"id": gid, "sort_order": i} for i, gid in enumerate(ids, start=1)]
+
+
+async def move_category(
+    db: AsyncSession, category_id: int, group_id: int | None, admin: User | None = None
+) -> Category:
+    """把分类移入某个分组；`group_id=None` 表示移出分组（回到「未分组」）。
+
+    单独一个入口而不是塞进 update_category：更新分类时 `group_id=None` 必须表达
+    「不改」，而移动接口需要表达「置空」—— 同一个字段两种语义，只能靠不同接口区分。
+    """
+    category = await _get_category(db, category_id)
+    if group_id is not None:
+        await _assert_group_belongs_to_module(db, group_id, category.module)
+    category.group_id = group_id
+    if admin is not None:
+        record_admin_action(
+            db, admin, "category_move",
+            target_type="category_group", target_id=group_id,
+            summary=f"移动分类「{category.name}」到{'未分组' if group_id is None else f'分组 #{group_id}'}",
+        )
+    await db.commit()
+    await db.refresh(category)
+    return category
 
 
 async def is_known_category(db: AsyncSession, module: str, value: str | None) -> bool:
@@ -119,6 +283,7 @@ async def get_module_overview(db: AsyncSession, module: str) -> dict:
         {
             "id": c.id,
             "name": c.name,
+            "group_id": c.group_id,
             "sort_order": c.sort_order,
             "content_count": counts.get(c.name, 0),
             "created_at": c.created_at.isoformat() if c.created_at else None,
@@ -133,9 +298,25 @@ async def get_module_overview(db: AsyncSession, module: str) -> dict:
         ),
         key=lambda o: (-o["content_count"], o["name"]),
     )
+    groups = await list_groups(db, module)
+    group_counts: dict[int | None, int] = {}
+    for it in items:
+        group_counts[it["group_id"]] = group_counts.get(it["group_id"], 0) + 1
+
     return {
         "module": module,
         "items": items,
+        "groups": [
+            {
+                "id": g.id,
+                "name": g.name,
+                "sort_order": g.sort_order,
+                "category_count": group_counts.get(g.id, 0),
+            }
+            for g in groups
+        ],
+        # 未分组是「虚拟组」：不是真实记录，但页面上要能作为一个可选项展示
+        "ungrouped_count": group_counts.get(None, 0),
         "orphans": orphans,
         "total_content": total_content,
     }
@@ -178,8 +359,13 @@ async def list_categories_with_tutorial_count(db: AsyncSession) -> list[dict]:
     ]
 
 
-async def create_category(db: AsyncSession, module: str, name: str) -> Category:
-    """创建分类"""
+async def create_category(
+    db: AsyncSession, module: str, name: str, group_id: int | None = None
+) -> Category:
+    """创建分类（可选归属某个分组）"""
+    if group_id is not None:
+        await _assert_group_belongs_to_module(db, group_id, module)
+
     # 检查重复
     existing = await db.execute(
         select(Category).where(Category.module == module, Category.name == name)
@@ -194,7 +380,7 @@ async def create_category(db: AsyncSession, module: str, name: str) -> Category:
     )
     sort_order = (max_order.scalar() or 0) + 1
 
-    category = Category(module=module, name=name, sort_order=sort_order)
+    category = Category(module=module, name=name, sort_order=sort_order, group_id=group_id)
     db.add(category)
     # 显式提交：确保响应返回前事务已落库（get_db teardown 的 commit 晚于响应发送）
     await db.commit()
@@ -203,9 +389,13 @@ async def create_category(db: AsyncSession, module: str, name: str) -> Category:
     return category
 
 
-async def update_category(db: AsyncSession, category_id: int, name: str) -> Category:
-    """更新分类名"""
+async def update_category(
+    db: AsyncSession, category_id: int, name: str, group_id: int | None = None
+) -> Category:
+    """更新分类名；给了 group_id 则同时移动到该分组"""
     category = await _get_category(db, category_id)
+    if group_id is not None:
+        await _assert_group_belongs_to_module(db, group_id, category.module)
 
     # 检查新名称是否重复
     if name != category.name:
@@ -224,6 +414,8 @@ async def update_category(db: AsyncSession, category_id: int, name: str) -> Cate
         await _sync_content_category(db, category.module, old_name, name)
 
     category.name = name
+    if group_id is not None:
+        category.group_id = group_id
     # 显式提交：确保响应返回前事务已落库（get_db teardown 的 commit 晚于响应发送）
     await db.commit()
     await db.refresh(category)

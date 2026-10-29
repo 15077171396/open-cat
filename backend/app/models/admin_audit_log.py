@@ -71,6 +71,11 @@ AUDIT_ACTIONS: dict[str, str] = {
     "content_publish": "上架/下架内容",
     # 内容删除（教程/资源已改软删除 → 进回收站可恢复；扩展/节点仍是硬删除）
     "content_delete": "删除内容",
+    # 分类分组：分类页左栏的「组」，只影响后台归类，不影响前台（前台筛选用分类）
+    "category_group_create": "新建分类分组",
+    "category_group_update": "编辑分类分组",
+    "category_group_delete": "删除分类分组",
+    "category_move": "移动分类分组",
     # 从回收站恢复（把已下架内容放回管理视野，敏感度与删除同级）
     "content_restore": "恢复内容",
     # 系统设置（可改 AI 供应商密钥与 base_url、邀请奖励额度、对外公示的法律文档 HTML）
@@ -115,6 +120,8 @@ AUDIT_ACTIONS: dict[str, str] = {
 AUDIT_TARGET_TYPES = (
     "user", "auth_request", "redeem_code", "role", "department", "tutorial",
     "announcement", "feedback", "setting", "comment", "report", "moderation_log", "ai_model",
+    # 分类分组：分类页左栏的「组」（只影响后台归类，不影响前台筛选）
+    "category_group",
     "ai_writing_prompt",
     "payment_product",
     # 定时任务：target_id 为空（job_id 是字符串，不是整型主键），任务名写在 summary 里
@@ -144,6 +151,7 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "ai_model": "AI 模型",
     "ai_writing_prompt": "AI 写作提示词",
     "comment": "评论",
+    "category_group": "分类分组",
     "report": "举报",
     "moderation_log": "机审留痕",
     "scheduled_job": "定时任务",
@@ -221,6 +229,10 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "content_update": AUDIT_RISK_NORMAL,
     "content_publish": AUDIT_RISK_NORMAL,
     "content_delete": AUDIT_RISK_DANGER,
+    "category_group_create": AUDIT_RISK_NORMAL,
+    "category_group_update": AUDIT_RISK_NORMAL,
+    "category_group_delete": AUDIT_RISK_DANGER,
+    "category_move": AUDIT_RISK_NORMAL,
     # 恢复 = 把已下架内容放回可见面，与删除同级敏感（同样直接决定全站可见内容）
     "content_restore": AUDIT_RISK_DANGER,
     # 系统设置：可改 AI 供应商密钥与 base_url、邀请奖励额度、对外公示的法律文档 HTML
