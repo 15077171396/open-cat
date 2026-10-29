@@ -55,6 +55,8 @@ MODULES: tuple[ModuleDef, ...] = (
         default_enabled=True,
         path_prefixes=(
             "/api/v1/admin/users",
+            # 导出用户属于核心能力：关掉用户模块等于关掉后台本身
+            "/api/v1/admin/export/users",
             "/api/v1/admin/rbac",
             "/api/v1/admin/audit-logs",
             "/api/v1/admin/menus",
@@ -75,14 +77,14 @@ MODULES: tuple[ModuleDef, ...] = (
         key="tutorial",
         label="教程",
         default_enabled=True,
-        path_prefixes=("/api/v1/admin/tutorials",),
+        path_prefixes=("/api/v1/admin/tutorials", "/api/v1/admin/export/tutorials"),
         menu_keys=("/tutorials",),
     ),
     ModuleDef(
         key="resource",
         label="资源",
         default_enabled=True,
-        path_prefixes=("/api/v1/admin/resources",),
+        path_prefixes=("/api/v1/admin/resources", "/api/v1/admin/export/resources"),
         menu_keys=("/resources",),
     ),
     ModuleDef(
@@ -190,6 +192,8 @@ MODULES: tuple[ModuleDef, ...] = (
         path_prefixes=(
             "/api/v1/admin/points",
             "/api/v1/admin/redemption-codes",
+            # 关掉积分模块时，流水数据也不该被导出
+            "/api/v1/admin/export/point-transactions",
         ),
         menu_keys=("/points", "/redeem-codes"),
     ),

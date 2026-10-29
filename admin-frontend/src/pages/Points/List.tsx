@@ -7,7 +7,7 @@ import { useCrudList } from '../../hooks/useCrudList'
 import type { PointTransaction } from '../../types'
 import { POINT_TX_TYPE_MAP } from '../../constants'
 import { formatDateTime } from '../../utils/datetime'
-import { DataTable, ListToolbar, PageHeader } from '../../components/ui'
+import { DataTable, ExportButton, ListToolbar, PageHeader } from '../../components/ui'
 
 /** 类型筛选项（取值与后端 VALID_TYPES 一致） */
 const TYPE_FILTER_OPTIONS = [
@@ -166,6 +166,13 @@ export default function PointsList() {
               onSearch={handleSearch}
               style={{ width: 220 }}
               allowClear
+            />
+            {/* 导出带上当前筛选：导出的必须是「页面看到的这批」，不是全表 */}
+            <ExportButton
+              url="/admin/export/point-transactions"
+              params={listParams}
+              label="积分流水"
+              fallbackName="point-transactions.csv"
             />
             <Tooltip title="重新拉取当前条件下的流水">
               <Button icon={<ReloadOutlined />} onClick={refresh}>

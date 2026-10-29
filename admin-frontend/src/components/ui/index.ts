@@ -32,3 +32,6 @@ export type { SelectionBarProps } from './SelectionBar'
 
 export { default as ModalForm } from './ModalForm'
 export type { ModalFormProps } from './ModalForm'
+
+export { default as ExportButton } from './ExportButton'
+export type { ExportButtonProps } from './ExportButton'

@@ -17,6 +17,7 @@ import { DEFAULT_PAGE_SIZE } from '../../constants'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import ExportButton from '../../components/ui/ExportButton'
 /** 角色筛选项（value 直接映射后端 role 字段） */
 const ROLE_FILTER_OPTIONS = [
   { value: '', label: '全部角色' },
@@ -59,6 +60,13 @@ export default function UsersList() {
   const [rbacOpen, setRbacOpen] = useState(false)
   // 批量选择与操作
   const [selectedIds, setSelectedIds] = useState<number[]>([])
+
+  // 导出参数：与列表请求**同一口径**（关键字 / 角色 / 账号状态），
+  // 否则会出现「页面 312 条、导出 318 条」这种没人能一眼看出的差异
+  const exportParams: Record<string, string> = {}
+  if (keyword.trim()) exportParams.keyword = keyword.trim()
+  if (role) exportParams.role = role
+  if (accountStatus) exportParams.account_status = accountStatus
   const [batchLoading, setBatchLoading] = useState(false)
 
   // 请求序号防竞态：快速连续搜索/翻页时，晚到的旧响应不再覆盖新结果
@@ -485,6 +493,7 @@ export default function UsersList() {
             style={{ width: 220 }}
             allowClear
           />
+          <ExportButton url="/admin/export/users" params={exportParams} label="用户" fallbackName="users.csv" />
           <PermGuard perm="user:create">
             <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
               新增用户

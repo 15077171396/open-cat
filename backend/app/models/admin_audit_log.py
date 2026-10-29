@@ -17,6 +17,8 @@ from app.database import Base, generate_id
 # 受审计的管理动作码 → 中文标签（后台筛选下拉与表格展示共用同一份事实来源）
 AUDIT_ACTIONS: dict[str, str] = {
     # 实名认证（直接决定 VIP 权益）
+    # 数据外带：导出本身不改数据，但它是「把库里的数据带走」，必须可追溯
+    "data_export": "导出数据",
     "auth_approve": "通过实名认证",
     "auth_reject": "驳回实名认证",
     # 用户（提权 / 权益 / 资金）
@@ -124,6 +126,8 @@ AUDIT_TARGET_TYPES = (
     "legal_doc",
     # 图库导入：target_id 是 image_assets.id
     "image_asset",
+    # 积分流水：仅用于「导出流水」这类按类型整体的审计，target_id 留空
+    "point_transaction",
 )
 
 # 目标类型 → 中文名。**必须与 AUDIT_TARGET_TYPES 一一对应**（tests/test_audit_taxonomy.py 有守卫）：
@@ -150,6 +154,8 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "moderation_log": "机审留痕",
     "tool": "工具",
     "scheduled_job": "定时任务",
+    # 积分流水：导出流水时作为 target_type（按类型整体审计，无单条主键）
+    "point_transaction": "积分流水",
     "legal_doc": "法律文档",
     "image_asset": "图片素材",
 }
@@ -183,6 +189,9 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "user_delete": AUDIT_RISK_DANGER,
     "user_batch_delete": AUDIT_RISK_DANGER,
     "user_restore": AUDIT_RISK_DANGER,
+    # 数据导出不改数据，但把库里的数据带出了系统：事后唯一能回答
+    # 「谁导走了用户名单」的记录点，按高危呈现
+    "data_export": AUDIT_RISK_DANGER,
     # 兑换码（积分入金口）
     "redeem_code_create": AUDIT_RISK_MONEY,
     "redeem_code_disable": AUDIT_RISK_MONEY,

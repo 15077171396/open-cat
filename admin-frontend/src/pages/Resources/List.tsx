@@ -16,6 +16,7 @@ import type { Resource } from '../../types'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import ExportButton from '../../components/ui/ExportButton'
 /** 推荐状态筛选项（value 直接映射 is_featured 布尔值） */
 const FEATURED_FILTER_OPTIONS = [
   { value: '', label: '全部' },
@@ -417,6 +418,7 @@ export default function ResourcesList() {
             style={{ width: 240 }}
             allowClear
           />
+          <ExportButton url="/admin/export/resources" params={params} label="资源" fallbackName="resources.csv" />
           <PermGuard perm="resource:create">
             <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/resources/new')}>
               新建资源

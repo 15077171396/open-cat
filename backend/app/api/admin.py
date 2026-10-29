@@ -9,6 +9,8 @@ from app.api._admin_shared import router  # noqa: F401  供 app/api/router.py �
 from app.api import (  # noqa: F401
     admin_menus,
     admin_ops,
+    # 列表导出（CSV）：数据外带，权限与各自列表页一致，每次导出写审计
+    admin_export,
     admin_tutorials,
     admin_resources,
     admin_plugins,

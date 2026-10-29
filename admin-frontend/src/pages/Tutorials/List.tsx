@@ -18,6 +18,7 @@ import type { Tutorial } from '../../types'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import ExportButton from '../../components/ui/ExportButton'
 /** 发布状态筛选项（value 直接映射 is_published 布尔值） */
 const PUBLISH_FILTER_OPTIONS = [
   { value: '', label: '全部' },
@@ -411,6 +412,7 @@ export default function TutorialsList() {
             style={{ width: 240 }}
             allowClear
           />
+          <ExportButton url="/admin/export/tutorials" params={params} label="教程" fallbackName="tutorials.csv" />
           <PermGuard perm="tutorial:create">
             <Button type="primary" icon={<BookOutlined />} onClick={() => navigate('/tutorials/new')}>
               新建教程

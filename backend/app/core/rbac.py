@@ -35,6 +35,15 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("GET", "/api/v1/admin/system-status", ["dashboard:view"]),
     # 部署体检（存储/站点地址/邮件/短信/AI/支付是否真的可用）：运维只读，同上
     ("GET", "/api/v1/admin/readiness", ["dashboard:view"]),
+
+    # 列表导出：权限与各自的列表页**完全一致** —— 能看见就能导出，
+    # 不多给一个 export:xxx 权限码（新码必须配「补种给已有角色」的迁移，
+    # 且「能看不能导」在实践中没有真实需求，只会多一层配置负担）。
+    # 导出本身是数据外带，所以每个端点都会写审计（见 admin_export._csv_response）。
+    ("GET", "/api/v1/admin/export/users", ["user:view"]),
+    ("GET", "/api/v1/admin/export/tutorials", ["tutorial:view"]),
+    ("GET", "/api/v1/admin/export/resources", ["resource:view"]),
+    ("GET", "/api/v1/admin/export/point-transactions", ["points:view"]),
     # 定时任务运行状态（周期/上次执行/是否超期）：运维只读数据，同样是 dashboard:view。
     # 刻意不新建 scheduler:view —— 新码必须配套「补种给已有内置角色」的迁移，
     # 而这里的信息量与「系统状态」卡完全同一层级
