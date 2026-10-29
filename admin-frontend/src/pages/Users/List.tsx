@@ -18,6 +18,7 @@ import { DEFAULT_PAGE_SIZE } from '../../constants'
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
 import ExportButton from '../../components/ui/ExportButton'
+import PageHeader from '../../components/ui/PageHeader'
 /** 角色筛选项（value 直接映射后端 role 字段） */
 const ROLE_FILTER_OPTIONS = [
   { value: '', label: '全部角色' },
@@ -468,39 +469,31 @@ export default function UsersList() {
   return (
     <div className="adm-page">
       {/* 页头：查看权限即可见，只有「新增用户」按钮受 user:create 守卫 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <TeamOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">用户管理</div>
-            <div className="adm-header__sub">
-              <span>查看与维护账号、角色权限、会员与积分</span>
-              <span className="adm-header__dot">·</span>
-              <span>
-                共 <strong>{total}</strong> 人
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            placeholder="搜索账号"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 220 }}
-            allowClear
-          />
-          <ExportButton url="/admin/export/users" params={exportParams} label="用户" fallbackName="users.csv" />
-          <PermGuard perm="user:create">
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
-              新增用户
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<TeamOutlined />}
+        title="用户管理"
+        subtitle="查看与维护账号、角色权限、会员与积分"
+        count={{ total: total, unit: "人" }}
+        actions={
+          <>
+            <Input.Search
+              placeholder="搜索账号"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={handleSearch}
+              style={{ width: 220 }}
+              allowClear
+            />
+            <ExportButton url="/admin/export/users" params={exportParams} label="用户" fallbackName="users.csv" />
+            <PermGuard perm="user:create">
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+                新增用户
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       {/* 工具条：筛选 + 批量操作 */}
       <Card className="adm-toolbar" variant="outlined">

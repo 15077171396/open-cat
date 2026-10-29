@@ -17,6 +17,7 @@ import type { Node } from '../../types'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /** 千分位；缺值显示「—」而不是 0（旧后端不返回该字段时不该谎报 0） */
 function formatCount(value: number | undefined | null): string {
   if (typeof value !== 'number') return '—'
@@ -192,38 +193,30 @@ export default function NodesList() {
   return (
     <div className="adm-page">
       {/* 页头 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <AppstoreOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">知识百科</div>
-            <div className="adm-header__sub">
-              <span>维护节点词条、参数说明与正文内容</span>
-              <span className="adm-header__dot">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            placeholder="搜索名称 / 简介"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 240 }}
-            allowClear
-          />
-          <PermGuard perm="node:create">
-            <Button type="primary" icon={<AppstoreOutlined />} onClick={() => navigate('/nodes/new')}>
-              新建节点
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<AppstoreOutlined />}
+        title="知识百科"
+        subtitle="维护节点词条、参数说明与正文内容"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              placeholder="搜索名称 / 简介"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={handleSearch}
+              style={{ width: 240 }}
+              allowClear
+            />
+            <PermGuard perm="node:create">
+              <Button type="primary" icon={<AppstoreOutlined />} onClick={() => navigate('/nodes/new')}>
+                新建节点
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       {/* 工具条：筛选 + 批量操作 */}
       <Card className="adm-toolbar" variant="outlined">

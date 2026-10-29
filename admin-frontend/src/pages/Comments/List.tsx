@@ -11,6 +11,7 @@ import { formatTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 内容评论管理。四条刻意的设计（改造后仍保持不变）：
  * - 删除为**软删除**且可恢复（误删可逆 + 留痕）；
@@ -280,36 +281,28 @@ export default function CommentsList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <MessageOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">内容评论</div>
-            <div className="adm-header__sub">
-              <span>删除为软删除，可随时恢复；评论内容不支持编辑</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            allowClear
-            placeholder="搜索评论内容"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={(v) => {
-              setKeyword(v.trim())
-              setPage(1)
-            }}
-            style={{ width: 220 }}
-          />
-        </div>
-      </div>
+      <PageHeader
+        icon={<MessageOutlined />}
+        title="内容评论"
+        subtitle="删除为软删除，可随时恢复；评论内容不支持编辑"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              allowClear
+              placeholder="搜索评论内容"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={(v) => {
+                setKeyword(v.trim())
+                setPage(1)
+              }}
+              style={{ width: 220 }}
+            />
+
+          </>
+        }
+      />
 
       {/* 工具条：内容类型 / 内容 ID / 含已删除 / 时间范围 */}
       <Card className="adm-toolbar" variant="outlined">

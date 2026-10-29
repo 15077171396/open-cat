@@ -9,6 +9,7 @@ import { getErrorMessage, isFormValidationError } from '../../utils/error'
 import { formatTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 内容审核中心：机审留痕（纠正误报）与用户举报（处理）放同一页两个 Tab，
  * 两者看的是同一批 UGC 的不合规信号。查看与处理动作权限分开控制。
@@ -708,24 +709,15 @@ export default function ModerationList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <SafetyCertificateOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">内容审核</div>
-            <div className="adm-header__sub">
-              <span>机审判定留痕与用户举报在同一处处理</span>
-              <span className="adm-sep">·</span>
-              <span>
-                待复核 <strong>{summary.pending_logs}</strong> 条 · 待处理举报{' '}
-                <strong>{summary.pending_reports}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
+      <PageHeader
+        icon={<SafetyCertificateOutlined />}
+        title="内容审核"
+        subtitle={[
+            "机审判定留痕与用户举报在同一处处理",
+            <>待复核 <strong>{summary.pending_logs}</strong> 条 · 待处理举报{' '}
+                <strong>{summary.pending_reports}</strong> 条</>,
+          ]}
+      />
 
       <Tabs defaultActiveKey="logs" items={tabItems} />
 

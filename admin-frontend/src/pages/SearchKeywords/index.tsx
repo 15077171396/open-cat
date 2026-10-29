@@ -9,6 +9,7 @@ import type { SearchKeywordReport, SearchKeywordRow, SearchZeroRow } from '../..
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 
 /**
  * 站内搜索词分析：**只读**页面。
@@ -130,29 +131,23 @@ export default function SearchKeywords() {
   return (
     <div className="adm-page">
       {/* 页头 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <SearchOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">搜索词分析</div>
-            <div className="adm-header__sub">
-              <span>用户搜了什么、搜不到什么 —— 零结果词就是选题清单</span>
-              <span className="adm-header__dot">·</span>
-              <span>
-                近 {report.days ?? days} 天共 <strong>{total}</strong> 次搜索
-                {zeroTotal > 0 ? `，其中 ${zeroTotal} 次零结果` : ''}
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
-            刷新
-          </Button>
-        </div>
-      </div>
+      <PageHeader
+        icon={<SearchOutlined />}
+        title="搜索词分析"
+        subtitle={[
+            "用户搜了什么、搜不到什么 —— 零结果词就是选题清单",
+            <>近 {report.days ?? days} 天共 <strong>{total}</strong> 次搜索
+                {zeroTotal > 0 ? `，其中 ${zeroTotal} 次零结果` : ''}</>,
+          ]}
+        actions={
+          <>
+            <Button icon={<ReloadOutlined />} onClick={load} loading={loading}>
+              刷新
+            </Button>
+
+          </>
+        }
+      />
 
       {/* 工具条 */}
       <Card className="adm-toolbar" variant="outlined">

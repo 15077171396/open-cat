@@ -10,6 +10,7 @@ import { getErrorMessage } from '../../utils/error'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /** 可管理的分类模块（与后端 MODULE_TABLE_MAP 一致；`tool` 曾因 schema 白名单漏配而无法新增） */
 type ModuleKey = 'tutorial' | 'resource' | 'node' | 'plugin' | 'tool'
 
@@ -321,46 +322,34 @@ export default function CategoriesList() {
     <div className="adm-page">
       {/* 页头：不放在 PermGuard 里 —— 原先整个页头（含搜索框）被 category:create 包着，
           只有「能新增分类」的人才看得见，与其余模块「页头对 category:view 可见、只有按钮受守卫」不一致 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <TagsOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">分类管理</div>
-            <div className="adm-header__sub">
-              <span>维护各模块的内容分类，供前台筛选与编辑页下拉使用</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{items.length}</strong> 个分类
-              </span>
-              <span className="adm-sep">·</span>
-              <span>
-                未使用 <strong>{unusedCount}</strong> 个
-              </span>
-              <span className="adm-sep">·</span>
-              <span>
-                关联内容 <strong>{overview?.total_content ?? 0}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input
-            placeholder="搜索分类名称"
-            value={keyword}
-            onChange={(e) => setKeyword(e.target.value)}
-            prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
-            style={{ width: 200 }}
-            allowClear
-          />
-          <PermGuard perm="category:create">
-            <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
-              新增分类
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<TagsOutlined />}
+        title="分类管理"
+        subtitle={[
+            "维护各模块的内容分类，供前台筛选与编辑页下拉使用",
+            <>共 <strong>{items.length}</strong> 个分类</>,
+            <>未使用 <strong>{unusedCount}</strong> 个</>,
+            <>关联内容 <strong>{overview?.total_content ?? 0}</strong> 条</>,
+          ]}
+        actions={
+          <>
+            <Input
+              placeholder="搜索分类名称"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              style={{ width: 200 }}
+              allowClear
+            />
+            <PermGuard perm="category:create">
+              <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+                新增分类
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       <Tabs
         activeKey={activeModule}

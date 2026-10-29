@@ -9,6 +9,7 @@ import { formatDateTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 管理操作审计：**只读**页面（能改能删的审计等于没有审计，故不用 useCrudList）。
  *
@@ -240,33 +241,25 @@ export default function AuditLogsList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <AuditOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">操作审计</div>
-            <div className="adm-header__sub">
-              <span>仅记录、不可修改与删除</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            allowClear
-            placeholder="搜索摘要 / 操作者账号"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={(v) => resetPageAnd(() => setKeyword(v.trim()))}
-            style={{ width: 240 }}
-          />
-        </div>
-      </div>
+      <PageHeader
+        icon={<AuditOutlined />}
+        title="操作审计"
+        subtitle="仅记录、不可修改与删除"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              allowClear
+              placeholder="搜索摘要 / 操作者账号"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={(v) => resetPageAnd(() => setKeyword(v.trim()))}
+              style={{ width: 240 }}
+            />
+
+          </>
+        }
+      />
 
       {/* 工具条：四个筛选维度 */}
       <Card className="adm-toolbar" variant="outlined">

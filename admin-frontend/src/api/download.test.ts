@@ -18,11 +18,17 @@ import { downloadCsv, exportErrorMessage } from './download'
 
 const mockedGet = vi.mocked(client.get)
 
-/** jsdom 没有 createObjectURL，需要自己挂一个可断言的替身 */
+/**
+ * jsdom 没有 createObjectURL，需要自己挂一个可断言的替身。
+ *
+ * 同时必须把 `<a>.click()` 换成 noop：真实点击会让 jsdom 尝试导航并抛
+ * `Not implemented: navigation`，虽然不算用例失败，但会污染输出里的错误计数。
+ */
 function stubUrls() {
   const createObjectURL = vi.fn(() => 'blob:mock')
   const revokeObjectURL = vi.fn()
   Object.assign(URL, { createObjectURL, revokeObjectURL })
+  vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
   return { createObjectURL, revokeObjectURL }
 }
 

@@ -10,6 +10,7 @@ import type { RbacPermissionGroup, RbacRole } from '../../types'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 角色管理：角色决定管理后台的菜单可见性与按钮级操作权限。
  *
@@ -377,44 +378,33 @@ export default function RolesList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <SafetyCertificateOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">角色管理</div>
-            <div className="adm-header__sub">
-              <span>
-                共 <strong>{stats.total}</strong> 个角色
-              </span>
-              <span className="adm-sep">·</span>
-              <span>
-                内置 <strong>{stats.system}</strong> · 自定义 <strong>{stats.custom}</strong>
-              </span>
-              <span className="adm-sep">·</span>
-              <span>
-                覆盖 <strong>{stats.covered}</strong> 个账号
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            allowClear
-            placeholder="搜索角色名称 / 编码 / 说明"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={(v) => setKeyword(v.trim())}
-            style={{ width: 240 }}
-          />
-          <PermGuard perm="role:create">
-            <Button type="primary" icon={<SafetyCertificateOutlined />} onClick={openCreate}>
-              新建角色
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<SafetyCertificateOutlined />}
+        title="角色管理"
+        subtitle={[
+            <>共 <strong>{stats.total}</strong> 个角色</>,
+            <>内置 <strong>{stats.system}</strong> · 自定义 <strong>{stats.custom}</strong></>,
+            <>覆盖 <strong>{stats.covered}</strong> 个账号</>,
+          ]}
+        actions={
+          <>
+            <Input.Search
+              allowClear
+              placeholder="搜索角色名称 / 编码 / 说明"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={(v) => setKeyword(v.trim())}
+              style={{ width: 240 }}
+            />
+            <PermGuard perm="role:create">
+              <Button type="primary" icon={<SafetyCertificateOutlined />} onClick={openCreate}>
+                新建角色
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       <Card className="adm-toolbar" variant="outlined">
         <div className="adm-toolbar__row">

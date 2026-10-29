@@ -10,6 +10,7 @@ import type { Department } from '../../types'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 部门管理：部门是用户的**组织归属**（在用户管理中分配），用于后台分组与筛选展示，
  * **不参与权限判定** —— 权限只看角色（角色管理）。
@@ -312,49 +313,38 @@ export default function DepartmentsList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <ApartmentOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">部门管理</div>
-            <div className="adm-header__sub">
-              <span>
-                共 <strong>{stats.total}</strong> 个部门
-              </span>
-              <span className="adm-sep">·</span>
-              <span>
-                最深 <strong>{stats.depth}</strong> 级
-              </span>
-              <span className="adm-sep">·</span>
-              <span>
-                覆盖 <strong>{stats.covered}</strong> 个账号
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            allowClear
-            placeholder="搜索部门名称"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={(v) => setKeyword(v.trim())}
-            style={{ width: 220 }}
-          />
-          <Tooltip title="重新拉取部门与人数">
-            <Button icon={<ReloadOutlined />} onClick={loadDepartments}>
-              刷新
-            </Button>
-          </Tooltip>
-          <PermGuard perm="department:create">
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreate()}>
-              新建部门
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<ApartmentOutlined />}
+        title="部门管理"
+        subtitle={[
+            <>共 <strong>{stats.total}</strong> 个部门</>,
+            <>最深 <strong>{stats.depth}</strong> 级</>,
+            <>覆盖 <strong>{stats.covered}</strong> 个账号</>,
+          ]}
+        actions={
+          <>
+            <Input.Search
+              allowClear
+              placeholder="搜索部门名称"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={(v) => setKeyword(v.trim())}
+              style={{ width: 220 }}
+            />
+            <Tooltip title="重新拉取部门与人数">
+              <Button icon={<ReloadOutlined />} onClick={loadDepartments}>
+                刷新
+              </Button>
+            </Tooltip>
+            <PermGuard perm="department:create">
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => openCreate()}>
+                新建部门
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       <Card className="adm-tablecard" variant="outlined">
         <Table<DeptRow>

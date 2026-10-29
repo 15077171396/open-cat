@@ -12,6 +12,7 @@ import type { FeedbackStatus } from '../../types'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 用户反馈：用户在前台右侧工具栏提交，后台审阅（改状态 / 写内部备注 / 删除）。
  *
@@ -279,41 +280,33 @@ export default function FeedbackList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <CommentOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">用户反馈</div>
-            <div className="adm-header__sub">
-              <span>用户在前台右侧工具栏提交，后台审阅处理</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            allowClear
-            placeholder="搜索反馈内容"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={(v) => {
-              setKeyword(v.trim())
-              setPage(1)
-            }}
-            style={{ width: 220 }}
-          />
-          <Tooltip title="重新拉取当前条件下的反馈">
-            <Button icon={<ReloadOutlined />} onClick={refresh}>
-              刷新
-            </Button>
-          </Tooltip>
-        </div>
-      </div>
+      <PageHeader
+        icon={<CommentOutlined />}
+        title="用户反馈"
+        subtitle="用户在前台右侧工具栏提交，后台审阅处理"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              allowClear
+              placeholder="搜索反馈内容"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={(v) => {
+                setKeyword(v.trim())
+                setPage(1)
+              }}
+              style={{ width: 220 }}
+            />
+            <Tooltip title="重新拉取当前条件下的反馈">
+              <Button icon={<ReloadOutlined />} onClick={refresh}>
+                刷新
+              </Button>
+            </Tooltip>
+
+          </>
+        }
+      />
 
       {/* 工具条：状态 + 提交时间区间 */}
       <Card className="adm-toolbar" variant="outlined">

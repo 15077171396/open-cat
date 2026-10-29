@@ -14,6 +14,7 @@ import { formatDate, formatDateTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /** 展示状态 → 标签（与后端 eff_status 口径一致：作废 > 过期 > 兑完 > 进行中） */
 const EFF_STATUS_MAP: Record<string, { color: string; text: string }> = {
   active: { color: 'green', text: '进行中' },
@@ -365,38 +366,30 @@ export default function RedeemCodesList() {
       {/* 页头：不放在 PermGuard 里 —— 原先整个页头（含搜索框与状态筛选）被
           redeem_code:create 包着，只有「能生成兑换码」的人才看得见，
           与其余模块「页头对 redeem_code:view 可见」不一致 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <GiftOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">积分兑换码</div>
-            <div className="adm-header__sub">
-              <span>生成后请及时发放；作废不可恢复</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{total}</strong> 个
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            placeholder="搜索兑换码 / 备注"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 220 }}
-            allowClear
-          />
-          <PermGuard perm="redeem_code:create">
-            <Button type="primary" icon={<GiftOutlined />} onClick={() => setCreateOpen(true)}>
-              生成兑换码
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<GiftOutlined />}
+        title="积分兑换码"
+        subtitle="生成后请及时发放；作废不可恢复"
+        count={{ total: total, unit: "个" }}
+        actions={
+          <>
+            <Input.Search
+              placeholder="搜索兑换码 / 备注"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={handleSearch}
+              style={{ width: 220 }}
+              allowClear
+            />
+            <PermGuard perm="redeem_code:create">
+              <Button type="primary" icon={<GiftOutlined />} onClick={() => setCreateOpen(true)}>
+                生成兑换码
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       {/* 工具条：状态筛选 + 批量作废 */}
       <Card className="adm-toolbar" variant="outlined">

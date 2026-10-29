@@ -19,6 +19,7 @@ import type { Tutorial } from '../../types'
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
 import ExportButton from '../../components/ui/ExportButton'
+import PageHeader from '../../components/ui/PageHeader'
 /** 发布状态筛选项（value 直接映射 is_published 布尔值） */
 const PUBLISH_FILTER_OPTIONS = [
   { value: '', label: '全部' },
@@ -387,39 +388,31 @@ export default function TutorialsList() {
   return (
     <div className="adm-page">
       {/* 页头 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <BookOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">教程管理</div>
-            <div className="adm-header__sub">
-              <span>维护教程基本信息、章节内容与阅读权限</span>
-              <span className="adm-header__dot">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            placeholder="搜索标题 / 简介"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 240 }}
-            allowClear
-          />
-          <ExportButton url="/admin/export/tutorials" params={params} label="教程" fallbackName="tutorials.csv" />
-          <PermGuard perm="tutorial:create">
-            <Button type="primary" icon={<BookOutlined />} onClick={() => navigate('/tutorials/new')}>
-              新建教程
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<BookOutlined />}
+        title="教程管理"
+        subtitle="维护教程基本信息、章节内容与阅读权限"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              placeholder="搜索标题 / 简介"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={handleSearch}
+              style={{ width: 240 }}
+              allowClear
+            />
+            <ExportButton url="/admin/export/tutorials" params={params} label="教程" fallbackName="tutorials.csv" />
+            <PermGuard perm="tutorial:create">
+              <Button type="primary" icon={<BookOutlined />} onClick={() => navigate('/tutorials/new')}>
+                新建教程
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       {/* 工具条：筛选 + 批量操作 */}
       <Card className="adm-toolbar" variant="outlined">

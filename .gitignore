@@ -61,6 +61,9 @@ dist-ssr/
 .DS_Store
 Thumbs.db
 
+# 沙箱/CI 里给 vitest 指定临时目录用（不提交）
+.tmp-vitest/
+
 # Logs
 *.log
 logs/*

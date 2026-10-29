@@ -10,6 +10,7 @@ import { formatTime } from '../../utils/datetime'
 import type { AuthRequest } from '../../types'
 
 import { toast } from '../../utils/toast'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 实名审核（知识星球认证）：通过后按所选时长开通 VIP（在现有剩余时长上叠加）。
  *
@@ -203,30 +204,22 @@ export default function AuthRequestsList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <CheckCircleOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">实名审核</div>
-            <div className="adm-header__sub">
-              <span>知识星球认证申请；通过后按所选时长开通 VIP（在现有剩余时长上叠加）</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Tooltip title="重新拉取当前条件下的申请">
-            <Button icon={<ReloadOutlined />} onClick={refresh}>
-              刷新
-            </Button>
-          </Tooltip>
-        </div>
-      </div>
+      <PageHeader
+        icon={<CheckCircleOutlined />}
+        title="实名审核"
+        subtitle="知识星球认证申请；通过后按所选时长开通 VIP（在现有剩余时长上叠加）"
+        count={{ total: total }}
+        actions={
+          <>
+            <Tooltip title="重新拉取当前条件下的申请">
+              <Button icon={<ReloadOutlined />} onClick={refresh}>
+                刷新
+              </Button>
+            </Tooltip>
+
+          </>
+        }
+      />
 
       <Card className="adm-toolbar" variant="outlined">
         <div className="adm-toolbar__row">

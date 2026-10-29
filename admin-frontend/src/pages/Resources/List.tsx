@@ -17,6 +17,7 @@ import type { Resource } from '../../types'
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
 import ExportButton from '../../components/ui/ExportButton'
+import PageHeader from '../../components/ui/PageHeader'
 /** 推荐状态筛选项（value 直接映射 is_featured 布尔值） */
 const FEATURED_FILTER_OPTIONS = [
   { value: '', label: '全部' },
@@ -393,39 +394,31 @@ export default function ResourcesList() {
   return (
     <div className="adm-page">
       {/* 页头：图标 + 标题 + 说明 + 操作区 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <HddOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">资源管理</div>
-            <div className="adm-header__sub">
-              <span>维护站内资源、网盘链接与推荐状态</span>
-              <span className="adm-header__dot">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            placeholder="搜索名称 / 简介"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 240 }}
-            allowClear
-          />
-          <ExportButton url="/admin/export/resources" params={params} label="资源" fallbackName="resources.csv" />
-          <PermGuard perm="resource:create">
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/resources/new')}>
-              新建资源
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<HddOutlined />}
+        title="资源管理"
+        subtitle="维护站内资源、网盘链接与推荐状态"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              placeholder="搜索名称 / 简介"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={handleSearch}
+              style={{ width: 240 }}
+              allowClear
+            />
+            <ExportButton url="/admin/export/resources" params={params} label="资源" fallbackName="resources.csv" />
+            <PermGuard perm="resource:create">
+              <Button type="primary" icon={<PlusOutlined />} onClick={() => navigate('/resources/new')}>
+                新建资源
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       {/* 工具条：筛选 + 批量操作 */}
       <Card className="adm-toolbar" variant="outlined">

@@ -17,6 +17,7 @@ import type { Plugin } from '../../types'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 /**
  * 三个内置分类的配色与前台扩展卡片对齐（geekblue / cyan / green）。
  * 分类值可被运营改动，取不到就退回哈希取色 —— 与「PLUGIN_CARD_META 的 key 必须
@@ -218,38 +219,30 @@ export default function PluginsList() {
   return (
     <div className="adm-page">
       {/* 页头 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <ApiOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">扩展管理</div>
-            <div className="adm-header__sub">
-              <span>维护扩展条目、获取来源与正文内容</span>
-              <span className="adm-header__dot">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            placeholder="搜索名称 / 简介"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 240 }}
-            allowClear
-          />
-          <PermGuard perm="plugin:create">
-            <Button type="primary" icon={<ApiOutlined />} onClick={() => navigate('/plugins/new')}>
-              新建扩展
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<ApiOutlined />}
+        title="扩展管理"
+        subtitle="维护扩展条目、获取来源与正文内容"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              placeholder="搜索名称 / 简介"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={handleSearch}
+              style={{ width: 240 }}
+              allowClear
+            />
+            <PermGuard perm="plugin:create">
+              <Button type="primary" icon={<ApiOutlined />} onClick={() => navigate('/plugins/new')}>
+                新建扩展
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       {/* 工具条：筛选 + 批量操作 */}
       <Card className="adm-toolbar" variant="outlined">

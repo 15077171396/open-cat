@@ -22,6 +22,7 @@ import { getErrorMessage, isFormValidationError } from '../../utils/error'
 import { formatTime } from '../../utils/datetime'
 import { toast } from '../../utils/toast'
 import type { PaginatedResponse, AdminUser } from '../../types'
+import PageHeader from '../../components/ui/PageHeader'
 
 /**
  * 站内消息通知：给用户发系统通知（全站 / 指定用户）。
@@ -177,42 +178,34 @@ export default function MessageList() {
 
   return (
     <div className="adm-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <NotificationOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">消息通知</div>
-            <div className="adm-header__sub">
-              <span>向用户发送站内系统通知，会出现在「个人中心 → 我的消息 → 系统通知」</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{total}</strong> 批次
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Tooltip title="重新拉取发送记录">
-            <Button icon={<ReloadOutlined />} onClick={() => void load()}>
-              刷新
-            </Button>
-          </Tooltip>
-          <PermGuard perm="message:send">
-            <Button
-              type="primary"
-              icon={<SendOutlined />}
-              onClick={() => {
-                form.resetFields()
-                setSendOpen(true)
-              }}
-            >
-              发送通知
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<NotificationOutlined />}
+        title="消息通知"
+        subtitle="向用户发送站内系统通知，会出现在「个人中心 → 我的消息 → 系统通知」"
+        count={{ total: total, unit: "批次" }}
+        actions={
+          <>
+            <Tooltip title="重新拉取发送记录">
+              <Button icon={<ReloadOutlined />} onClick={() => void load()}>
+                刷新
+              </Button>
+            </Tooltip>
+            <PermGuard perm="message:send">
+              <Button
+                type="primary"
+                icon={<SendOutlined />}
+                onClick={() => {
+                  form.resetFields()
+                  setSendOpen(true)
+                }}
+              >
+                发送通知
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       <Card className="adm-tablecard" variant="outlined">
         <Table<MessageBatch>

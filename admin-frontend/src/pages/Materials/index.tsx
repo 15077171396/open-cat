@@ -13,6 +13,7 @@ import {
   fetchMaterials, fetchMaterialStats, touchMaterial,
   type MaterialItem, type MaterialKind, type MaterialStats,
 } from './api'
+import PageHeader from '../../components/ui/PageHeader'
 
 const PAGE_SIZE = 24
 
@@ -189,18 +190,16 @@ export default function MaterialsPage() {
 
   return (
     <div className="adm-page mat-page">
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon"><PictureOutlined /></span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">素材库</div>
-            <div className="adm-header__sub">
-              上传、图库导入与 AI 生成的素材都在这里；复制链接即可在编辑器复用。
-            </div>
-          </div>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>刷新</Button>
-      </div>
+      <PageHeader
+        icon={<PictureOutlined />}
+        title="素材库"
+        subtitle="上传、图库导入与 AI 生成的素材都在这里；复制链接即可在编辑器复用。"
+        actions={
+          <Button icon={<ReloadOutlined />} onClick={refresh} loading={loading}>
+            刷新
+          </Button>
+        }
+      />
 
       <div className="mat-chips" role="group" aria-label="素材类型筛选">
         {chips.map((chip) => (

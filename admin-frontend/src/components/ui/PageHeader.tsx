@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import type { ReactNode } from 'react'
 
 export interface PageHeaderProps {
@@ -5,8 +6,15 @@ export interface PageHeaderProps {
   icon: ReactNode
   /** 页面标题 */
   title: string
-  /** 副标题：一句话说明这个模块是干什么的 */
-  subtitle?: ReactNode
+  /**
+   * 副标题：一句话说明这个模块是干什么的。
+   *
+   * 传数组表示「多段统计」（如 `['维护分类', <>共 <strong>{n}</strong> 个</>]`），
+   * 组件负责在段之间插入 `·` 分隔符 —— 否则每个页面都要手写一遍
+   * `<span className="adm-sep">·</span>`，还会写错成 `adm-header__dot`
+   * （两套类名长得像但只有 `adm-sep` 有样式）。
+   */
+  subtitle?: ReactNode | ReactNode[]
   /** 右侧操作区（搜索框 / 新建 / 刷新），按「次要操作在前、主操作在后」排 */
   actions?: ReactNode
   /**
@@ -36,6 +44,9 @@ export interface PageHeaderProps {
  * 权限只包住各自的按钮。
  */
 export default function PageHeader({ icon, title, subtitle, actions, count }: PageHeaderProps) {
+  // 数组 = 多段统计；过滤掉空值，避免渲染出「· ·」这种连续分隔符
+  const parts = (Array.isArray(subtitle) ? subtitle : subtitle ? [subtitle] : []).filter(Boolean)
+
   return (
     <div className="adm-header">
       <div className="adm-header__main">
@@ -44,8 +55,13 @@ export default function PageHeader({ icon, title, subtitle, actions, count }: Pa
           <div className="adm-header__title">{title}</div>
           {(subtitle || count) && (
             <div className="adm-header__sub">
-              {subtitle && <span>{subtitle}</span>}
-              {subtitle && count && <span className="adm-sep">·</span>}
+              {parts.map((part, index) => (
+                <Fragment key={index}>
+                  {index > 0 && <span className="adm-sep">·</span>}
+                  <span>{part}</span>
+                </Fragment>
+              ))}
+              {parts.length > 0 && count && <span className="adm-sep">·</span>}
               {count && (
                 <span>
                   共 <strong>{count.total}</strong> {count.unit ?? '条'}

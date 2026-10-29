@@ -13,6 +13,7 @@ import { formatTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import { TableEmpty } from '../../components/TableEmpty'
+import PageHeader from '../../components/ui/PageHeader'
 interface Announcement {
   id: number
   title: string
@@ -340,38 +341,30 @@ export default function AnnouncementsList() {
     <div className="adm-page">
       {/* 页头：不放在 PermGuard 里 —— 原先整个页头（含搜索框）被 announcement:create 包着，
           只有「能新增公告」的人才看得见，与其余模块「页头对 announcement:view 可见」不一致 */}
-      <div className="adm-header">
-        <div className="adm-header__main">
-          <span className="adm-header__icon">
-            <SoundOutlined />
-          </span>
-          <div style={{ minWidth: 0 }}>
-            <div className="adm-header__title">公告管理</div>
-            <div className="adm-header__sub">
-              <span>发布后的公告展示在首页公告条，撤下即从首页移除</span>
-              <span className="adm-sep">·</span>
-              <span>
-                共 <strong>{total}</strong> 条
-              </span>
-            </div>
-          </div>
-        </div>
-        <div className="adm-header__actions">
-          <Input.Search
-            placeholder="搜索公告标题"
-            value={keywordInput}
-            onChange={(e) => setKeywordInput(e.target.value)}
-            onSearch={handleSearch}
-            style={{ width: 220 }}
-            allowClear
-          />
-          <PermGuard perm="announcement:create">
-            <Button type="primary" icon={<SoundOutlined />} onClick={openCreate}>
-              新增公告
-            </Button>
-          </PermGuard>
-        </div>
-      </div>
+      <PageHeader
+        icon={<SoundOutlined />}
+        title="公告管理"
+        subtitle="发布后的公告展示在首页公告条，撤下即从首页移除"
+        count={{ total: total }}
+        actions={
+          <>
+            <Input.Search
+              placeholder="搜索公告标题"
+              value={keywordInput}
+              onChange={(e) => setKeywordInput(e.target.value)}
+              onSearch={handleSearch}
+              style={{ width: 220 }}
+              allowClear
+            />
+            <PermGuard perm="announcement:create">
+              <Button type="primary" icon={<SoundOutlined />} onClick={openCreate}>
+                新增公告
+              </Button>
+            </PermGuard>
+
+          </>
+        }
+      />
 
       {/* 工具条：筛选 + 批量操作 */}
       <Card className="adm-toolbar" variant="outlined">
