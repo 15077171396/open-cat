@@ -1,0 +1,1106 @@
+/* 管理后台样式 · 数据看板
+ * pages/Dashboard 与 components/dashboard/*：页头、指标卡、趋势图、环形图、条形榜、AI 用量面板、系统状态卡
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ============================================================
+   数据看板（pages/Dashboard.tsx + components/dashboard/*）
+   说明：这里只放看板专属样式，不影响其它页面。
+   与 antd 默认样式冲突处统一用「双类名」（如 .dash-card.ant-card）
+   提高特异性 —— antd 6 的样式是 CSS-in-JS 运行时注入的，
+   注入顺序不受本文件控制，只靠单类名压不住。
+   ============================================================ */
+
+/* ---- 页头 ---- */
+.dash-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 20px;
+}
+
+.dash-header__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.dash-header__dot {
+  color: #d9d9d9;
+}
+
+/* ---- 卡片统一外观 ---- */
+.dash-card.ant-card {
+  border-radius: 12px;
+  border-color: #eef0f4;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.dash-card__extra {
+  font-size: 12px;
+  color: #595959;
+}
+
+/* ---- 指标卡 ---- */
+.dash-metric.ant-card {
+  height: 100%;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+}
+
+.dash-metric.ant-card:hover {
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.08);
+}
+
+.dash-metric--clickable {
+  cursor: pointer;
+}
+
+.dash-metric--clickable.ant-card:hover {
+  border-color: #91caff;
+  transform: translateY(-2px);
+}
+
+.dash-metric--clickable:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 2px;
+}
+
+.dash-metric__body {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.dash-metric__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  font-size: 20px;
+}
+
+.dash-metric__icon--blue { background: #e6f4ff; color: #1677ff; }
+.dash-metric__icon--purple { background: #f9f0ff; color: #722ed1; }
+.dash-metric__icon--cyan { background: #e6fffb; color: #13c2c2; }
+.dash-metric__icon--green { background: #f6ffed; color: #52c41a; }
+.dash-metric__icon--orange { background: #fff7e6; color: #fa8c16; }
+.dash-metric__icon--red { background: #fff1f0; color: #ff4d4f; }
+.dash-metric__icon--geekblue { background: #f0f5ff; color: #2f54eb; }
+
+.dash-metric__main {
+  flex: 1;
+  min-width: 0;
+}
+
+.dash-metric__title {
+  font-size: 13px;
+  color: #595959;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-metric__value {
+  margin-top: 4px;
+  font-size: 26px;
+  font-weight: 600;
+  line-height: 1.2;
+  color: #1f1f1f;
+  /* 等宽数字：数值刷新时字宽不跳动 */
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-metric__suffix {
+  margin-left: 2px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #595959;
+}
+
+.dash-metric__hint {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed #f0f0f0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #595959;
+}
+
+.dash-metric__hint strong {
+  color: #595959;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 趋势图 ---- */
+.dash-trend__summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: #595959;
+}
+
+.dash-trend__summary strong {
+  margin-left: 2px;
+  font-size: 18px;
+  color: #1f1f1f;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-trend__summary-sub {
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+.dash-chart {
+  position: relative;
+  width: 100%;
+}
+
+/* 空态占位（图表容器已有固定高度，这里只负责居中） */
+.dash-chart__state {
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dash-chart__tip {
+  position: absolute;
+  z-index: 2;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.98);
+  border: 1px solid #eef0f4;
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.12);
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: nowrap;
+  /* 锚点放在数据点上方居中 */
+  transform: translate(-50%, -100%);
+  pointer-events: none;
+}
+
+.dash-chart__tip-label {
+  color: #595959;
+}
+
+.dash-chart__tip-value {
+  color: #1f1f1f;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-chart__empty-hint {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 12px;
+  color: #bfbfbf;
+  pointer-events: none;
+}
+
+/* ---- 环形图 ---- */
+.dash-donut {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  flex-wrap: wrap;
+  /* 与左侧趋势卡的内容高度对齐（趋势卡 = 汇总行 + 248px 图）。
+     Row 会把两张卡拉到等高，不设这个下限的话环形图会贴顶、卡片底部空一大块。 */
+  min-height: 272px;
+}
+
+.dash-donut__ring {
+  position: relative;
+  flex: none;
+}
+
+.dash-donut__center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.dash-donut__center-value {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1f1f1f;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-donut__center-label {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.dash-donut__legend {
+  flex: 1;
+  min-width: 150px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.dash-donut__legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.dash-donut__legend-dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.dash-donut__legend-label {
+  flex: 1;
+  min-width: 0;
+  color: #595959;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-donut__legend-value {
+  color: #1f1f1f;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-donut__legend-ratio {
+  width: 44px;
+  text-align: right;
+  font-size: 12px;
+  color: #595959;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 条形榜 ---- */
+.dash-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.dash-bars__row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.dash-bars__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.dash-bars__rank {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 6px;
+  background: #f5f5f5;
+  color: #595959;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.dash-bars__rank--1 { background: #fff1b8; color: #d48806; }
+.dash-bars__rank--2 { background: #f0f0f0; color: #595959; }
+.dash-bars__rank--3 { background: #fff2e8; color: #d4380d; }
+
+.dash-bars__label {
+  flex: 1;
+  min-width: 0;
+  color: #434343;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dash-bars__extra {
+  flex: none;
+  font-size: 12px;
+  color: #595959;
+}
+
+.dash-bars__value {
+  flex: none;
+  color: #1f1f1f;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dash-bars__track {
+  height: 8px;
+  border-radius: 999px;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.dash-bars__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.dash-bars__empty {
+  padding: 32px 0;
+  text-align: center;
+  font-size: 13px;
+  color: #bfbfbf;
+}
+
+/* ---- AI 用量与成本护栏（components/dashboard/AiUsagePanel.tsx） ----
+   整宽单卡、内部三栏。配色分工：绿/橙/红只表示「护栏水位」，
+   AI 紫只表示「AI 数据本身」（趋势线、模型占比条）——
+   两者混用会让「紫色」既像品牌色又像告警色。 */
+.ai-guard__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 20px;
+  cursor: help;
+}
+
+.ai-guard__badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.ai-guard__badge--ok { color: #389e0d; background: #f6ffed; }
+.ai-guard__badge--warn { color: #d46b08; background: #fff7e6; }
+.ai-guard__badge--danger { color: #cf1322; background: #fff1f0; }
+.ai-guard__badge--unset { color: #8c8c8c; background: #f5f5f5; }
+
+.ai-guard__notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 7px 12px;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+  font-size: 12px;
+  color: #595959;
+}
+
+.ai-guard__notice .anticon {
+  color: #faad14;
+}
+
+.ai-guard__notice--danger {
+  border-color: #ffccc7;
+  background: #fff1f0;
+  color: #cf1322;
+}
+
+.ai-guard__notice--danger .anticon {
+  color: #cf1322;
+}
+
+.ai-guard__notice-action.ant-btn,
+.ai-guard__link.ant-btn {
+  height: auto;
+  padding: 0;
+  font-size: 12px;
+}
+
+.ai-guard__notice-action.ant-btn {
+  margin-left: auto;
+}
+
+.ai-guard__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr) minmax(0, 1.2fr);
+}
+
+.ai-guard__col {
+  min-width: 0;
+  padding: 0 20px;
+}
+
+.ai-guard__col:first-child { padding-left: 0; }
+.ai-guard__col:last-child { padding-right: 0; }
+
+.ai-guard__col + .ai-guard__col {
+  border-left: 1px solid #f0f0f0;
+}
+
+.ai-guard__colhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.ai-guard__coltitle {
+  flex: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.ai-guard__colmeta {
+  min-width: 0;
+  font-size: 12px;
+  color: #bfbfbf;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-guard__hero {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.ai-guard__hero-value {
+  font-size: 30px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: #1f1f1f;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__hero-unit {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.ai-guard__meter,
+.ai-guard__tokens {
+  margin-bottom: 16px;
+}
+
+.ai-guard__meter-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.ai-guard__meter-label {
+  flex: none;
+  color: #8c8c8c;
+}
+
+.ai-guard__meter-value {
+  min-width: 0;
+  color: #1f1f1f;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ai-guard__meter-value--muted {
+  color: #bfbfbf;
+  font-weight: 400;
+}
+
+.ai-guard__meter-sep {
+  color: #d9d9d9;
+  font-weight: 400;
+}
+
+.ai-guard__track {
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+/* 未设上限：虚线空轨道 —— 与「有上限但已用 0%」的实线灰轨区分开 */
+.ai-guard__track--unset {
+  background: transparent;
+  border: 1px dashed #dcdcdc;
+}
+
+.ai-guard__fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.4s ease;
+}
+
+.ai-guard__fill--ok { background: #52c41a; }
+.ai-guard__fill--warn { background: #fa8c16; }
+.ai-guard__fill--danger { background: #ff4d4f; }
+
+.ai-guard__meter-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.ai-guard__meter-foot strong {
+  color: #595959;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__split {
+  display: flex;
+  gap: 2px;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.ai-guard__split-part {
+  display: block;
+  height: 100%;
+}
+
+.ai-guard__split-empty {
+  flex: 1;
+  background: #f5f5f5;
+}
+
+.ai-guard__legend {
+  display: flex;
+  gap: 14px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.ai-guard__legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.ai-guard__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-guard__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #fafafa;
+  font-size: 12px;
+  color: #595959;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__chip--danger {
+  background: #fff1f0;
+  color: #cf1322;
+  font-weight: 500;
+}
+
+.ai-guard__chip--quiet {
+  color: #8c8c8c;
+}
+
+.ai-guard__costs {
+  display: flex;
+  gap: 28px;
+  margin-bottom: 10px;
+}
+
+.ai-guard__cost {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.ai-guard__cost-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.ai-guard__cost-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f1f1f;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.ai-guard__models {
+  margin-top: 2px;
+}
+
+.ai-guard__models-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.ai-guard__models-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #f5f5f5;
+  font-size: 11px;
+  color: #8c8c8c;
+}
+
+.ai-guard__model {
+  margin-bottom: 8px;
+}
+
+.ai-guard__model-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.ai-guard__model-name {
+  flex: 1;
+  min-width: 0;
+  color: #434343;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-guard__model-flag {
+  flex: none;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: #f9f0ff;
+  color: #722ed1;
+  font-size: 11px;
+  line-height: 16px;
+  cursor: help;
+}
+
+.ai-guard__model-tokens {
+  flex: none;
+  color: #8c8c8c;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__model-cost {
+  flex: none;
+  width: 62px;
+  text-align: right;
+  color: #1f1f1f;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__model-track {
+  height: 4px;
+  margin-top: 4px;
+  border-radius: 999px;
+  background: #f5f5f5;
+  overflow: hidden;
+}
+
+.ai-guard__model-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: #722ed1;
+  opacity: 0.75;
+}
+
+.ai-guard__model-fill--muted {
+  background: #d9d9d9;
+  opacity: 1;
+}
+
+.ai-guard__empty {
+  padding: 10px 0;
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+.ai-guard__chartfoot {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.ai-guard__chartfoot strong {
+  color: #595959;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-guard__chartfoot-date {
+  color: #bfbfbf;
+}
+
+/* 中等宽度（<1200px，与 antd xl 断点对齐）：今日 / 本月 并排，趋势图整行下移。
+   若三栏直接竖排，进度条会被拉成 900px 长条，水位反而看不清。 */
+@media (max-width: 1199px) {
+  .ai-guard__grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .ai-guard__col {
+    padding: 0 16px;
+  }
+
+  .ai-guard__col:nth-child(2) {
+    padding-right: 0;
+  }
+
+  .ai-guard__col:nth-child(3) {
+    grid-column: 1 / -1;
+    margin-top: 16px;
+    padding: 16px 0 0;
+    border-top: 1px solid #f0f0f0;
+    border-left: none;
+  }
+}
+
+/* 窄屏（<720px）：单栏竖排，分隔线全部改横向 */
+@media (max-width: 719px) {
+  .ai-guard__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ai-guard__col {
+    padding: 0;
+  }
+
+  .ai-guard__col:nth-child(2) {
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid #f0f0f0;
+    border-left: none;
+  }
+}
+
+/* ---- 系统状态卡（components/dashboard/SystemStatusPanel.tsx） ----
+   三层结构：健康摘要格 → 待处理筛选列表 → 运行细节。
+   摘要格的左色带用 ::before 画（比 border-left 更好控圆角），色调类名 sys-tile--*。 */
+.sys-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(168px, 1fr));
+  gap: 12px;
+}
+
+.sys-tile {
+  position: relative;
+  padding: 10px 12px 10px 15px;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  background: #fcfcfd;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.sys-tile::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: #d9d9d9;
+}
+
+.sys-tile--ok::before {
+  background: #52c41a;
+}
+
+.sys-tile--warn::before {
+  background: #faad14;
+}
+
+.sys-tile--fail::before {
+  background: #ff4d4f;
+}
+
+.sys-tile--unknown::before {
+  background: #d9d9d9;
+}
+
+.sys-tile__label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.sys-tile__value {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 15px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+  min-width: 0;
+}
+
+.sys-tile__sub {
+  margin-top: 3px;
+  font-size: 12px;
+  color: #8c8c8c;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- 卡片内的分节（待处理 / 运行细节） ---- */
+.sys-section {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid #f5f5f5;
+}
+
+.sys-section__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.sys-section__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.sys-section__count {
+  padding: 0 7px;
+  border-radius: 9px;
+  background: #f5f5f5;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 18px;
+  color: #8c8c8c;
+}
+
+/* 类别筛选 chip：既是标签也是过滤器（原来 10 条提示长一样，靠这个才分得开） */
+.sys-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sys-chip {
+  font: inherit;
+  font-size: 12px;
+  line-height: 22px;
+  padding: 0 10px;
+  border-radius: 11px;
+  border: 1px solid #e8e8e8;
+  background: #fff;
+  color: #595959;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.sys-chip:hover {
+  border-color: #91caff;
+  color: #1677ff;
+}
+
+.sys-chip--active {
+  background: #e6f4ff;
+  border-color: #91caff;
+  color: #1677ff;
+  font-weight: 500;
+}
+
+/* 含故障（level=error）的类别用红边提示，未选中时也能看出哪一档是真出事 */
+.sys-chip--error:not(.sys-chip--active) {
+  border-color: #ffccc7;
+  color: #cf1322;
+}
+
+.sys-chip:focus-visible {
+  outline: 2px solid #1677ff;
+  outline-offset: 1px;
+}
+
+.sys-warn-list {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.sys-warn {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 9px 12px;
+  font-size: 13px;
+}
+
+.sys-warn + .sys-warn {
+  border-top: 1px solid #f5f5f5;
+}
+
+.sys-warn__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.78);
+  word-break: break-word;
+}
+
+.sys-warn__tag {
+  flex: none;
+  padding: 0 6px;
+  border: 1px solid #f0f0f0;
+  border-radius: 4px;
+  background: #fafafa;
+  font-size: 11px;
+  line-height: 18px;
+  color: #8c8c8c;
+}
+
+.sys-empty {
+  display: flex;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid #d9f7be;
+  border-radius: 10px;
+  background: #f6ffed;
+  font-size: 13px;
+  color: #389e0d;
+}
+
+/* 运行细节：两列自动换行，标签固定宽度保证多行对齐 */
+.sys-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 4px 24px;
+}
+
+.sys-detail {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.sys-detail__label {
+  flex: 0 0 64px;
+  color: #8c8c8c;
+}
+
+.sys-detail__value {
+  flex: 1 1 auto;
+  min-width: 0;
+  color: rgba(0, 0, 0, 0.78);
+  word-break: break-all;
+}
+
+.sys-detail__value code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f5f5f5;
+  font-size: 12px;
+}
+
+.sys-hint {
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+/* 接口失败提示条：与定时任务页的 .jobs-banner 同一套「白底 + 左色条」语言，
+   不用整块黄/红底 —— 浅色后台里大面积底色会显得脏，且同一个页面出现两种提示风格很跳。 */
+.sys-banner {
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  border: 1px solid #f0f0f0;
+  border-left: 3px solid #faad14;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 13px;
+  line-height: 20px;
+  color: #595959;
+}
+
+.sys-banner--fail {
+  border-left-color: #ff4d4f;
+}
+

@@ -1,0 +1,40 @@
+# 管理后台镜像：构建 admin-frontend → 交给 nginx 托管（/admin/）
+#
+# 与「整套平台」版本的差异：不再构建用户端 `frontend/`（本仓库不含），
+# 因此只有一个 node 构建阶段，内存压力比双前端版本低一半。
+
+# Node 22（LTS）：与 CI 的 NODE_VERSION 对齐，见 scripts/check_ci_config.py
+FROM node:22-alpine AS builder
+# 限制 Node 堆上限，防止 vite/tsc 在大项目上无限制吃内存（2G 机器也能构建）
+ENV NODE_OPTIONS=--max-old-space-size=1536
+
+# 前端错误监控（可选）：Vite 的 VITE_* 只在构建期生效，必须在 npm run build 之前
+# 以 ARG→ENV 注入。DSN 设计上即可公开（会随产物下发到浏览器），不属密钥；
+# 留空则产物中不含该配置，SDK 不会被下载。
+ARG VITE_SENTRY_DSN=""
+ARG VITE_SENTRY_ENVIRONMENT="production"
+ARG VITE_APP_RELEASE=""
+ARG VITE_SENTRY_TRACES_SAMPLE_RATE="0"
+ENV VITE_SENTRY_DSN=$VITE_SENTRY_DSN \
+    VITE_SENTRY_ENVIRONMENT=$VITE_SENTRY_ENVIRONMENT \
+    VITE_APP_RELEASE=$VITE_APP_RELEASE \
+    VITE_SENTRY_TRACES_SAMPLE_RATE=$VITE_SENTRY_TRACES_SAMPLE_RATE
+
+WORKDIR /build
+COPY admin-frontend/package.json admin-frontend/package-lock.json* ./
+# ⚠️ 不要写 `npm ci || npm install`：回退会让「lockfile 与 package.json 不一致」
+# 在 CI 绿的情况下静默装出另一棵依赖树。需要换源时改 registry，不要放宽安装方式。
+RUN npm config set registry https://registry.npmmirror.com && npm ci
+
+COPY admin-frontend/ ./
+RUN npm run build
+
+# ===== 运行阶段 =====
+FROM nginx:1.27-alpine
+RUN rm /etc/nginx/conf.d/default.conf
+# 自定义配置（compose 还会用卷覆盖一次，这里留一份兜底，保证单独 run 也能起）
+COPY nginx.conf /etc/nginx/nginx.conf
+# 管理后台 → /usr/share/nginx/html/admin（与 nginx.conf 的 alias 对应）
+COPY --from=builder /build/dist /usr/share/nginx/html/admin
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]

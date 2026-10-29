@@ -1,0 +1,324 @@
+/* 管理后台样式 · 编辑页
+ * adm- 前缀：分区块、封面上传、发布检查清单、上传区、章节管理（左树 + 右单章编辑器）
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ---- 编辑页：分区块 ---- */
+.adm-section {
+  margin-bottom: 24px;
+}
+
+.adm-section__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.adm-section__icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #1677ff;
+  background: #e6f4ff;
+}
+
+.adm-section__title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.adm-section__hint {
+  margin: 0 0 16px 34px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #595959;
+}
+
+.adm-divider {
+  height: 1px;
+  margin: 24px 0;
+  background: #f0f0f0;
+}
+
+/* ---- 编辑页：封面图（左侧预览块 + 右侧操作） ---- */
+.adm-cover-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.adm-cover--box {
+  flex: none;
+  width: 320px;
+  max-width: 100%;
+}
+
+/* 双类名压过后面的 .adm-cover{width:100%}（同文件内注入顺序不可控） */
+.adm-cover.adm-cover--box {
+  width: 320px;
+}
+
+.adm-cover-side {
+  flex: 1;
+  min-width: 220px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+/* ---- 编辑页：发布检查清单 ---- */
+.adm-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* 单栏布局下的横排变体：5 项一行铺开 */
+.adm-checklist--row {
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.adm-checklist__foot {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px dashed #eceef2;
+  font-size: 12px;
+  color: #595959;
+}
+
+.adm-checklist__foot strong {
+  color: #595959;
+  font-weight: 500;
+}
+
+.adm-checklist__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.adm-checklist__item--done {
+  color: #434343;
+}
+
+.adm-checklist__dot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  font-size: 10px;
+  color: #bfbfbf;
+  border: 1px solid #e0e0e0;
+  background: #fff;
+}
+
+.adm-checklist__item--done .adm-checklist__dot {
+  color: #fff;
+  background: #52c41a;
+  border-color: #52c41a;
+}
+
+/* ---- 编辑页：上传区 ---- */
+.adm-drop {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  height: 132px;
+  padding: 16px 20px;
+  border-radius: 10px;
+  border: 1px dashed #d9d9d9;
+  background: #fafbfc;
+  cursor: pointer;
+  text-align: center;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.adm-drop:hover {
+  border-color: #1677ff;
+  background: #f5f9ff;
+}
+
+.adm-drop__icon {
+  font-size: 26px;
+  color: #bfbfbf;
+}
+
+.adm-drop:hover .adm-drop__icon {
+  color: #1677ff;
+}
+
+.adm-drop__title {
+  font-size: 13px;
+  color: #595959;
+}
+
+.adm-drop__hint {
+  font-size: 12px;
+  color: #bfbfbf;
+}
+
+/* ---- 编辑页：封面预览 ---- */
+.adm-cover {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px dashed #d9d9d9;
+  background: #fafbfc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.adm-cover--filled {
+  border-style: solid;
+  border-color: #eef0f4;
+}
+
+.adm-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.adm-cover__placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: #bfbfbf;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.adm-cover__note {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #595959;
+}
+
+.adm-warn {
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #d46b08;
+}
+
+/* ---- 编辑页：章节管理（左章节树 + 右单章编辑器） ----
+   说明：这是「主从（master-detail）」结构，不是页面级双栏 —— 章节列表与章节正文
+   必须同屏，故保留左右分栏；窄屏（<992px）自动上下堆叠。 */
+.adm-nodes {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.adm-nodes__tree {
+  flex: none;
+  width: 300px;
+  max-width: 100%;
+}
+
+/* 高度与右侧编辑器对齐（标题行 + 编辑器 520px），章节多时区域内滚动 */
+.adm-nodes__list {
+  max-height: 528px;
+  overflow-y: auto;
+}
+
+.adm-nodes__editor {
+  flex: 1 1 420px;
+  min-width: 0;
+}
+
+.adm-nodes__placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  color: #999;
+}
+
+.adm-node-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #475569;
+  transition: background 0.15s ease;
+}
+
+.adm-node-row:hover {
+  background: #f1f5f9;
+}
+
+.adm-node-row--active {
+  background: #eef2ff;
+  color: #4f46e5;
+  font-weight: 500;
+}
+
+.adm-node-row--active:hover {
+  background: #eef2ff;
+}
+
+.adm-node-row__caret {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  width: 16px;
+  color: #94a3b8;
+}
+
+.adm-node-row__title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-node-row__actions {
+  display: none;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+}
+
+.adm-node-row:hover .adm-node-row__actions {
+  display: inline-flex;
+}
+
+.adm-node-row__btn {
+  padding: 4px;
+  font-size: 11px;
+  line-height: 1;
+}
+

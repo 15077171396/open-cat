@@ -1,0 +1,35 @@
+/* 管理后台样式 · 操作审计
+ * aud- 前缀，仅 pages/AuditLogs 使用
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ============================================================
+   操作审计（pages/AuditLogs/List.tsx）专属样式
+   仅本模块用，故另起 aud- 前缀（通用片段见上方 adm- 段）
+   ============================================================ */
+
+/* 展开区：结构化明细键值对（比甩一段 JSON 好读；键列随内容收缩） */
+.aud-detail {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 12px;
+  font-size: 12px;
+  line-height: 1.7;
+}
+
+.aud-detail__key {
+  color: #595959;
+  white-space: nowrap;
+}
+
+.aud-detail__val {
+  color: #1f1f1f;
+  word-break: break-all;
+}
+
+.aud-detail__section {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  font-weight: 600;
+  color: #595959;
+}
+

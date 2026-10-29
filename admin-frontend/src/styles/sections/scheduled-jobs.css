@@ -1,0 +1,251 @@
+/* 管理后台样式 · 定时任务
+ * jobs- 前缀，仅 pages/ScheduledJobs 使用；摘要格复用 .sys-tile 保持与系统状态卡同一视觉语言
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ============================================================
+   定时任务（pages/ScheduledJobs/index.tsx）专属样式
+   仅本页用，故另起 jobs- 前缀（通用片段见上方 adm- 段；摘要格复用 .sys-tile 保持与
+   「系统状态」卡同一视觉语言）
+   ============================================================ */
+
+.jobs-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.jobs-toolbar__hint {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.jobs-group__count {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  color: #8c8c8c;
+}
+
+/* 任务列表：宽屏是六列表格，窄屏自动折叠成两列卡片（见下方媒体查询）
+   用 grid 而不是 antd Table —— 分组标题要跨行、单元格要能多行说明，Table 反而更绕 */
+.jobs-table {
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.jobs-table__head,
+.jobs-row {
+  display: grid;
+  grid-template-columns: 84px minmax(200px, 2fr) 132px 140px 140px minmax(140px, 1.5fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.jobs-table__head {
+  padding: 9px 14px;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.jobs-row {
+  padding: 12px 14px;
+  font-size: 13px;
+}
+
+.jobs-row + .jobs-row {
+  border-top: 1px solid #f5f5f5;
+}
+
+.jobs-row:hover {
+  background: #fafcff;
+}
+
+.jobs-cell {
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 20px;
+  color: #595959;
+}
+
+.jobs-cell--strong {
+  color: rgba(0, 0, 0, 0.78);
+}
+
+/* 窄屏才显示的字段名（宽屏有表头，重复一遍反而吵） */
+.jobs-cell__k {
+  display: none;
+}
+
+.jobs-cell__sub {
+  font-size: 11.5px;
+  color: #bfbfbf;
+}
+
+.jobs-name {
+  font-size: 13px;
+  font-weight: 500;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.jobs-desc {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #8c8c8c;
+}
+
+.jobs-desc--note {
+  color: #a8a8a8;
+}
+
+.jobs-desc--warn {
+  color: #d46b08;
+}
+
+.jobs-ellipsis {
+  display: block;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.jobs-notes {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 24px;
+  color: rgba(0, 0, 0, 0.72);
+}
+
+.jobs-notes li + li {
+  margin-top: 6px;
+}
+
+.jobs-notes code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f5f5f5;
+  font-size: 12px;
+}
+
+/* 可管理时多一列「操作」（启停开关 + 执行 + 周期）：固定列宽略收，
+   否则窄屏上「上次结果」会被挤成一列省略号 */
+.jobs-table--manage .jobs-table__head,
+.jobs-table--manage .jobs-row {
+  grid-template-columns: 84px minmax(180px, 2fr) 146px 126px 126px minmax(110px, 1.2fr) 108px;
+}
+
+.jobs-cell--actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* 已停用：整行降透明度。**不能整行隐藏** —— 「我关掉了哪个」必须一眼可见，
+   否则停用又会变成一种静默（正是本页要消灭的东西） */
+.jobs-row--disabled {
+  background: #fafafa;
+}
+
+.jobs-row--disabled .jobs-name,
+.jobs-row--disabled .jobs-cell {
+  opacity: 0.65;
+}
+
+.jobs-row--disabled .sys-tile__value {
+  opacity: 1;
+}
+
+@media (max-width: 1180px) {
+  .jobs-table__head {
+    display: none;
+  }
+
+  .jobs-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 16px;
+    padding: 14px;
+  }
+
+  /* 任务名+说明占满整行，读起来才像一张卡片而不是碎块 */
+  .jobs-row > .jobs-cell:nth-child(2) {
+    grid-column: 1 / -1;
+  }
+
+  .jobs-cell__k {
+    display: block;
+    margin-bottom: 2px;
+    font-size: 11px;
+    color: #bfbfbf;
+  }
+}
+
+/* 待处理列表下方的「然后呢」提示（配置类去环境变量、任务类去定时任务页） */
+.sys-footnote {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 18px;
+  color: #8c8c8c;
+}
+
+.sys-footnote code {
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: #f5f5f5;
+}
+
+/* 定时任务页的横幅：白底 + 左侧色条（代替 antd Alert 的整块黄/蓝底）。
+   左色条颜色由组件内联下发（warning/info/error 三档），这里只管形状与文字层级。 */
+.jobs-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border: 1px solid #f0f0f0;
+  border-left: 3px solid #faad14;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.jobs-banner__body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.jobs-banner__title {
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 20px;
+  color: rgba(0, 0, 0, 0.88);
+}
+
+.jobs-banner__desc {
+  margin-top: 4px;
+  font-size: 12.5px;
+  line-height: 20px;
+  color: #595959;
+}
+
+.jobs-banner__desc code {
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: #f5f5f5;
+  font-size: 12px;
+}
+
+.jobs-banner__action {
+  flex: none;
+  padding-top: 1px;
+}

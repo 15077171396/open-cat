@@ -1,0 +1,109 @@
+/* 管理后台样式 · 基础与全局兜底
+ * reset 之外的全局默认、滚动条、路由级加载指示器、错误边界兜底页、章节树 hover 操作按钮
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* 管理后台全局样式 */
+body {
+  margin: 0;
+  /* 中文字体用**系统字体栈**，不加载 Web 字体：
+     - PingFang SC（macOS）/ Microsoft YaHei（Windows）/ Noto Sans CJK（Linux）都是系统自带，
+       首次绘制不需要等任何网络请求；
+     - 此前首位是 'Noto Sans SC'（来自 Google Fonts 的 <link>），国内加载不到会**阻塞首屏**
+       直到连接超时（控制台报 ERR_CONNECTION_CLOSED），是「后台打开很慢」的根因。
+     'Noto Sans SC' / 'Source Han Sans SC' 保留在**靠后**的位置作兜底：
+     本机已装该字体的机器仍会用到，没装的直接落到 sans-serif，不影响任何布局。 */
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans SC', 'Noto Sans CJK SC', sans-serif;
+  background: #f5f6f8;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* 滚动条美化 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* 教程章节管理树：hover 行时显示操作按钮（加子章节/上移/下移/删除）——
+   样式已随「资源/教程」模块改版统一到 .adm-node-row（见文件末尾 adm- 段） */
+
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* 路由级页面加载指示器（纯 CSS 实现，避免在入口 chunk 引入 antd Spin） */
+.page-loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #e5e7eb;
+  border-top-color: #1677ff;
+  border-radius: 50%;
+  animation: page-spin 0.8s linear infinite;
+}
+
+@keyframes page-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 全局错误边界兜底页（ErrorBoundary 为零依赖组件，样式放全局以保证可用） */
+.error-boundary {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px;
+  text-align: center;
+  background: #f5f6f8;
+}
+
+.error-boundary-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+
+.error-boundary-desc {
+  margin: 0;
+  font-size: 14px;
+  color: #595959;
+  line-height: 1.6;
+  max-width: 420px;
+}
+
+.error-boundary-retry {
+  margin-top: 8px;
+  padding: 6px 20px;
+  font-size: 14px;
+  color: #fff;
+  background: #1677ff;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.error-boundary-retry:hover {
+  background: #4096ff;
+}
+

@@ -1,0 +1,229 @@
+# 后台管理端 - 生产编排（开源版）
+#
+# 使用方法：
+#   1. cp .env.example .env   # 只需填 6 项（SECRET_KEY / 两个密码 / 站点地址）
+#   2. docker compose up -d --build
+#   3. 浏览器打开 http://localhost/admin/
+#
+# 与「整套平台」版本的差异（删掉的部分及原因）：
+#   - prerender（Chromium 预渲染）：只为用户端 SEO 服务，本仓库不含用户端；
+#   - umami + postgres（访问统计）：第三方统计，与后台管理无关；
+#   - 用户端静态产物：nginx 只托管 /admin/。
+# 保留 6 个服务：nginx / migrate / app / scheduler / mysql / redis。
+
+# 容器日志上限：json-file 驱动默认无上限，某服务报错刷屏时会一路涨到磁盘满。
+# 单文件 20MB × 5 个 = 单服务 ≤100MB。
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "20m"
+    max-file: "5"
+
+# 权限加固：禁止通过 setuid/setgid 获得新权限，并清空全部 capability。
+# 自研服务（app / scheduler / migrate）不需要任何 capability，Dockerfile 内已切非 root。
+# ⚠️ 不套给 mysql / redis：官方镜像 entrypoint 依赖 root 做 chown 与初始化，
+# cap_drop ALL 会让数据目录权限初始化失败。
+x-hardening: &default-hardening
+  security_opt:
+    - no-new-privileges:true
+  cap_drop:
+    - ALL
+
+services:
+  # ========== 反向代理 + 管理后台静态托管 ==========
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile.nginx
+      # 前端错误监控（可选）：Vite 的 VITE_* 只在构建期生效，必须在此注入
+      args:
+        VITE_SENTRY_DSN: ${VITE_SENTRY_DSN:-}
+        VITE_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
+        VITE_APP_RELEASE: ${APP_RELEASE:-}
+        VITE_SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
+    image: ai-cat-nginx
+    container_name: ai-cat-nginx
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+    logging: *default-logging
+    # nginx 需绑 80 端口并 setuid 切 worker 用户，只阻止「获得新权限」
+    security_opt:
+      - no-new-privileges:true
+    mem_limit: 128m
+    networks:
+      - ai-cat-net
+
+  # ========== 数据库迁移（一次性任务，成功后退出） ==========
+  # 种子数据**不**自动执行：需要时显式跑
+  #   docker compose run --rm migrate python seed_data.py
+  migrate:
+    build: ./backend
+    image: ai-cat-backend
+    container_name: ai-cat-migrate
+    env_file:
+      - .env
+    environment:
+      # 时区锁 UTC：库内 func.now() 与 Python 均按 UTC，统计的日界依赖这一约定
+      TZ: UTC
+      APP_ENV: production
+      APP_DEBUG: "false"
+      # 容器内用服务名，覆盖 .env 里可能写的 127.0.0.1
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${MYSQL_DATABASE:-ai_cat}
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # 种子管理员口令：留空则随机生成，并在日志中**只打印一次**
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: "no"
+    logging: *default-logging
+    command: alembic upgrade head
+    <<: *default-hardening
+    networks:
+      - ai-cat-net
+
+  # ========== 后端 API ==========
+  app:
+    build: ./backend
+    image: ai-cat-backend
+    container_name: ai-cat-app
+    env_file:
+      - .env
+    environment:
+      TZ: UTC
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${MYSQL_DATABASE:-ai_cat}
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      # 后台「系统状态」读该目录判断备份年龄；未挂载时该项显示「不可见」而不是假告警
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging: *default-logging
+    <<: *default-hardening
+    mem_limit: 768m
+    healthcheck:
+      # 用 Python 而非 curl：镜像基于 python-slim，不自带 curl
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health').read()
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ai-cat-net
+
+  # ========== 定时任务（日志清理、收录推送、数据质量检查等 8 个任务） ==========
+  scheduler:
+    build: ./backend
+    image: ai-cat-backend
+    container_name: ai-cat-scheduler
+    env_file:
+      - .env
+    environment:
+      TZ: UTC
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: ${MYSQL_DATABASE:-ai_cat}
+      DB_USER: root
+      DB_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: ${REDIS_PASSWORD}
+    command: python -m scheduler.tasks
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      # 与 app 共用日志目录：定时任务的「静默失败」只能靠日志发现
+      - ./logs:/app/logs
+    restart: unless-stopped
+    logging: *default-logging
+    <<: *default-hardening
+    mem_limit: 192m
+    networks:
+      - ai-cat-net
+
+  # ========== MySQL 8（需 ngram 中文全文索引） ==========
+  mysql:
+    image: mysql:8.0
+    container_name: ai-cat-mysql
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      # ngram 分词长度 2：中文二元切分，站内搜索依赖它
+      - --ngram_token_size=2
+      - --default-time-zone=+00:00
+      - --max_connections=200
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-ai_cat}
+      TZ: UTC
+    volumes:
+      - mysql_data:/var/lib/mysql
+    # 默认不对外暴露 3306。需要本机客户端连接时取消注释（只绑回环）
+    # ports:
+    #   - "127.0.0.1:3306:3306"
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
+    networks:
+      - ai-cat-net
+
+  # ========== Redis 7（缓存 / 限流 / 调度心跳） ==========
+  redis:
+    image: redis:7-alpine
+    container_name: ai-cat-redis
+    command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
+    volumes:
+      - redis_data:/data
+    restart: unless-stopped
+    logging: *default-logging
+    mem_limit: 256m
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    networks:
+      - ai-cat-net
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  ai-cat-net:
+    driver: bridge

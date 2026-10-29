@@ -1,0 +1,28 @@
+# ruff 配置（第五轮审查 MNT-02：仓库此前**没有任何 lint 门禁**）
+#
+# 规则集刻意收得很窄：只开「一定是错误」的那几类，不引入风格争议。
+#   E4/E7/E9 —— 导入位置、语句结构、语法级错误
+#   F        —— pyflakes：未定义名、未使用导入/变量、f-string 占位符不匹配
+#
+# 为什么不开 E501（行宽）/ I（import 排序）/ UP（现代化建议）：
+# 这些是纯风格，全仓改动量在千行级，且会让「真正的错误」淹没在噪声里。
+# 需要时再单独开一个 PR 做，不要和功能改动混在一起。
+
+target-version = "py311"
+line-length = 120
+
+# 历史迁移快照只读：改动会破坏迁移链校验（tests/test_admin_audit 会比对 head）
+exclude = [
+    "backend/alembic/versions",
+    "backend/venv",
+    "**/__pycache__",
+]
+
+[lint]
+select = ["E4", "E7", "E9", "F"]
+# E711/E712 的 SQLAlchemy 例外：`Column == None` 在 SQLAlchemy 里是合法的 IS NULL 生成方式，
+# 但本项目统一用 `is_(None)` / `is_not(None)`（见 redemption_service），所以不必豁免。
+
+[lint.per-file-ignores]
+# 测试里允许「为了断言而导入」与长行
+"backend/tests/**" = ["F401"]

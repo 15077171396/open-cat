@@ -1,0 +1,46 @@
+/* 管理后台样式 · 设计 token（CSS 变量）
+ *
+ * 与 `src/theme.ts` 的 antd token **一一对应**：JS 侧改 theme.ts，CSS 侧改这里，
+ * 两处取值必须同步（改一处忘另一处，会出现「按钮是靛蓝、图标还是默认蓝」的割裂）。
+ *
+ * 为什么要有 CSS 变量：antd 6 的 token 是运行时 CSS-in-JS，只能在 React 组件里用；
+ * 而 `adm-*` 这类手写样式表拿不到它，只能各自写死十六进制 —— 换肤时就会漏。
+ *
+ * ⚠️ 本文件必须在 `custom.css` 里**第一个** @import：变量要被后续所有分片读到。
+ */
+
+:root {
+  /* 品牌 */
+  --app-primary: #4263eb;
+  --app-primary-weak: #eef1ff;
+  --app-primary-border: #d7ddff;
+
+  /* 表面 */
+  --app-canvas: #f5f6f8;
+  --app-card: #ffffff;
+  --app-subtle: #fafbfc;
+  --app-border: #e6e8ec;
+  --app-border-light: #eef0f4;
+
+  /* 文字 */
+  --app-text: #1f2329;
+  --app-text-2: #595959;
+  --app-text-3: #8b93a1;
+
+  /* 语义 */
+  --app-success: #16a34a;
+  --app-success-bg: #eaf7ee;
+  --app-warning: #d97706;
+  --app-warning-bg: #fff6e6;
+  --app-danger: #cf1322;
+  --app-danger-bg: #fdecec;
+  --app-neutral: #4e5969;
+  --app-neutral-bg: #f2f3f5;
+
+  /* 形状与节拍 */
+  --app-radius: 12px;
+  --app-radius-sm: 8px;
+  --app-radius-xs: 6px;
+  --app-gap: 16px;
+  --app-header-h: 56px;
+}

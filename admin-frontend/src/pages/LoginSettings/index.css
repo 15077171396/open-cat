@@ -1,0 +1,17 @@
+/* 登录管理页特有的样式。
+   通用部分（渠道卡 / 提示条 / 分区卡片）在 components/settings/settingsKit.css，
+   这里只留「短信参数按服务商折叠」这一处本页独有。 */
+
+.login-sms-collapse {
+  margin-top: 8px;
+  border-top: 1px solid #f5f5f5;
+}
+
+.login-sms-collapse .ant-collapse-header {
+  padding-left: 0 !important;
+  font-size: 13px;
+}
+
+.login-sms-collapse .ant-collapse-content-box {
+  padding: 4px 0 0 !important;
+}

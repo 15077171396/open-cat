@@ -1,0 +1,68 @@
+/* 管理后台全局样式 · 入口
+ *
+ * 2026-10-27 拆分：原 2197 行单文件按「模块归属」拆到 `sections/`，这里只保留清单。
+ *
+ * ## 为什么保留这个入口
+ * `main.tsx` 与多处代码注释都引用 `styles/custom.css`；改成「按模块 import」会让
+ * 「样式到底在哪个文件、以什么顺序加载」散到两个地方。现在只有一处顺序声明。
+ *
+ * ## 两条约定
+ * 1. **下面的 @import 顺序就是层叠顺序**，与拆分前的单文件顺序逐行一致
+ *    （拆分时用脚本比对过：去掉各分片头部注释后拼接，与原文件逐字节相同）。
+ *    调整顺序前先确认覆盖关系 —— 靠顺序兜底的地方不止一处
+ *    （例如 `.adm-cover` 的双类名选择器就是为了压过后面的 `width:100%`）。
+ * 2. **新增样式先想归属**：整页/整模块独有的放对应分片；跨模块复用的才进 `adm-common.css`；
+ *    新模块请新建 `sections/<模块>.css` 并在下面登记（不要往 `adm-common.css` 里塞）。
+ *
+ * ## 按类名前缀找文件
+ * 代码注释里写的「见 custom.css 的 .xxx」按这张表跳：
+ *   `body` / 滚动条 / 加载指示器 / 错误边界  → base.css
+ *   `--app-*` CSS 变量（设计 token）        → tokens.css（第一个加载）
+ *   `.dash-*` `.sys-*` `.ai-guard__*`        → dashboard.css
+ *   `.adm-*`（页头/工具条/表格/资源行/胶囊）  → adm-common.css
+ *   `.adm-*`（编辑页/封面/上传/检查清单/章节） → adm-edit-page.css
+ *   `.rc-*`                                  → redeem-codes.css
+ *   `.aud-*`                                 → audit-logs.css
+ *   `.fb-*`                                  → feedback.css
+ *   `.ann-*`                                 → announcements.css
+ *   `.jobs-*`                                → scheduled-jobs.css
+ *   `.ai-selection-bubble` / `.ai-writing-*` → ai-writing.css
+ *   `.ant-tag-*` 对比度 / `.adm-menu-group-active` → shared-overrides.css
+ */
+
+/* 设计 token：CSS 变量，与 src/theme.ts 对应。**必须第一个加载** */
+@import './sections/tokens.css';
+
+/* 基础与全局兜底：字体栈、滚动条、路由级加载指示器、错误边界兜底页 */
+@import './sections/base.css';
+
+/* 数据看板：pages/Dashboard + components/dashboard/* */
+@import './sections/dashboard.css';
+
+/* 内容模块通用片段（adm- 前缀，跨模块复用） */
+@import './sections/adm-common.css';
+
+/* 各模块专属样式（顺序即层叠顺序） */
+@import './sections/redeem-codes.css';
+@import './sections/audit-logs.css';
+@import './sections/feedback.css';
+
+/* 编辑页（adm- 前缀，教程/资源/百科/扩展共用） */
+@import './sections/adm-edit-page.css';
+
+@import './sections/announcements.css';
+
+/* 跨页覆盖：antd 预设色标签对比度、侧边菜单折叠态标记 */
+@import './sections/shared-overrides.css';
+
+/* 定时任务页 */
+@import './sections/scheduled-jobs.css';
+
+/* AI 写作浮条与面板 */
+@import './sections/ai-writing.css';
+
+/* 图片搜索弹窗 */
+@import './sections/image-search.css';
+
+/* 素材库页面 */
+@import './sections/materials.css';

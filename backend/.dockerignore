@@ -1,0 +1,32 @@
+# ===== backend 构建上下文隔离 =====
+#
+# 代码审查 2026-10-10 P0-1：backend/Dockerfile 用 `COPY . .`，
+# 而 backend/ 下真实存在 `.env`（含真实密钥）与 `venv/`（111MB，且是
+# Windows venv，进 Linux 镜像纯属死重）。没有本文件时两者都会被复制进镜像。
+#
+# ⚠️ 不要排除以下目录（镜像运行需要）：
+#   app/  alembic/  alembic.ini  requirements.txt  scheduler/  seed_data.py
+
+# ---- 密钥与环境文件 ----
+.env
+.env.*
+# 模板不含真实值，保留
+!.env.example
+
+# ---- 依赖与构建产物 ----
+venv
+.venv
+__pycache__
+*.pyc
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# ---- 本地运行时产物 ----
+logs
+*.log
+backups
+
+# ---- 测试（镜像不需要；测试在 CI 里跑）----
+tests
+.pytest_cache

@@ -1,0 +1,51 @@
+# FastAPI
+fastapi==0.138.1
+uvicorn[standard]==0.30.1
+gunicorn==22.0.0
+
+# Database
+sqlalchemy[asyncio]==2.0.30
+aiomysql==0.2.0
+pymysql==1.1.1
+alembic==1.13.1
+
+# Redis
+redis[hiredis]==5.0.4
+
+# Auth
+pyjwt==2.8.0
+passlib[bcrypt]==1.7.4
+bcrypt==4.2.1
+python-multipart==0.0.32
+
+# AI
+httpx==0.27.0
+
+# 对称加密（把后台配置的 AI API Key 加密后落库，见 app/core/crypto.py）
+# ⚠️ 必须显式声明：它此前只存在于开发机的 venv 里（pip show 的 Required-by 为空），
+#    CI / Docker 构建会缺这个包，导致 import 失败
+cryptography==49.0.0
+
+# Utils
+pydantic==2.9.2
+pydantic-settings==2.2.1
+loguru==0.7.2
+nh3==0.3.6
+Pillow==12.3.0
+qrcode==8.2
+
+# 邮件 (SMTP) - 注册验证码发送
+aiosmtplib==3.0.2
+
+# 对象存储 (腾讯云 COS)
+cos-python-sdk-v5==1.9.32
+
+# Scheduler
+apscheduler==3.10.4
+
+# Monitoring (错误监控; 未配置 SENTRY_DSN 时不加载, 见 app/core/monitoring.py)
+sentry-sdk[fastapi]==2.71.0
+
+# Testing
+pytest==8.2.0
+pytest-asyncio==0.23.6

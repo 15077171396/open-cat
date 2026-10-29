@@ -1,0 +1,28 @@
+/* 管理后台样式 · 用户反馈
+ * fb- 前缀，仅 pages/Feedback 使用
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ============================================================
+   用户反馈（pages/Feedback/List.tsx）专属样式
+   仅本模块用，故另起 fb- 前缀（通用片段见上方 adm- 段）
+   ============================================================ */
+
+/* 审阅弹框里的反馈正文：保留用户换行，超长时内部滚动 */
+.fb-content {
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 14px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+
+.adm-muted {
+  color: #595959;
+  font-variant-numeric: tabular-nums;
+}
+

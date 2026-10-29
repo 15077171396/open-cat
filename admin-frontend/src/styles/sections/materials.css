@@ -1,0 +1,505 @@
+/* 素材库：类型 chips + 工具条 + 方形缩略图网格；白 + 浅蓝，与 AI 写作面板同一套视觉。 */
+
+.mat-page {
+  background: #f6faff;
+}
+
+/* ---------- 类型筛选 chips ---------- */
+
+.mat-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* 窄屏不换行（换行会让最后一个 chip 孤零零掉到下一行），改成横向滚动 */
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: 12px;
+  scrollbar-width: thin;
+  scrollbar-color: #dbe8f7 transparent;
+}
+
+.mat-chips::-webkit-scrollbar {
+  height: 6px;
+}
+
+.mat-chips::-webkit-scrollbar-thumb {
+  border-radius: 3px;
+  background: #dbe8f7;
+}
+
+.mat-chip {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border: 1px solid #e3edf9;
+  border-radius: 999px;
+  background: #fff;
+  color: #52657d;
+  cursor: pointer;
+  font: inherit;
+  font-size: 13px;
+  line-height: 1;
+  transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.mat-chip:hover {
+  border-color: #bcd4f2;
+  color: #1d4ed8;
+}
+
+.mat-chip.is-active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.mat-chip__icon {
+  display: inline-flex;
+  font-size: 14px;
+  opacity: 0.85;
+}
+
+.mat-chip__count {
+  min-width: 18px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #eef4fb;
+  color: #5f7288;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.mat-chip.is-active .mat-chip__count {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+/* ---------- 工具条 ---------- */
+
+.mat-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+  padding: 10px 12px;
+  border: 1px solid #e3edf9;
+  border-radius: 12px;
+  background: #fff;
+}
+
+.mat-toolbar__search {
+  flex: 1 1 260px;
+  min-width: 200px;
+  max-width: 420px;
+}
+
+.mat-toolbar__source {
+  width: 150px;
+}
+
+.mat-toolbar__total {
+  margin-left: auto;
+  color: #5f7288;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- 网格 ---------- */
+
+.mat-grid {
+  display: grid;
+  /* 素材库以「看图」为主，卡片给足尺寸：大屏约 5–6 列，每列 300px 上下 */
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 18px;
+}
+
+.mat-card {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid #e3edf9;
+  border-radius: 14px;
+  background: #fff;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.mat-card:hover {
+  border-color: #bcd4f2;
+  box-shadow: 0 10px 26px rgba(15, 45, 80, 0.1);
+  transform: translateY(-2px);
+}
+
+/* 缩略图容器：方形，各种比例的图都靠 cover 裁齐，避免网格参差 */
+.mat-card__media {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  overflow: hidden;
+  background:
+    repeating-conic-gradient(#f4f8fd 0% 25%, #eef4fb 0% 50%) 50% / 16px 16px;
+}
+
+.mat-card__preview {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: zoom-in;
+}
+
+.mat-card__preview img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.25s ease;
+}
+
+.mat-card:hover .mat-card__preview img {
+  transform: scale(1.04);
+}
+
+.mat-card__preview:focus-visible {
+  outline: 2px solid #2563eb;
+  outline-offset: -2px;
+}
+
+.mat-card__file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  background: #f8fbff;
+}
+
+.mat-card__file-icon {
+  color: #2563eb;
+  font-size: 34px;
+}
+
+.mat-card__ext {
+  color: #52657d;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+}
+
+/* 左上角格式角标 */
+.mat-card__badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 3px 8px;
+  border-radius: 7px;
+  background: rgba(15, 39, 68, 0.68);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  backdrop-filter: blur(2px);
+  pointer-events: none;
+}
+
+/* 悬浮操作层：默认隐藏，hover / 键盘聚焦 / 触屏设备常驻 */
+.mat-card__overlay {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 20px 8px 8px;
+  background: linear-gradient(transparent, rgba(10, 30, 60, 0.55));
+  opacity: 0;
+  transition: opacity 0.18s ease;
+}
+
+.mat-card:hover .mat-card__overlay,
+.mat-card:focus-within .mat-card__overlay {
+  opacity: 1;
+}
+
+.mat-card__overlay .ant-btn {
+  border-color: transparent;
+  background: rgba(255, 255, 255, 0.94);
+  color: #1f3a5f;
+  box-shadow: 0 2px 6px rgba(10, 30, 60, 0.18);
+}
+
+.mat-card__overlay .ant-btn:hover {
+  background: #fff;
+  color: #1d4ed8;
+}
+
+/* ---------- 卡片文字区 ---------- */
+
+.mat-card__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px 13px;
+}
+
+.mat-card__title {
+  overflow: hidden;
+  color: #0f2744;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  color: #5f7288;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.mat-card__meta > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mat-card__source {
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.mat-card__dot {
+  color: #b9c8d9;
+}
+
+.mat-card__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: auto;
+  color: #8497ac;
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.mat-card__time {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---------- 空态 ---------- */
+
+.mat-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 8px;
+  padding: 64px 24px;
+  border: 1px dashed #dbe8f7;
+  border-radius: 14px;
+  background: #fff;
+  text-align: center;
+}
+
+.mat-empty__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  margin-bottom: 4px;
+  border-radius: 16px;
+  background: #eef4fb;
+  color: #2563eb;
+  font-size: 24px;
+}
+
+.mat-empty__title {
+  color: #0f2744;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.mat-empty__sub {
+  max-width: 420px;
+  color: #5f7288;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.mat-empty .ant-btn {
+  margin-top: 6px;
+}
+
+.mat-pagination {
+  display: flex;
+  justify-content: center;
+  padding: 22px 0 4px;
+}
+
+/* ---------- 预览弹窗：左图右信息 ---------- */
+
+.mat-preview-modal .ant-modal-body {
+  padding-top: 4px;
+}
+
+.mat-preview {
+  display: grid;
+  /* 右栏给足宽度：三个操作按钮必须能排成一行，否则会折成两行很难看 */
+  grid-template-columns: minmax(0, 1fr) 350px;
+  gap: 18px;
+  align-items: start;
+}
+
+.mat-preview__stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  max-height: 60vh;
+  overflow: hidden;
+  border-radius: 12px;
+  background:
+    repeating-conic-gradient(#f4f8fd 0% 25%, #eef4fb 0% 50%) 50% / 18px 18px;
+}
+
+.mat-preview__stage img {
+  display: block;
+  max-width: 100%;
+  max-height: 60vh;
+  object-fit: contain;
+}
+
+.mat-preview__file {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 220px;
+  padding: 24px;
+  color: #52657d;
+}
+
+/* 文件态 / 图片加载失败的提示文字：限宽并居中，避免长句铺满整个预览区 */
+.mat-preview__file > span:not(.mat-preview__file-icon) {
+  max-width: 340px;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+}
+
+.mat-preview__file-icon {
+  color: #2563eb;
+  font-size: 44px;
+}
+
+.mat-preview__side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mat-preview__facts {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 0;
+  border: 1px solid #e3edf9;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.mat-preview__facts > div {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #f0f6fd;
+}
+
+.mat-preview__facts > div:last-child {
+  border-bottom: 0;
+}
+
+.mat-preview__facts dt {
+  flex: 0 0 48px;
+  color: #8497ac;
+  font-size: 12px;
+}
+
+.mat-preview__facts dd {
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: #0f2744;
+  font-size: 13px;
+}
+
+.mat-preview__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.mat-preview__actions .ant-btn {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+/* ---------- 响应式 ---------- */
+
+@media (hover: none) {
+  /* 触屏没有 hover：操作按钮必须常驻，否则永远点不到；上浮效果也去掉，避免"卡住" */
+  .mat-card__overlay {
+    opacity: 1;
+  }
+
+  .mat-card:hover {
+    transform: none;
+    box-shadow: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .mat-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .mat-preview { grid-template-columns: minmax(0, 1fr); }
+  .mat-preview__stage { max-height: 42vh; }
+  .mat-preview__stage img { max-height: 42vh; }
+}
+
+@media (max-width: 560px) {
+  .mat-toolbar { padding: 10px; }
+  .mat-toolbar__search { flex-basis: 100%; max-width: none; }
+  .mat-toolbar__source { flex: 1; width: auto; }
+  .mat-toolbar__total { margin-left: 0; width: 100%; }
+  .mat-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  .mat-card__body { padding: 8px 10px 10px; }
+  .mat-card__badge { top: 6px; left: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mat-card,
+  .mat-card__preview img,
+  .mat-card__overlay { transition: none; }
+  .mat-card:hover { transform: none; }
+  .mat-card:hover .mat-card__preview img { transform: none; }
+}

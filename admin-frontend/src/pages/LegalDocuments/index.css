@@ -1,0 +1,176 @@
+/* 法律文档：左侧文档导航 + 右侧富文本编辑（与「模型管理」同一套阅读顺序） */
+
+.legal-intro {
+  margin-bottom: 16px;
+}
+
+/* 提示条：白底 + 左侧色条（不用整块黄底，浅色后台里大面积底色显脏） */
+.legal-banner {
+  margin-top: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: #595959;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-left: 3px solid #faad14;
+  border-radius: 8px;
+}
+
+.legal-layout {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+/* ---------- 左侧导航 ---------- */
+
+.legal-docs {
+  position: sticky;
+  top: 16px;
+  overflow: hidden;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+}
+
+.legal-docs__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 13px 16px;
+  border-bottom: 1px solid #f5f5f5;
+}
+
+.legal-docs__title {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: #8c8c8c;
+  text-transform: uppercase;
+}
+
+.legal-docs__count {
+  min-width: 20px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 18px;
+  color: #8c8c8c;
+  text-align: center;
+  background: #f5f5f5;
+  border-radius: 9px;
+}
+
+.legal-doc {
+  display: block;
+  width: 100%;
+  padding: 11px 14px;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid transparent;
+  transition: background 0.16s ease, border-color 0.16s ease;
+}
+
+.legal-doc:hover {
+  background: #fafafa;
+}
+
+.legal-doc--active {
+  background: #f0f7ff;
+  border-left-color: #1677ff;
+}
+
+.legal-doc__row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.legal-doc__name {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+}
+
+/* 未保存标记：小圆点，避免整行变色干扰「选中态」 */
+.legal-doc__dot {
+  width: 6px;
+  height: 6px;
+  background: #fa8c16;
+  border-radius: 50%;
+}
+
+.legal-doc__meta {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.legal-docs__foot {
+  padding: 10px 14px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #8c8c8c;
+  border-top: 1px solid #f5f5f5;
+}
+
+/* ---------- 右侧编辑区 ---------- */
+
+.legal-editor {
+  padding: 18px 20px 20px;
+  background: #fff;
+  border: 1px solid #f0f0f0;
+  border-radius: 10px;
+}
+
+.legal-editor__head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.legal-editor__title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.legal-editor__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.legal-editor__note {
+  padding: 8px 12px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  line-height: 1.7;
+  color: #595959;
+  background: #fafafa;
+  border-left: 3px solid #d9d9d9;
+  border-radius: 6px;
+}
+
+/* 窄屏：导航折到上方，避免正文被压成窄条 */
+@media (max-width: 1100px) {
+  .legal-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .legal-docs {
+    position: static;
+  }
+}

@@ -1,0 +1,28 @@
+/* 管理后台样式 · 公告管理
+ * ann- 前缀，仅 pages/Announcements 使用
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ============================================================
+   公告管理（pages/Announcements/List.tsx）专属样式
+   仅本模块用，故另起 ann- 前缀（通用片段见上方 adm- 段）
+   ============================================================ */
+
+/* 公告行：左侧色条（用公告自身的标签色）+ 标题 + 正文摘要 */
+.ann-cell {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ann-cell__bar {
+  flex: none;
+  width: 4px;
+  border-radius: 2px;
+}
+
+.ann-cell__body {
+  min-width: 0;
+  flex: 1;
+}
+

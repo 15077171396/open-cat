@@ -1,0 +1,109 @@
+# 依赖更新与安全公告自动化（2026-10-27 新增）
+#
+# 为什么需要它：本仓库有 5 份依赖清单（1 份 pip + 4 份 npm lockfile），
+# 但**没有任何自动化的漏洞/版本跟踪** —— 上游发 CVE 时只能靠人偶尔想起去查。
+# 依赖漏洞是「不修也不报错、只在某天被人利用」的典型风险，靠记忆管不住。
+#
+# 策略（刻意保守，避免 PR 洪水）：
+#   - 每周一次，全部集中在周一 09:00（北京时间 = UTC+8 → 01:00 UTC）；
+#   - minor / patch 合到一个 PR 里，major 单独一个 PR（major 需要人工读 changelog）；
+#   - 同一生态最多 5 个待合并 PR，超出的等下一周，避免淹没正常 PR；
+#   - 安全更新（security）不受分组限制，Dependabot 会单独开 PR 并标注。
+#
+# ⚠️ 升级前必读：CI 的 PYTHON_VERSION / NODE_VERSION 必须与各 Dockerfile 的 FROM 一致
+# （scripts/check_ci_config.py 会判失败）。升级 Node/Python 基础镜像时，三处一起改。
+
+version: 2
+
+updates:
+  # ---------- 后端 Python ----------
+  - package-ecosystem: pip
+    directory: /backend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      backend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ---------- 用户端 ----------
+  - package-ecosystem: npm
+    directory: /frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      frontend-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ---------- 管理端 ----------
+  - package-ecosystem: npm
+    directory: /admin-frontend
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      admin-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ---------- 小程序 ----------
+  # 纯增量目录，但仍要跟版本：它的构建工具与 Web 端不共享，单独升级不会影响 Web
+  - package-ecosystem: npm
+    directory: /miniprogram
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      miniprogram-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ---------- 预渲染服务 ----------
+  # 容器内跑 Chromium，历史上多次出 CVE，最需要跟踪
+  - package-ecosystem: npm
+    directory: /prerender
+    schedule:
+      interval: weekly
+      day: monday
+      time: "09:00"
+      timezone: Asia/Shanghai
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(deps)"
+    groups:
+      prerender-minor-patch:
+        patterns: ["*"]
+        update-types: ["minor", "patch"]
+
+  # ---------- CI 里的 Actions ----------
+  # 用 pin 的 action 版本同样会被弃用（Node 运行时升级），跟一下成本很低
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    open-pull-requests-limit: 3
+    commit-message:
+      prefix: "chore(ci)"

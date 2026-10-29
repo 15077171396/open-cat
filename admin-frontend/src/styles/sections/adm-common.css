@@ -1,0 +1,286 @@
+/* 管理后台样式 · 内容模块通用片段
+ * adm- 前缀，跨模块复用：列表页头、工具条、表格单元、资源行、类型胶囊、指标与等宽数字
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ *
+ * 注：原文件里「分类管理（pages/Categories）」只有一段标题注释、没有任何 cat- 规则
+ * （该页复用的就是本文件的 adm- 通用片段），拆分时把那个空段一并删掉了。
+ */
+/* ============================================================
+   后台内容模块通用 UI 片段（pages/Resources/*、pages/Tutorials/*）
+   说明：命名统一 adm- 前缀，**跨模块复用**（列表页头 / 工具条 / 表格单元 / 分区块 /
+   封面上传 / 上传区 / 检查清单）；模块专属样式请另起前缀，不要往这里塞。
+   与 antd 默认样式冲突处用「双类名」（如 .adm-tablecard.ant-card）
+   提高特异性 —— antd 6 样式是 CSS-in-JS 运行时注入，注入顺序不可控。
+   ============================================================ */
+
+/* ---- 页头 ---- */
+.adm-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.adm-header__main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.adm-header__icon {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--app-radius);
+  font-size: 20px;
+  /* 品牌色走 token：换肤时与 theme.ts 的 colorPrimary 一起变，不再各自写死 */
+  color: var(--app-primary);
+  background: var(--app-primary-weak);
+  border: 1px solid var(--app-primary-border);
+}
+
+.adm-header__title {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--app-text);
+}
+
+.adm-header__sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  font-size: 12px;
+  color: #595959;
+}
+
+.adm-header__sub strong {
+  color: #595959;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-header__dot {
+  color: #d9d9d9;
+}
+
+/* 行内分隔点（指标行、检查清单脚注等处共用） */
+.adm-sep {
+  color: #d9d9d9;
+}
+
+.adm-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* ---- 工具条卡片 ---- */
+.adm-toolbar.ant-card,
+.adm-tablecard.ant-card {
+  border-radius: var(--app-radius);
+  border-color: var(--app-border-light);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+}
+
+.adm-toolbar.ant-card {
+  margin-bottom: 12px;
+}
+
+.adm-toolbar.ant-card .ant-card-body {
+  padding: 12px 16px;
+}
+
+.adm-toolbar__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.adm-selinfo {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  color: #0958d9;
+  background: #e6f4ff;
+}
+
+.adm-selinfo strong {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- 表格 ---- */
+.adm-tablecard.ant-card .ant-card-body {
+  padding: 8px 8px 0;
+}
+
+.adm-table .ant-table {
+  font-size: 13px;
+}
+
+.adm-table .ant-table-thead > tr > th {
+  background: #fafbfc;
+  color: #595959;
+  font-weight: 600;
+  font-size: 12px;
+  border-bottom: 1px solid #eef0f4;
+}
+
+.adm-table .ant-table-tbody > tr > td {
+  border-bottom: 1px solid #f5f6f8;
+}
+
+.adm-table .ant-table-tbody > tr:hover > td {
+  background: #f7faff;
+}
+
+.adm-table .ant-table-pagination.ant-pagination {
+  margin: 16px 8px;
+}
+
+/* ---- 资源行：缩略图 + 名称 + 简介 + 标签 ---- */
+.adm-cell {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 列表首列头像：flex 布局下不参与伸缩 */
+.adm-avatar {
+  flex: none;
+}
+
+.adm-thumb {
+  flex: none;
+  width: 64px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #f5f7fa;
+  border: 1px solid #f0f0f0;
+}
+
+.adm-thumb--icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  color: #fff;
+  border-color: transparent;
+}
+
+.adm-cell__body {
+  min-width: 0;
+  flex: 1;
+}
+
+.adm-cell__name {
+  font-weight: 600;
+  color: #1f1f1f;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* 标题行：标题可省略号截断，行内角标（置顶/推荐）不被压缩 */
+.adm-cell__titleline {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.adm-cell__titleline .adm-cell__name {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.adm-cell__titleline .ant-tag {
+  flex: none;
+  margin-inline-end: 0;
+}
+
+.adm-cell__desc {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #595959;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.adm-cell__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.adm-minitag {
+  padding: 0 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  line-height: 18px;
+  color: #595959;
+  background: #f5f5f5;
+  border: 1px solid #f0f0f0;
+}
+
+/* ---- 类型胶囊 ---- */
+/* 分类 / 类型标签：方角（与 antd Tag 的 4px 圆角一致，不用胶囊形） */
+.adm-typepill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 22px;
+  white-space: nowrap;
+}
+
+/* ---- 指标 / 次要文本 ---- */
+.adm-metric {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #434343;
+  font-variant-numeric: tabular-nums;
+}
+
+.adm-metric .anticon {
+  color: #bfbfbf;
+  font-size: 12px;
+}
+
+/* 等宽数字：ID / UID / 余额等需要数位对齐的列 */
+.adm-num {
+  color: #595959;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 数值变动：加粗 + 等宽数字（积分/兑换码等模块共用；正负颜色由行内给出） */
+.adm-delta {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+

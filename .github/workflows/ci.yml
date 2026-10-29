@@ -1,0 +1,315 @@
+# =============================================================================
+# CI（对应缺口台账 P0-2）
+# =============================================================================
+# 目标：push / PR 自动跑测试 + 构建镜像，替代「发版时才靠人工 ./deploy.sh rebuild」。
+#
+# 四条设计约定，改动前请先读：
+#
+#  1. 版本必须对齐生产镜像
+#     后端 python:3.11（backend/Dockerfile）、前端构建 node:22（Dockerfile.nginx）。
+#     CI 与生产版本不一致时，CI 通过不代表能部署 —— 那是最坏的假绿。
+#     改基础镜像版本时，务必同步本文件顶部的 PYTHON_VERSION / NODE_VERSION。
+#
+#  2. 后端用例必须「离线可跑」
+#     CI 里没有 MySQL / Redis，所以把端口显式指向 1（不可达）。
+#     这样「某个用例偷偷连了真实服务」会立刻失败，而不是静默跳过或被本地
+#     开发环境掩盖 —— 本地能过、CI 不能过的测试等于没有测试。
+#
+#  3. 前端两个工程都要过类型检查 + 生产构建
+#     用户端额外跑错误监控脱敏回归（含「两端 monitoring.ts 必须逐字一致」守卫）。
+#
+#  4. 镜像构建复用 docker-compose.yml，不在这里重复 context / dockerfile / build-args
+#     否则 CI 校验的构建口径会与 deploy.sh 慢慢漂移。
+# =============================================================================
+
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+  workflow_dispatch:
+
+# 同一分支连续 push 时取消上一次未跑完的任务，避免排队堆积与浪费额度
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # ⚠️ 改这里之前先看文件头「约定 1」
+  PYTHON_VERSION: "3.11"
+  NODE_VERSION: "22"
+
+jobs:
+  # ===================== 后端 =====================
+  backend:
+    name: 后端测试
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: 安装 Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      # 放在最前：版本 pin 与生产镜像不一致属于配置错误，应第一时间失败
+      - name: CI 配置自检（版本对齐 / 路径 / npm script / compose 服务）
+        run: python scripts/check_ci_config.py
+
+      - name: 安装依赖
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: 单元测试（离线，不需要 MySQL / Redis）
+        working-directory: backend
+        env:
+          # 指向不可达端口：把「测试是否真的离线」变成一条会失败的断言
+          DB_HOST: 127.0.0.1
+          DB_PORT: "1"
+          REDIS_HOST: 127.0.0.1
+          REDIS_PORT: "1"
+        run: python -m pytest tests/ -q
+
+      - name: 文档链接与锚点校验
+        run: python scripts/check_docs_links.py
+
+      - name: 环境变量一致性校验（compose ↔ .env 模板 ↔ Settings）
+        run: python scripts/check_env_consistency.py
+
+      # 清单数字守卫（2026-10-29）：项目说明/README 里的路径/操作/表/迁移/测试文件数
+      # 长期靠人肉维护，实测漂移 20%（198 vs 205 路径、1632 vs 1825 用例）。
+      # 本步在依赖装好后运行，能直接 import app 取 OpenAPI 与 metadata。
+      - name: 文档清单数字校验（接口/表/迁移/测试文件）
+        run: python scripts/check_doc_stats.py
+
+      # Python 静态检查（第五轮审查 MNT-02）：仓库此前**没有任何 lint 门禁**。
+      # 规则集刻意收窄到「一定是错误」的几类（未定义名 / 未使用导入 / 语法级问题，见 ruff.toml），
+      # 不引入风格争议；版本 pin 与 requirements 同样道理，避免规则随版本漂移。
+      - name: 安装 lint 工具
+        run: pip install ruff==0.17.1
+
+      - name: Python 静态检查（ruff）
+        run: ruff check backend
+
+      # nginx.conf 的语法错误一律表现为「容器起不来 → 全站 502」，而 CI 此前只校验
+      # compose 插值、从不碰 nginx.conf 本身。本脚本零依赖地拦住高频坑
+      # （括号不平衡 / location 重复 / proxy_pass 指向未定义 upstream / 双 Cache-Control）。
+      - name: nginx 配置自检（零依赖，不需要 nginx 二进制）
+        run: python scripts/check_nginx_conf.py
+
+      # docker-compose 的 `command: >` 是**折叠标量**：块内的 `#` 不是注释，
+      # 会被原样传给容器。2026-10-20 就是这么让 mysqld 报
+      # `Too many arguments (first extra is '#')` 后 abort、整站 502 的。
+      # `docker compose config` 不报这种错，所以只能用静态检查兜。
+      - name: compose 折叠标量自检（块内不得有 `#`）
+        run: python scripts/check_compose_scalars.py
+
+      # 部署包必须「干净且可跑」：脚本自带三项自检（无 node_modules/venv/.git/
+      # __pycache__/dist/logs/真实 .env；必需文件齐全；所有 .sh/Dockerfile/conf/yml 为 LF）。
+      # 2026-10-21 的线上事故就是打出来的 deploy.sh 是 CRLF，服务器直接
+      # `$'\r': command not found` —— 那次是手工 tar 的锅，现在把打包固定成脚本并在这里跑一遍。
+      # 任何一项被破坏（有人改了白名单、弄坏 .gitattributes、把 tests 加回来），这里立刻红。
+      - name: 部署包打包自检（排除清单 / 必需文件 / LF 换行）
+        run: bash scripts/pack-deploy.sh /tmp/ci-pack.tar.gz
+
+  # ===================== 数据库迁移（真实 MySQL） =====================
+  # 对应 2026-10-10 独立复核发现的缺口：**CI 从不执行 alembic**。
+  # 后端单测刻意离线（DB_PORT 指向不可达端口），43 个迁移因此从未在任何真实
+  # MySQL 上跑过 —— 这是最典型的「CI 全绿但线上炸」：迁移一旦报错，
+  # compose 的 migrate 服务失败，而 app 依赖 service_completed_successfully，
+  # 结果是**整站起不来且没有任何告警**。
+  # 本 job 在全新 MySQL 8.0 上把迁移链跑通，并把「单头」与「可逆」变成可失败断言。
+  migrations:
+    name: 数据库迁移（真实 MySQL 8.0）
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: 安装 Python ${{ env.PYTHON_VERSION }}
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: 安装依赖
+        working-directory: backend
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      # 刻意用 docker run 而不是 services: —— services 的 options 无法覆盖容器 CMD，
+      # 而这里必须传 --ngram_token_size=2：它是中文全文检索（迁移 0028 / 0032 的
+      # `WITH PARSER ngram`）的前提，缺失时迁移会以 "Unknown parser" 失败。
+      # 其余参数与 docker-compose.yml 的 mysql 服务逐条对齐，避免「CI 通了、生产不通」。
+      - name: 启动 MySQL 8.0（参数与生产 compose 对齐）
+        run: |
+          docker run -d --name ci-mysql \
+            -e MYSQL_ROOT_PASSWORD=ci_root_pw \
+            -e MYSQL_DATABASE=ai_cat \
+            -p 3306:3306 \
+            mysql:8.0 \
+            --character-set-server=utf8mb4 \
+            --collation-server=utf8mb4_unicode_ci \
+            --default-authentication-plugin=mysql_native_password \
+            --ngram_token_size=2
+          echo "等待 MySQL 就绪..."
+          for i in $(seq 1 60); do
+            if docker exec ci-mysql mysqladmin ping -h 127.0.0.1 -uroot -pci_root_pw --silent >/dev/null 2>&1; then
+              echo "MySQL 已就绪（第 ${i} 次探测）"
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "::error::MySQL 在 120s 内未就绪"
+          docker logs --tail 50 ci-mysql
+          exit 1
+
+      - name: 迁移链必须是单头
+        working-directory: backend
+        env: &mig_env
+          # 用 production 语义跑迁移：与生产 migrate 服务的环境一致
+          APP_ENV: production
+          APP_DEBUG: "false"
+          SECRET_KEY: ci-migration-check-secret-key-0123456789abcdef
+          CORS_ORIGINS: https://www.wdmao.cn
+          DB_HOST: 127.0.0.1
+          DB_PORT: "3306"
+          DB_NAME: ai_cat
+          DB_USER: root
+          DB_PASSWORD: ci_root_pw
+          # config.py 在生产语义下会校验 REDIS_PASSWORD 非空（Redis 存有令牌黑名单 /
+          # 版本号 / RBAC 权限缓存等**安全状态**）。本 job 不连 Redis，给占位值即可 ——
+          # 而且这正是「与生产的 migrate 环境保持一致」的应有之义。
+          REDIS_PASSWORD: ci_redis_pw
+        run: |
+          alembic heads
+          heads="$(alembic heads | grep -c '(head)' || true)"
+          echo "检测到 head 数: ${heads}"
+          if [ "${heads}" -ne 1 ]; then
+            echo "::error::alembic 存在 ${heads} 个 head（多主会让 upgrade head 行为不确定），请先 alembic merge"
+            exit 1
+          fi
+
+      - name: 在全新空库上 upgrade 到 head
+        working-directory: backend
+        env: *mig_env
+        run: |
+          alembic upgrade head
+          echo "--- 迁移后的版本 ---"
+          alembic current
+
+      - name: 迁移可逆性（downgrade base → 再 upgrade head）
+        working-directory: backend
+        env: *mig_env
+        run: |
+          # 只做 upgrade 是不够的：downgrade 写错（如漏删索引）时，
+          # 回滚会失败或残留半截 schema，而这类问题只在真正回滚时才暴露。
+          # 再 upgrade 一次还能顺带验证「迁移可重复执行」。
+          alembic downgrade base
+          echo "--- 已回退到 base，重新 upgrade ---"
+          alembic upgrade head
+          echo "--- 迁移链双向验证通过 ---"
+
+  # ===================== 前端 =====================
+  frontend:
+    name: 前端 ${{ matrix.app }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      # 一个工程失败也让另一个跑完：一次 push 拿到全部问题，不用来回试
+      fail-fast: false
+      matrix:
+        # 开源版只剩管理后台（用户端与小程序不在本仓库）
+        app: [admin-frontend]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: 安装 Node ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          # package.json 一定存在；lockfile 也一并纳入哈希，任一变动都会换缓存键
+          cache-dependency-path: |
+            ${{ matrix.app }}/package.json
+            ${{ matrix.app }}/package-lock.json
+
+      - name: 安装依赖
+        working-directory: ${{ matrix.app }}
+        # 有 lockfile 时严格走 npm ci：lockfile 与 package.json 不同步会直接失败，
+        # 避免 CI 悄悄装出与提交记录不一致的依赖树。
+        # 没有 lockfile 时退回 npm install 并打一条 warning —— 此时依赖不可复现。
+        # （部署用的 Dockerfile.nginx 是 `npm ci || npm install`：发版以能装成为先，
+        #   CI 以严格为准，两者刻意不同。）
+        run: |
+          if [ -f package-lock.json ]; then
+            npm ci
+          else
+            echo "::warning::未找到 package-lock.json，退回 npm install（依赖不可复现）"
+            npm install
+          fi
+
+      # 前端 lint 门禁（第五轮审查 MNT-02）：两端此前**没有任何 lint**。
+      # 规则集刻意收窄到「一定是 bug」的几类（见各自 eslint.config.js）：
+      # 未使用变量/导入、finally 里 return、空代码块、hooks 调用顺序。
+      # 风格类规则一律不开，避免历史告警把门禁逼成「整体关掉」。
+      # 注：`exhaustive-deps` 是 warn 级（历史代码大量刻意省略依赖），
+      # 故这里不加 --max-warnings=0 —— 门禁只拦 error。
+      - name: 前端 lint（eslint）
+        working-directory: ${{ matrix.app }}
+        run: npm run lint
+
+      - name: 类型检查 + 生产构建（tsc -b && vite build）
+        working-directory: ${{ matrix.app }}
+        run: npm run build
+
+      # 两端都跑 vitest（第五轮审查 MNT-01）：
+      # - admin-frontend：编辑器纯逻辑与编辑页字段往返（QuillEditor 曾长期零测试覆盖）；
+      # - frontend：登录态 store / 内存缓存 / 富文本清洗的纯函数守卫（2026-10-20 补齐，
+      #   此前 17k 行用户端 0 单测，登录态与「换号串数据」这类问题只能靠手测）。
+      - name: 单元测试（vitest）
+        working-directory: ${{ matrix.app }}
+        run: npm test
+
+      # 依赖漏洞扫描（P2-17）。
+      # ⚠️ 用 `continue-on-error` 而非直接阻断：现存 high 漏洞**全部在构建期依赖**
+      # （vite / chokidar / tailwindcss / tinypool 等），根治需要升级到 vite 6 + vitest 5，
+      # 属独立工程；**运行时依赖（axios 等）已用 `npm audit fix` 清零**。
+      # 本步先保证「可见性」——失败会以警告状态出现在 CI 里，而不是没人知道；
+      # 待依赖大版本升级完成后，去掉 continue-on-error 即可收紧为强制。
+      # 注：`npm audit` 需要官方 registry（淘宝镜像会返回 NOT_IMPLEMENTED），故显式指定。
+      - name: 依赖漏洞扫描（npm audit）
+        continue-on-error: true
+        working-directory: ${{ matrix.app }}
+        run: npm audit --audit-level=high --registry=https://registry.npmjs.org
+
+  # ===================== 镜像构建 =====================
+  docker:
+    name: 构建镜像
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: 校验 compose 语法与环境变量插值
+        run: docker compose config -q
+
+      # app 与 migrate / scheduler 共用同一镜像 ai-cat-backend（见 compose 注释）
+      - name: 构建后端镜像
+        run: docker compose build app
+
+      - name: 构建前端镜像（管理后台）
+        run: docker compose build nginx

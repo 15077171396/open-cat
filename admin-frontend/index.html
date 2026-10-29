@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- 安全：管理后台禁止被搜索引擎收录与跟踪 -->
+  <meta name="robots" content="noindex, nofollow" />
+  <!-- 性能：**刻意不加载任何 Web 字体**（2026-10-27 移除）。
+       原先这里引了 `fonts.googleapis.cn` 的 Noto Sans SC，而它是 <link rel="stylesheet">
+       ——**渲染阻塞**：该域名在国内经常直接 ERR_CONNECTION_CLOSED，浏览器要等连接超时
+       才开始首次绘制，表现就是「打开后台非常慢」（控制台那条 Failed to load resource）。
+       中文字体改用系统字体栈（见 src/styles/custom.css），零网络请求、零阻塞。 -->
+  <title>AI学习猫 - 管理后台</title>
+  <!-- favicon：此前管理端**没有声明**任何图标，浏览器每次加载都回退去请求
+       `/favicon.ico` 并拿到 404（控制台固定一条错误）。用从 logo 派生的 64×64
+       小图（7.4KB）而非 public/logo.png 原图（2MB / 1440×1301）。
+       href 写成根绝对路径，由 Vite 按 base=/admin/ 重写为 /admin/favicon-64.png。 -->
+  <link rel="icon" type="image/png" href="/favicon-64.png" />
+</head>
+<body>
+  <div id="root"></div>
+  <script type="module" src="/src/main.tsx"></script>
+</body>
+</html>

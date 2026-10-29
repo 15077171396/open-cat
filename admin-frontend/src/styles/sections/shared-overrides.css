@@ -1,0 +1,46 @@
+/* 管理后台样式 · 跨页覆盖
+ * antd 预设色标签的对比度修正 + 侧边菜单折叠态的「当前分组」标记（两处都影响多页）
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ---------------------------------------------------------------------------
+ * 预设色标签的正文色压深（第五轮审查 MNT-20 管理端部分）
+ *
+ * antd 6 的 `Tag color="gold|orange|green|red"` 用「淡底 + 同色系正文」：
+ * gold 在 #fffbe6 上只有 1.83:1、orange 2.76:1，12px 小字远低于 WCAG AA 的 4.5:1。
+ * 这里只改**文字颜色**（背景仍由 antd 提供淡底），保持色相可辨。
+ * --------------------------------------------------------------------------- */
+.ant-tag.ant-tag-filled.ant-tag-gold { color: #8a5a00 !important; }
+.ant-tag.ant-tag-filled.ant-tag-orange { color: #ad4e00 !important; }
+.ant-tag.ant-tag-filled.ant-tag-volcano { color: #ad4e00 !important; }
+.ant-tag.ant-tag-filled.ant-tag-green { color: #237804 !important; }
+.ant-tag.ant-tag-filled.ant-tag-lime { color: #3f6600 !important; }
+.ant-tag.ant-tag-filled.ant-tag-red { color: #a8071a !important; }
+.ant-tag.ant-tag-filled.ant-tag-magenta { color: #9e1068 !important; }
+.ant-tag.ant-tag-filled.ant-tag-purple { color: #531dab !important; }
+.ant-tag.ant-tag-filled.ant-tag-geekblue { color: #10239e !important; }
+.ant-tag.ant-tag-filled.ant-tag-blue { color: #0958d9 !important; }
+.ant-tag.ant-tag-filled.ant-tag-cyan { color: #006d75 !important; }
+
+/* antd 6 还有一套**语义色**标签（`color="warning|success|error|processing"`），
+ * 类名是 `.ant-tag-warning` 而不是 `.ant-tag-gold` —— 两套都要覆盖，
+ * 否则「更新中」这类标签仍然是 1.83:1。 */
+.ant-tag.ant-tag-filled.ant-tag-warning { color: #8a5a00 !important; }
+.ant-tag.ant-tag-filled.ant-tag-success { color: #237804 !important; }
+.ant-tag.ant-tag-filled.ant-tag-error { color: #a8071a !important; }
+.ant-tag.ant-tag-filled.ant-tag-processing { color: #0958d9 !important; }
+
+/* ---------------------------------------------------------------------------
+ * 侧边菜单：折叠态下的「当前分组」标记
+ *
+ * 折叠（width 80）后只显示分组图标，antd 不会给「包含当前页面」的分组任何
+ * 视觉反馈，用户完全不知道自己处在哪个分组里。AdminLayout 给该分组挂了
+ * `adm-menu-group-active` 类，这里把图标与文字染成主色作为唯一线索。
+ * --------------------------------------------------------------------------- */
+.adm-menu-group-active > .ant-menu-submenu-title,
+.adm-menu-group-active > .ant-menu-submenu-title:hover {
+  color: #1677ff;
+}
+.adm-menu-group-active > .ant-menu-submenu-title .anticon {
+  color: #1677ff;
+}
+

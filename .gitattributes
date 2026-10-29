@@ -1,0 +1,18 @@
+# 统一换行符策略：文本文件一律 LF（项目部署目标为 Linux）
+# Windows 下 core.autocrlf=true 会让 git archive 导出 CRLF，导致服务器 bash 报 $'\r' 错误
+* text=auto eol=lf
+
+# 明确二进制文件不做任何转换
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.eot binary
+*.db binary
+*.sqlite3 binary
+*.tar.gz binary

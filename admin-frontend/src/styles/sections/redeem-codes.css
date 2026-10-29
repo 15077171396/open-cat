@@ -1,0 +1,22 @@
+/* 管理后台样式 · 积分兑换码
+ * rc- 前缀，仅 pages/RedeemCodes 使用
+ * 拆分自 styles/custom.css（2026-10-27）；加载顺序见入口 ../custom.css。
+ */
+/* ============================================================
+   积分兑换码（pages/RedeemCodes/List.tsx）专属样式
+   仅本模块用，故另起 rc- 前缀（通用片段见上方 adm- 段）
+   ============================================================ */
+
+/* 生成结果里的兑换码清单：等宽字体便于逐个核对与手工复制 */
+.rc-codelist {
+  padding: 12px 16px;
+  max-height: 260px;
+  overflow: auto;
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  background: #fafafa;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 24px;
+}
+
