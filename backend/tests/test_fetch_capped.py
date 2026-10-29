@@ -21,6 +21,7 @@ import httpx
 
 from app.core.exceptions import AppException
 from app.services.github_readme_service import _fetch_raw
+from app.services.storage import storage
 from app.services.third_party_fetch import common
 
 
@@ -196,7 +197,7 @@ class ImageTransferLimitTests(unittest.IsolatedAsyncioTestCase):
         resp = _StreamResponse(
             [b"x" * 1000] * 5, headers={"content-type": "image/png"}
         )
-        with mock.patch.object(common.cos_service, "upload_bytes") as upload:
+        with mock.patch.object(common.storage, "upload_bytes") as upload:
             result = await common.download_and_upload_image(
                 _FakeStreamClient(resp), "https://github.com/a.png"
             )
@@ -231,7 +232,7 @@ class ImageTransferLimitTests(unittest.IsolatedAsyncioTestCase):
             calls.append(url)
             return None  # 全部「下载失败」，只关心被尝试了几次
 
-        with mock.patch.object(common.cos_service, "is_configured", return_value=True), \
+        with mock.patch.object(common.storage, "is_configured", return_value=True), \
              mock.patch.object(common, "download_and_upload_image", side_effect=fake_download):
             _md, transferred = await common.transfer_images_to_cos(object(), md)
 

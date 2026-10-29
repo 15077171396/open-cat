@@ -9,7 +9,7 @@
 """
 
 from app.core.exceptions import AppException
-from app.services import cos_service
+from app.services.storage import storage
 
 
 def validate_uploaded_image_urls(images, *, max_count: int) -> list[str]:
@@ -23,7 +23,7 @@ def validate_uploaded_image_urls(images, *, max_count: int) -> list[str]:
     if not isinstance(images, list):
         raise AppException(code=400, message="图片参数格式不正确")
 
-    prefixes = cos_service.public_url_prefixes()
+    prefixes = storage.public_url_prefixes()
     cleaned: list[str] = []
     for url in images:
         if not isinstance(url, str):

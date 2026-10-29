@@ -31,7 +31,8 @@ from app.models.user import User
 from app.core.executors import run_heavy
 from app.core.exceptions import AppException, success_response
 from app.schemas.common import ApiResponse
-from app.services import comment_service, cos_service
+from app.services import comment_service
+from app.services.storage import StorageError, get_file_ext, storage
 from app.utils.image_convert import convert_png_to_webp
 from app.utils.upload_validation import is_allowed_image, validate_image_pixels
 from app.schemas.content import PageResult
@@ -186,7 +187,7 @@ async def upload_comment_image(
     except ValueError as exc:
         raise AppException(code=400, message=str(exc))
 
-    ext = cos_service.get_file_ext(file.filename, content_type)
+    ext = get_file_ext(file.filename, content_type)
 
     # 大图 PNG 转 WebP：评论截图普遍是 PNG，转码后体积降 80%~90%
     if (
@@ -203,14 +204,14 @@ async def upload_comment_image(
             content_type = "image/webp"
 
     try:
-        url = await cos_service.upload_bytes(
+        url = await storage.upload_bytes(
             data,
             folder="comments",
             ext=ext or ".jpg",
             content_type=content_type,
         )
-    except cos_service.CosError as exc:
-        logger.error(f"评论配图上传 COS 失败: {exc}")
+    except StorageError as exc:
+        logger.error(f"评论配图上传失败（driver={storage.driver}）: {exc}")
         raise AppException(code=500, message="图片存储失败, 请稍后重试")
 
     return success_response({"url": url}, "上传成功")

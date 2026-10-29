@@ -10,6 +10,7 @@ from starlette.datastructures import Headers, UploadFile
 
 from app.api import uploads
 from app.services.image_search import asset_recorder
+from app.services.storage import storage
 from tests.conftest import async_client, make_user
 from tests.fake_db import MemorySession
 
@@ -94,7 +95,7 @@ class UploadApiTests(unittest.IsolatedAsyncioTestCase):
             headers=Headers({"content-type": "image/png"}),
         )
         with mock.patch.object(
-            uploads.cos_service, "upload_bytes",
+            uploads.storage, "upload_bytes",
             new=mock.AsyncMock(return_value="https://cos.example/up.png"),
         ), mock.patch.object(
             uploads, "record_upload_asset", new=mock.AsyncMock(),
@@ -106,7 +107,7 @@ class UploadApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_upload_records_asset(self):
         data = _png()
         with mock.patch.object(
-            uploads.cos_service, "upload_bytes",
+            uploads.storage, "upload_bytes",
             new=mock.AsyncMock(return_value="https://cos.example/up.png"),
         ), mock.patch.object(
             uploads, "record_upload_asset", new=mock.AsyncMock(),
@@ -126,7 +127,7 @@ class UploadApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_file_upload_records_asset(self):
         data = b"%PDF-1.4" + b" hello"
         with mock.patch.object(
-            uploads.cos_service, "upload_bytes",
+            uploads.storage, "upload_bytes",
             new=mock.AsyncMock(return_value="https://cos.example/manual.pdf"),
         ), mock.patch.object(
             uploads, "record_file_asset", new=mock.AsyncMock(),
@@ -143,7 +144,7 @@ class UploadApiTests(unittest.IsolatedAsyncioTestCase):
     async def test_asset_record_failure_does_not_fail_upload(self):
         data = _png()
         with mock.patch.object(
-            uploads.cos_service, "upload_bytes",
+            uploads.storage, "upload_bytes",
             new=mock.AsyncMock(return_value="https://cos.example/up.png"),
         ), mock.patch.object(
             uploads, "record_upload_asset",

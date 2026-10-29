@@ -18,7 +18,8 @@ from app.config import settings
 from app.core.degrade import degrade_closed, degrade_guard
 from app.core.exceptions import AppException
 from app.schemas.ai_writing import ImageRequest
-from app.services import ai_usage_service, cos_service
+from app.services import ai_usage_service
+from app.services.storage import storage
 from app.services.image_search.asset_recorder import record_generated_asset
 from app.services.ai import factory
 from app.utils.upload_validation import is_allowed_image, validate_image_pixels
@@ -118,7 +119,7 @@ async def iter_images(
     # 先查 COS 再提交生成任务：生图是付费调用，配置缺失必须在花钱之前失败。
     # 这里刻意放在逐张降级守卫之外 —— 配置错误不能被「单张转存失败只跳过」吞掉，
     # 否则会白烧一次生成费用，最后只得到「配图生成失败」这种误导性提示。
-    if not cos_service.is_configured():
+    if not storage.is_configured():
         raise AppException(code=503, message="COS 未配置，无法保存插图")
     provider = provider or await factory.get_image_provider(None)
     prompt = _STYLE_PREFIX.get(image_req.style, "") + image_req.prompt.strip()
@@ -165,7 +166,7 @@ async def iter_images(
                     data, content_type, width, height = await _download_image(
                         url, allow_public=allow_public
                     )
-                    cos_url = await cos_service.upload_bytes(
+                    cos_url = await storage.upload_bytes(
                         data, folder="ai-writing", ext=_EXT[content_type],
                         content_type=content_type,
                     )

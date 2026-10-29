@@ -3,9 +3,11 @@
 import asyncio
 import contextlib
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from app.config import settings
@@ -137,6 +139,14 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(api_router)
+
+    # 本地存储驱动：把上传目录挂成静态资源，nginx 的 /uploads/ 反代到这里。
+    # 这样「开源默认配置」不需要任何云账号也能显示正文配图；
+    # 用 cos 驱动的部署不会进入这一段，也不会多建一个空目录。
+    if settings.STORAGE_DRIVER.strip().lower() == "local":
+        upload_dir = Path(settings.STORAGE_LOCAL_DIR)
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        app.mount("/uploads", StaticFiles(directory=str(upload_dir)), name="uploads")
 
     @app.get("/")
     async def root():

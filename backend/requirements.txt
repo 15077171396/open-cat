@@ -4,10 +4,13 @@ uvicorn[standard]==0.30.1
 gunicorn==22.0.0
 
 # Database
-sqlalchemy[asyncio]==2.0.30
+# ⚠️ 2026-10-30 从 2.0.30 / 1.13.1 上调：旧版在 Python 3.13 下 import 即崩
+# （`TypeError: Can't replace canonical symbol for '__firstlineno__'`），
+# 而开源使用者大概率不是 3.11。这两个版本同时支持 3.11–3.13，生产镜像（3.11）不受影响。
+sqlalchemy[asyncio]==2.0.43
 aiomysql==0.2.0
 pymysql==1.1.1
-alembic==1.13.1
+alembic==1.16.5
 
 # Redis
 redis[hiredis]==5.0.4

@@ -22,6 +22,7 @@ from unittest import mock
 from app.api import images
 from app.config import settings
 from app.services.github_readme_service import GITHUB_IMAGE_HOSTS
+from app.services.storage import storage
 
 
 class AllowedHostTests(unittest.TestCase):
@@ -124,10 +125,10 @@ class OwnCosObjectKeyTests(unittest.TestCase):
     """本站 COS 通道的边界：只认自己的桶，key 必须是对象名而不是任意 URL。"""
 
     def _patch_cos(self, prefixes=("https://bkt.cos.ap-guangzhou.myqcloud.com/",)):
-        from app.services import cos_service
+        
 
-        return mock.patch.object(cos_service, "is_configured", return_value=True), mock.patch.object(
-            cos_service, "public_url_prefixes", return_value=prefixes
+        return mock.patch.object(storage, "is_configured", return_value=True), mock.patch.object(
+            storage, "public_url_prefixes", return_value=prefixes
         )
 
     def test_own_bucket_url_returns_key(self):
@@ -176,9 +177,9 @@ class OwnCosObjectKeyTests(unittest.TestCase):
             )
 
     def test_unconfigured_cos_rejects_everything(self):
-        from app.services import cos_service, image_proxy
+        from app.services import image_proxy
 
-        with mock.patch.object(cos_service, "is_configured", return_value=False):
+        with mock.patch.object(storage, "is_configured", return_value=False):
             self.assertIsNone(
                 image_proxy.own_cos_object_key(
                     "https://bkt.cos.ap-guangzhou.myqcloud.com/images/a.webp"

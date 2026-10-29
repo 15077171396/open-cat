@@ -20,8 +20,9 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from app.config import settings
 from app.core.executors import run_heavy
-from app.services import cos_service
+
 from app.services.image_proxy import own_cos_object_key
+from app.services.storage import storage
 from app.utils.upload_validation import MAX_DECODE_PIXELS
 
 # 画布尺寸与布局常量（与设计稿一一对应，改一处要同步改设计稿）
@@ -322,7 +323,7 @@ async def _load_avatar(url: str | None) -> bytes | None:
     try:
         key = own_cos_object_key(url)
         if key:
-            data, _ = await cos_service.download_object_bytes(key, _AVATAR_MAX_BYTES)
+            data, _ = await storage.download_object_bytes(key, _AVATAR_MAX_BYTES)
             return data
         async with httpx.AsyncClient(timeout=_AVATAR_TIMEOUT, follow_redirects=True) as client:
             # 流式读 + 边读边判上限：先 get() 再 len() 的话，超大响应已经整包进内存了

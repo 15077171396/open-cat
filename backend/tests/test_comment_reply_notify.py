@@ -11,6 +11,7 @@ import unittest
 
 from app.models.message import Message
 from app.services import comment_service
+from app.services.storage import storage
 from tests.fake_db import MemorySession
 from tests.test_comments import make_tutorial, make_user
 
@@ -86,9 +87,9 @@ class CommentReplyNotifyTests(unittest.IsolatedAsyncioTestCase):
             db, author, "tutorial", tutorial.id, "顶层评论"
         )
         # 只发图不写字是合法评论（见 comment_service docstring）
-        from app.services import cos_service
+        
 
-        prefix = cos_service.public_url_prefixes()[0]
+        prefix = storage.public_url_prefixes()[0]
         await comment_service.create_comment(
             db,
             replier,

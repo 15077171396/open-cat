@@ -24,7 +24,7 @@ from app.schemas.user_content import (
     PointTransactionItem,
 )
 from app.schemas.auth import UserInfoData
-from app.services import cos_service
+from app.services.storage import StorageError, storage
 from app.services.invite_poster import build_invite_poster
 from app.services.resource_service import get_download_history
 from app.services.auth_service import build_user_profile
@@ -193,14 +193,14 @@ async def upload_avatar(
     ext = ext_map.get(content_type, ".jpg")
 
     try:
-        url = await cos_service.upload_bytes(
+        url = await storage.upload_bytes(
             data,
             folder="avatars",
             ext=ext,
             content_type=avatar.content_type,
         )
-    except cos_service.CosError as exc:
-        logger.error(f"头像上传 COS 失败: {exc}")
+    except StorageError as exc:
+        logger.error(f"头像上传失败（driver={storage.driver}）: {exc}")
         raise AppException(code=500, message="头像存储失败, 请稍后重试")
 
     user = await db.get(User, user_id)

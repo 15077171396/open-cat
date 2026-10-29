@@ -35,6 +35,7 @@ from app.models.tutorial import Tutorial
 from app.models.user import User
 from tests.conftest import FakeRedis
 from tests.fake_db import MemorySession
+from app.services.storage import StorageError, storage
 
 AUTHOR = User(id=100, account="u100@example.com", password_hash="x", role="user")
 ADMIN = User(id=9001, account="admin@test", password_hash="x", role="admin")
@@ -310,7 +311,7 @@ class CommentImageUploadRollbackTests(unittest.IsolatedAsyncioTestCase):
         from app.core import rate_limit as _rl
         from app.dependencies import get_current_user
         from app.main import app
-        from app.services import cos_service
+        
 
         self.user = _ExpiredAfterRollbackUser(
             User(id=131, account="u131@example.com", password_hash="x", role="user")
@@ -319,12 +320,12 @@ class CommentImageUploadRollbackTests(unittest.IsolatedAsyncioTestCase):
         self._redis = FakeRedis()
         self._orig_redis = _rl.redis_client
         _rl.redis_client = self._redis
-        self._orig_upload = cos_service.upload_bytes
+        self._orig_upload = storage.upload_bytes
 
         async def _fake_upload(data, *, folder, ext, content_type):
             return f"https://cos.invalid/{folder}/obj{ext}"
 
-        cos_service.upload_bytes = _fake_upload
+        storage.upload_bytes = _fake_upload
 
         async def _override_db():
             yield self.db
@@ -338,10 +339,10 @@ class CommentImageUploadRollbackTests(unittest.IsolatedAsyncioTestCase):
 
     def tearDown(self):
         from app.core import rate_limit as _rl
-        from app.services import cos_service
+        
 
         _rl.redis_client = self._orig_redis
-        cos_service.upload_bytes = self._orig_upload
+        storage.upload_bytes = self._orig_upload
         self._app.dependency_overrides.clear()
 
     async def _post_png(self, client: httpx.AsyncClient):
@@ -375,7 +376,7 @@ class CommentImageUploadRollbackTests(unittest.IsolatedAsyncioTestCase):
 class CommentImageUploadCosFailureTests(unittest.IsolatedAsyncioTestCase):
     """COS 侧失败必须落在「图片存储失败」这条可定位的 500 上，而不是全局兜底。
 
-    路由只 `except cos_service.CosError`；`cos_service` 的契约是任何初始化/写入失败都收进
+    路由只 `except StorageError`；`storage` 的契约是任何初始化/写入失败都收进
     CosError（见 tests/test_cos_client_init.py）。这条用例把两端接起来：一旦有人把
     `_get_client()` 的新异常漏出映射，用户看到的就是无信息量的「服务器内部错误」。
     """
@@ -392,19 +393,19 @@ class CommentImageUploadCosFailureTests(unittest.IsolatedAsyncioTestCase):
         from app.core import rate_limit as _rl
         from app.dependencies import get_current_user
         from app.main import app
-        from app.services import cos_service
+        
 
         user = User(id=132, account="u132@example.com", password_hash="x", role="user")
         db = MemorySession()
         db.seed(user)
         self._orig_redis = _rl.redis_client
         _rl.redis_client = FakeRedis()
-        self._orig_upload = cos_service.upload_bytes
+        self._orig_upload = storage.upload_bytes
 
         async def _failing_upload(data, *, folder, ext, content_type):
-            raise cos_service.CosError("COS 客户端初始化失败（ModuleNotFoundError: ...）")
+            raise StorageError("COS 客户端初始化失败（ModuleNotFoundError: ...）")
 
-        cos_service.upload_bytes = _failing_upload
+        storage.upload_bytes = _failing_upload
 
         async def _override_db():
             yield db
@@ -418,10 +419,10 @@ class CommentImageUploadCosFailureTests(unittest.IsolatedAsyncioTestCase):
 
     def tearDown(self):
         from app.core import rate_limit as _rl
-        from app.services import cos_service
+        
 
         _rl.redis_client = self._orig_redis
-        cos_service.upload_bytes = self._orig_upload
+        storage.upload_bytes = self._orig_upload
         self._app.dependency_overrides.clear()
 
     async def test_cos_failure_maps_to_actionable_500(self):

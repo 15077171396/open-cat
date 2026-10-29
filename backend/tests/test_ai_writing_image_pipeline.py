@@ -6,6 +6,7 @@ from unittest import mock
 from app.core.exceptions import AppException
 from app.schemas.ai_writing import ImageRequest
 from app.services.ai_writing import image_pipeline
+from app.services.storage import storage
 
 
 class FakeImageProvider:
@@ -35,9 +36,9 @@ class ImagePipelineTests(unittest.IsolatedAsyncioTestCase):
         async def fake_download(url, **kwargs):
             return PNG, "image/png", 1024, 768
 
-        with mock.patch.object(image_pipeline.cos_service, "is_configured", return_value=True), \
+        with mock.patch.object(image_pipeline.storage, "is_configured", return_value=True), \
              mock.patch.object(image_pipeline, "_download_image", new=fake_download), \
-             mock.patch.object(image_pipeline.cos_service, "upload_bytes",
+             mock.patch.object(image_pipeline.storage, "upload_bytes",
                                new=mock.AsyncMock(return_value="https://cdn.example.com/a.png")), \
              mock.patch.object(image_pipeline.ai_usage_service, "record_image_usage",
                                new=mock.AsyncMock()) as record:
@@ -52,7 +53,7 @@ class ImagePipelineTests(unittest.IsolatedAsyncioTestCase):
     async def test_unconfigured_cos_blocks_generation(self):
         """COS 未配置必须在付费生成之前拒绝，且不能被逐张降级守卫吞掉。"""
         provider = FakeImageProvider()
-        with mock.patch.object(image_pipeline.cos_service, "is_configured", return_value=False):
+        with mock.patch.object(image_pipeline.storage, "is_configured", return_value=False):
             with self.assertRaises(AppException) as ctx:
                 [e async for e in image_pipeline.iter_images(
                     ImageRequest(prompt="一只猫", count=1), provider=provider,
@@ -65,7 +66,7 @@ class ImagePipelineTests(unittest.IsolatedAsyncioTestCase):
         async def fake_download(url, **kwargs):  # pragma: no cover 生成就超时了
             return PNG, "image/png", 1024, 768
 
-        with mock.patch.object(image_pipeline.cos_service, "is_configured", return_value=True), \
+        with mock.patch.object(image_pipeline.storage, "is_configured", return_value=True), \
              mock.patch.object(image_pipeline, "IMAGE_TOTAL_BUDGET", 0.05), \
              mock.patch.object(image_pipeline, "_download_image", new=fake_download):
             with self.assertRaises(AppException) as ctx:
@@ -88,9 +89,9 @@ class ImagePipelineTests(unittest.IsolatedAsyncioTestCase):
             "https://dashscope-result.aliyuncs.com/b.png",
         ])
         usage = {}
-        with mock.patch.object(image_pipeline.cos_service, "is_configured", return_value=True), \
+        with mock.patch.object(image_pipeline.storage, "is_configured", return_value=True), \
              mock.patch.object(image_pipeline, "_download_image", new=fake_download), \
-             mock.patch.object(image_pipeline.cos_service, "upload_bytes",
+             mock.patch.object(image_pipeline.storage, "upload_bytes",
                                new=mock.AsyncMock(side_effect=[
                                    "https://cdn.example.com/a.png",
                                    "https://cdn.example.com/b.png",
@@ -119,9 +120,9 @@ class ImagePipelineTests(unittest.IsolatedAsyncioTestCase):
         provider = FakeImageProvider(["https://cdn.example.com/a.png"])
         provider.provider_name = "custom_image"
         download = mock.AsyncMock(return_value=(PNG, "image/png", 1, 1))
-        with mock.patch.object(image_pipeline.cos_service, "is_configured", return_value=True), \
+        with mock.patch.object(image_pipeline.storage, "is_configured", return_value=True), \
              mock.patch.object(image_pipeline, "_download_image", new=download), \
-             mock.patch.object(image_pipeline.cos_service, "upload_bytes",
+             mock.patch.object(image_pipeline.storage, "upload_bytes",
                                new=mock.AsyncMock(return_value="https://cdn.example.com/a.png")), \
              mock.patch.object(image_pipeline.ai_usage_service, "record_image_usage",
                                new=mock.AsyncMock()):

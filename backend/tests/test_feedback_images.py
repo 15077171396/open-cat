@@ -12,15 +12,16 @@ import unittest
 
 from app.core.exceptions import AppException
 from app.models.feedback import FEEDBACK_MAX_IMAGES, Feedback
-from app.services import cos_service
+
 from app.services.feedback_service import submit_feedback
+from app.services.storage import storage
 from tests.fake_db import MemorySession
 
 
 class FeedbackImageTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         # 用本服务真实会产出的前缀构造合法 URL（CDN 或默认 COS 域名，取决于配置）
-        self.prefix = cos_service.public_url_prefixes()[0]
+        self.prefix = storage.public_url_prefixes()[0]
         self.url = f"{self.prefix}comments/2026/10/28/abc123.webp"
 
     async def test_image_only_feedback_allowed(self):

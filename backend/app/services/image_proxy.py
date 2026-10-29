@@ -5,7 +5,7 @@
 from urllib.parse import unquote, urlparse
 
 from app.config import settings
-from app.services import cos_service
+from app.services.storage import storage
 from app.services.github_readme_service import GITHUB_IMAGE_HOSTS, raw_to_jsdelivr
 
 # 允许中转的主机：**精确相等**匹配，不做后缀/前缀判断
@@ -33,15 +33,15 @@ def own_cos_object_key(url: str) -> str | None:
     """若 URL 指向**本站 COS 桶**，返回对象 key；否则 None。
 
     与 GitHub 中转是两条通道：这里的地址不直接发起网络请求，而是取出 key 后
-    交给 `cos_service` 用服务端凭证读取 —— 因此不存在「开放代理 / SSRF」问题，
+    交给存储层用服务端凭证读取 —— 因此不存在「开放代理 / SSRF」问题，
     key 里出现 `..` 也只在对象存储的命名空间内。
     """
-    if not cos_service.is_configured():
+    if not storage.is_configured():
         return None
     text = (url or "").strip()
     if not text:
         return None
-    for prefix in cos_service.public_url_prefixes():
+    for prefix in storage.public_url_prefixes():
         if not text.startswith(prefix):
             continue
         key = unquote(text[len(prefix):].split("?", 1)[0].split("#", 1)[0])

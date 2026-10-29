@@ -20,8 +20,9 @@ from loguru import logger
 
 from app.config import settings
 from app.core.exceptions import AppException
-from app.services import cos_service
+
 from app.utils.upload_validation import is_allowed_image
+from app.services.storage import storage, get_file_ext
 
 # Markdown / HTML 链接与图片识别正则
 
@@ -795,8 +796,8 @@ async def download_and_upload_image(
         if not is_allowed_image(content_type, body.content):
             return None
 
-        ext = cos_service.get_file_ext(None, content_type)
-        return await cos_service.upload_bytes(
+        ext = get_file_ext(None, content_type)
+        return await storage.upload_bytes(
             body.content,
             folder="images",
             ext=ext or ".jpg",
@@ -855,7 +856,7 @@ async def transfer_images_to_cos(
     :param stats: 可选出参，回填 {"total": 待转存数, "transferred": 成功数}。
         调用方据此把「N/M 张转存成功」告知管理员 —— 失败而保留的签名 URL
         通常 1~3 天即失效，静默失败会变成几天后的「正文图片突然全是裂图」。"""
-    if not cos_service.is_configured():
+    if not storage.is_configured():
         logger.warning("COS 未配置，第三方资料图片保留外链不转存")
         if stats is not None:
             stats["total"] = 0

@@ -225,27 +225,11 @@ async def download_object_bytes(key: str, max_size: int) -> tuple[bytes, str]:
 
 
 def get_file_ext(filename: Optional[str], content_type: str) -> str:
-    """从文件名或 content_type 推断扩展名 (含点)。"""
-    if filename and "." in filename:
-        ext = "." + filename.rsplit(".", 1)[-1].lower()
-        if ext in {".jpg", ".jpeg", ".png", ".gif", ".webp", ".mp4", ".mov",
-                   ".avi", ".mp3", ".wav", ".pdf", ".zip", ".rar", ".7z",
-                   ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx", ".txt"}:
-            return ext
+    """从文件名或 content_type 推断扩展名 (含点)。
 
-    # content_type 兜底
-    ct_to_ext = {
-        "image/jpeg": ".jpg",
-        "image/png": ".png",
-        "image/gif": ".gif",
-        "image/webp": ".webp",
-        "video/mp4": ".mp4",
-        "video/quicktime": ".mov",
-        "audio/mpeg": ".mp3",
-        "audio/wav": ".wav",
-        "application/pdf": ".pdf",
-        "application/zip": ".zip",
-        "application/x-rar-compressed": ".rar",
-        "text/plain": ".txt",
-    }
-    return ct_to_ext.get(content_type, "")
+    实现已移到 `app/services/storage/base.py`（各存储驱动共用同一份白名单）；
+    这里保留同名函数是为了不破坏既有调用点。
+    """
+    from app.services.storage.base import get_file_ext as _impl
+
+    return _impl(filename, content_type)

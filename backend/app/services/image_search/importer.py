@@ -15,8 +15,9 @@ from app.config import settings
 from app.core.exceptions import AppException
 from app.core.executors import run_heavy
 from app.models.image_asset import ImageAsset
-from app.services import cos_service
+
 from app.services.image_search.base import ImageHit
+from app.services.storage import storage, StorageError
 from app.services.image_search.config import SOURCE_META
 from app.services.image_search.local import get_asset
 from app.services.image_search.policy import is_allowed_https_url, is_allowed_url
@@ -207,7 +208,7 @@ async def import_hit(
     existing = await find_asset(db, hit.source, hit.source_id)
     if existing is not None:
         return existing
-    if not cos_service.is_configured():
+    if not storage.is_configured():
         raise AppException(code=503, message="COS 未配置，无法保存图片")
 
     headers = {"Referer": meta["referer"]} if meta.get("referer") else None
@@ -245,11 +246,11 @@ async def import_hit(
 
     digest = hashlib.sha256(prepared.data).hexdigest()
     try:
-        cos_url = await cos_service.upload_bytes(
+        cos_url = await storage.upload_bytes(
             prepared.data, folder=f"images/{hit.source}", ext=prepared.ext,
             content_type=prepared.content_type,
         )
-    except cos_service.CosError as exc:
+    except StorageError as exc:
         logger.error(f"图库图片转存 COS 失败: source={hit.source} id={hit.source_id} ({exc})")
         raise AppException(code=503, message="图片存储失败，请稍后重试") from exc
 

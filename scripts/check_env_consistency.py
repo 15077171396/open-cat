@@ -79,6 +79,10 @@ ALLOW_DEFAULT_ONLY: dict[str, str] = {
     "JWT_ACCESS_EXPIRE_MINUTES": "同上",
     "JWT_REFRESH_EXPIRE_DAYS": "同上",
     "WATCHDOG_WEBHOOK": "后端只读取它判断「告警通道是否配置」，不负责发送告警",
+    # 存储目录由 compose 写死为挂卷路径 /app/uploads（写进 .env 只会让文件落到容器内
+    # 非挂载路径 → 容器重建即丢）；对外前缀默认由 SITE_BASE_URL 派生，无需单独配置。
+    "STORAGE_LOCAL_DIR": "compose 已固定为卷挂载点 /app/uploads，允许覆盖只会丢文件",
+    "STORAGE_PUBLIC_BASE": "默认由 SITE_BASE_URL 派生，特殊域名再在 .env 里加即可",
     "AVATAR_MAX_SIZE": "与前端提示文案耦合，改代码才安全",
     "AVATAR_ALLOWED_TYPES": "同上",
     "COS_MAX_FILE_SIZE": "与前端提示文案耦合（超出即提示用网盘）",

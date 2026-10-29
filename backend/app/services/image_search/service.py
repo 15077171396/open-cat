@@ -17,8 +17,9 @@ from app.core.exceptions import AppException
 from app.models.image_asset import ImageAsset
 from app.models.user import User
 from app.redis import redis_client
-from app.services import cos_service
+
 from app.services.admin_audit_service import record_admin_action
+from app.services.storage import storage
 from app.services.image_search.base import ImageHit, SearchQuery
 from app.services.image_search.config import (
     SOURCE_META, ImageSearchConfig, load_config, options_payload,
@@ -208,7 +209,7 @@ async def build_options(db: AsyncSession) -> dict:
     return {
         "enabled": cfg.enabled,
         "page_size": cfg.page_size,
-        "cos_configured": cos_service.is_configured(),
+        "cos_configured": storage.is_configured(),
         "local_available": True,
         "sources": options_payload(cfg),
     }

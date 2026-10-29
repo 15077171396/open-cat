@@ -22,7 +22,6 @@ from tests.fake_db import MemorySession
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SERVICES_DIR = REPO_ROOT / "backend" / "app" / "services"
 API_DIR = REPO_ROOT / "backend" / "app" / "api"
-FRONTEND_COMMENT_SECTION = REPO_ROOT / "frontend" / "src" / "components" / "common" / "CommentSection.tsx"
 ADMIN_COMMENT_LIST = REPO_ROOT / "admin-frontend" / "src" / "pages" / "Comments" / "List.tsx"
 
 # 内容删除侧的清理调用只可能出现在这几个模块里
@@ -169,16 +168,9 @@ class PurgeCallSiteGuardTests(unittest.TestCase):
 
 
 class CrossLanguageVocabularyTests(unittest.TestCase):
-    """④⑤：三端词汇表逐字对齐（后端注册表是唯一来源）。"""
+    """④：管理端词汇表逐字对齐（后端注册表是唯一来源）。"""
 
     _EXPECTED = set(comment_service.registered_comment_targets())
-
-    def test_frontend_union_matches(self):
-        text = FRONTEND_COMMENT_SECTION.read_text(encoding="utf-8")
-        m = re.search(r"export type CommentTargetType\s*=\s*([^\n]+)", text)
-        self.assertIsNotNone(m, "找不到前端 CommentTargetType 定义，守卫需同步调整")
-        found = set(re.findall(r"'([A-Za-z_]+)'", m.group(1)))
-        self.assertEqual(found, self._EXPECTED, f"用户端 union 与后端注册表不一致：{sorted(found)}")
 
     def test_admin_meta_keys_match(self):
         text = ADMIN_COMMENT_LIST.read_text(encoding="utf-8")

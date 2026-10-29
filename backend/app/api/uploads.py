@@ -1,5 +1,9 @@
 """文件上传接口：/uploads/image 富文本编辑器图片（管理员, ≤5MB）、
-/uploads/file 通用资源文件（管理员, ≤20MB, 超出提示使用网盘）；文件写入腾讯云 COS 返回公开 URL"""
+/uploads/file 通用资源文件（管理员, ≤20MB, 超出提示使用网盘）。
+
+落盘位置由存储驱动决定（`STORAGE_DRIVER`）：默认 local 写本机磁盘，
+配了云存储则走 COS。业务代码不感知具体驱动。
+"""
 
 from fastapi import APIRouter, Depends, UploadFile, File
 from loguru import logger
@@ -13,7 +17,7 @@ from app.core.permissions import require_admin
 from app.database import get_db
 from app.models.user import User
 from app.schemas.common import ApiResponse
-from app.services import cos_service
+from app.services.storage import StorageError, get_file_ext, storage
 from app.services.image_search.asset_recorder import record_file_asset, record_upload_asset
 from app.utils.image_convert import convert_png_to_webp
 from app.utils.upload_validation import IMAGE_SIGNATURES, is_allowed_image
@@ -79,7 +83,7 @@ async def upload_image(
     if not is_allowed_image(content_type, data):
         raise AppException(code=400, message="图片内容与声明类型不一致")
 
-    ext = cos_service.get_file_ext(file.filename, content_type)
+    ext = get_file_ext(file.filename, content_type)
 
     # 大图 PNG 服务端转 WebP：截图类 PNG 普遍 1~3MB，转码后体积降 80%~90%；
     # 转码在独立线程执行（纯 CPU），失败/无收益/APNG 时静默回退原图
@@ -97,14 +101,14 @@ async def upload_image(
             content_type = "image/webp"
 
     try:
-        url = await cos_service.upload_bytes(
+        url = await storage.upload_bytes(
             data,
             folder="images",
             ext=ext or ".jpg",
             content_type=content_type,
         )
-    except cos_service.CosError as exc:
-        logger.error(f"编辑器图片上传 COS 失败: {exc}")
+    except StorageError as exc:
+        logger.error(f"编辑器图片上传失败（driver={storage.driver}）: {exc}")
         raise AppException(code=500, message="图片存储失败, 请稍后重试")
 
     with degrade_guard("upload.asset_record", detail="素材入库失败不影响上传"):
@@ -141,7 +145,7 @@ async def upload_file(
         )
 
     # octet-stream 时依赖扩展名校验; 否则要求命中白名单
-    ext = cos_service.get_file_ext(file.filename, content_type)
+    ext = get_file_ext(file.filename, content_type)
     if content_type != "application/octet-stream":
         if content_type not in _FILE_ALLOWED_TYPES:
             raise AppException(code=400, message="不支持的文件类型")
@@ -157,14 +161,14 @@ async def upload_file(
         raise AppException(code=400, message="文件内容与声明类型不一致")
 
     try:
-        url = await cos_service.upload_bytes(
+        url = await storage.upload_bytes(
             data,
             folder="files",
             ext=ext,
             content_type=content_type or "application/octet-stream",
         )
-    except cos_service.CosError as exc:
-        logger.error(f"资源文件上传 COS 失败: {exc}")
+    except StorageError as exc:
+        logger.error(f"资源文件上传失败（driver={storage.driver}）: {exc}")
         raise AppException(code=500, message="文件存储失败, 请稍后重试")
 
     with degrade_guard("upload.file_asset_record", detail="附件入库失败不影响上传"):

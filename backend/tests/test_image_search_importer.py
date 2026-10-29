@@ -12,6 +12,7 @@ from PIL import Image
 from app.core.exceptions import AppException
 from app.models.image_asset import ImageAsset
 from app.services.image_search import importer, thumb
+from app.services.storage import StorageError, storage
 from app.services.image_search.base import ImageHit
 from tests.fake_db import MemorySession
 
@@ -189,8 +190,8 @@ class ImportHitTests(unittest.IsolatedAsyncioTestCase):
         self.upload = mock.AsyncMock(return_value="https://cdn.example/stock.webp")
         self.patches = [
             mock.patch.object(importer, "download_image", self.download),
-            mock.patch.object(importer.cos_service, "is_configured", return_value=True),
-            mock.patch.object(importer.cos_service, "upload_bytes", self.upload),
+            mock.patch.object(importer.storage, "is_configured", return_value=True),
+            mock.patch.object(importer.storage, "upload_bytes", self.upload),
         ]
         for patch in self.patches:
             patch.start()
@@ -235,14 +236,14 @@ class ImportHitTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.download.await_count, 2)
 
     async def test_cos_not_configured_rejects_before_download(self):
-        importer.cos_service.is_configured.return_value = False
+        importer.storage.is_configured.return_value = False
         with self.assertRaises(AppException) as ctx:
             await importer.import_hit(self.db, _hit(), alt=None, query="", admin_id=1)
         self.assertEqual(ctx.exception.code, 503)
         self.download.assert_not_awaited()
 
     async def test_cos_failure_is_503(self):
-        importer.cos_service.upload_bytes.side_effect = importer.cos_service.CosError("boom")
+        importer.storage.upload_bytes.side_effect = importer.StorageError("boom")
         with self.assertRaises(AppException) as ctx:
             await importer.import_hit(self.db, _hit(), alt=None, query="", admin_id=1)
         self.assertEqual(ctx.exception.code, 503)
@@ -276,8 +277,8 @@ class PlaceholderPipelineTests(unittest.IsolatedAsyncioTestCase):
         db = MemorySession()
         with mock.patch("app.services.image_search.policy.is_public_host", return_value=True), \
                 mock.patch.object(importer, "download_image", new=downloader), \
-                mock.patch.object(importer.cos_service, "is_configured", return_value=True), \
-                mock.patch.object(importer.cos_service, "upload_bytes", new=mock.AsyncMock()) as upload:
+                mock.patch.object(importer.storage, "is_configured", return_value=True), \
+                mock.patch.object(importer.storage, "upload_bytes", new=mock.AsyncMock()) as upload:
             with self.assertRaises(AppException):
                 await importer.import_hit(db, _hit(url, "sogou"), alt="熊猫", query="熊猫", admin_id=4)
             with self.assertRaises(AppException):
@@ -299,8 +300,8 @@ class PlaceholderPipelineTests(unittest.IsolatedAsyncioTestCase):
         )
         with mock.patch("app.services.image_search.policy.is_public_host", return_value=True), \
                 mock.patch.object(importer, "download_image", new=downloader), \
-                mock.patch.object(importer.cos_service, "is_configured", return_value=True), \
-                mock.patch.object(importer.cos_service, "upload_bytes", new=mock.AsyncMock(
+                mock.patch.object(importer.storage, "is_configured", return_value=True), \
+                mock.patch.object(importer.storage, "upload_bytes", new=mock.AsyncMock(
                     return_value="https://cos.example/valid.webp",
                 )):
             asset = await importer.import_hit(MemorySession(), hit, alt="熊猫", query="熊猫", admin_id=4)

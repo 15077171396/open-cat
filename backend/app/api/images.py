@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse, RedirectResponse, Response
 from loguru import logger
 
 from app.core.exceptions import AppException, error_response
-from app.services import cos_service
+from app.services.storage import storage
 from app.services.image_search import thumb as image_search_thumb
 from app.services.image_proxy import (
     SAFE_IMAGE_TYPES as _SAFE_IMAGE_TYPES,
@@ -118,9 +118,9 @@ async def _proxy_own_cos_object(key: str, fallback_url: str) -> Response:
         return RedirectResponse(fallback_url)
 
     try:
-        content, content_type = await cos_service.download_object_bytes(key, _MAX_IMAGE_SIZE)
+        content, content_type = await storage.download_object_bytes(key, _MAX_IMAGE_SIZE)
     except Exception as exc:  # noqa: BLE001 - 任何读取失败都只是降级，不该 500
-        logger.warning(f"本站 COS 图片中转失败，302 回源: {key} ({exc})")
+        logger.warning(f"本站图片中转失败，302 回源: {key} ({exc})")
         return RedirectResponse(fallback_url)
     finally:
         _proxy_semaphore.release()
@@ -129,7 +129,7 @@ async def _proxy_own_cos_object(key: str, fallback_url: str) -> Response:
     if content_type not in _SAFE_IMAGE_TYPES:
         guessed = (mimetypes.guess_type(key)[0] or "").lower()
         if guessed not in _SAFE_IMAGE_TYPES:
-            logger.warning(f"本站 COS 对象不是可同源回传的图片类型（{content_type}），302 回源: {key}")
+            logger.warning(f"本站对象不是可同源回传的图片类型（{content_type}），302 回源: {key}")
             return RedirectResponse(fallback_url)
         content_type = guessed
 

@@ -113,12 +113,18 @@ services:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
       REDIS_PASSWORD: ${REDIS_PASSWORD}
+      # 本地存储驱动：上传落 /app/uploads（下面的卷），由 /uploads 静态挂载对外提供。
+      # 想用对象存储时把 .env 里的 STORAGE_DRIVER 改成 cos 并填 COS_* 即可。
+      STORAGE_DRIVER: ${STORAGE_DRIVER:-local}
+      STORAGE_LOCAL_DIR: /app/uploads
     depends_on:
       migrate:
         condition: service_completed_successfully
     volumes:
       # 后台「系统状态」读该目录判断备份年龄；未挂载时该项显示「不可见」而不是假告警
       - ./logs:/app/logs
+      # 上传文件必须落卷：容器重建即丢的话，正文配图会成片 404
+      - uploads_data:/app/uploads
     restart: unless-stopped
     logging: *default-logging
     <<: *default-hardening
@@ -223,6 +229,7 @@ services:
 volumes:
   mysql_data:
   redis_data:
+  uploads_data:
 
 networks:
   ai-cat-net:

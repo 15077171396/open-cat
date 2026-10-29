@@ -201,6 +201,14 @@ class Settings(BaseSettings):
     # 可选国外文章平台出站代理，仅对国内无法直连的国外社区平台 (X/Twitter、Reddit、Medium、Hacker News) 生效，格式同 GITHUB_PROXY
     ARTICLE_PROXY: str = ""
 
+    # ---- 文件存储驱动 ----
+    # local = 落本机磁盘（开源默认，不需要任何云账号）；cos = 腾讯云对象存储（生产/CDN）
+    STORAGE_DRIVER: str = "local"
+    # local 驱动的存放根目录。容器内是挂卷的 /app/uploads；本地开发默认 ./uploads
+    STORAGE_LOCAL_DIR: str = "./uploads"
+    # local 驱动对外访问前缀，留空则用 SITE_BASE_URL；产出形如 {base}/uploads/{key}
+    STORAGE_PUBLIC_BASE: str = ""
+
     # 对象存储 (腾讯云 COS)
     COS_SECRET_ID: str = ""
     COS_SECRET_KEY: str = ""

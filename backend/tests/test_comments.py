@@ -36,7 +36,8 @@ from app.models.moderation import (
 from app.models.resource import Resource
 from app.models.tutorial import Tutorial
 from app.models.user import User
-from app.services import comment_service, cos_service
+from app.services import comment_service
+from app.services.storage import storage
 from tests.fake_db import MemorySession
 
 
@@ -264,7 +265,7 @@ class CommentImageTests(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self):
         # 用本服务真实会产出的前缀构造合法 URL（CDN 或默认 COS 域名，取决于配置）
-        self.prefix = cos_service.public_url_prefixes()[0]
+        self.prefix = storage.public_url_prefixes()[0]
         self.url = f"{self.prefix}comments/2026/10/10/abc123.jpg"
 
     async def test_image_only_comment_allowed(self):
