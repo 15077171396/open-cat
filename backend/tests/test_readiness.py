@@ -161,11 +161,21 @@ class AiCheckTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(item["status"], "off")
         self.assertFalse(item["required"])
 
-    async def test_enabled_without_key_is_error(self):
-        """启用但没 Key：调用必失败，比没配更危险。"""
+    async def test_all_enabled_without_key_is_unconfigured(self):
+        """一个 Key 都没配 = 「还没配」，不能判 error。
+
+        迁移会预置占位模型（默认启用、无 Key），若判成 error，每个新部署第一次
+        登录就看到一片红 —— 而事实是用户还没打算用 AI。这是真环境跑出来的问题。
+        """
         item = await self._run([(True, ""), (True, None)])
-        self.assertEqual(item["status"], "error")
+        self.assertEqual(item["status"], "unconfigured")
         self.assertIn("API Key", item["detail"])
+
+    async def test_partially_configured_is_error(self):
+        """有能用的、也有启用却缺 Key 的 —— 这才是真「配了一半」，最容易在调用时才炸。"""
+        item = await self._run([(True, "enc:v2:xx"), (True, "")])
+        self.assertEqual(item["status"], "error")
+        self.assertIn("缺 API Key", item["detail"])
 
     async def test_enabled_with_key_is_ready(self):
         item = await self._run([(True, "enc:v2:xxx"), (False, "")])
@@ -187,6 +197,18 @@ class SmsCheckTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_phone_login_off_and_no_provider_is_off(self):
         cfg = _FakeConfig(booleans={"phone_login_enabled": False}, strings={"sms_provider": "none"})
+        item = await self._run(cfg)
+        self.assertEqual(item["status"], "off")
+
+    async def test_mock_provider_with_phone_login_is_ready(self):
+        """默认值就是 mock（本地联调），不能判成「未知服务商」——否则每个新部署都挂红。"""
+        cfg = _FakeConfig(booleans={"phone_login_enabled": True}, strings={"sms_provider": "mock"})
+        item = await self._run(cfg)
+        self.assertEqual(item["status"], "ready")
+        self.assertIn("Mock", item["detail"])
+
+    async def test_mock_provider_without_phone_login_is_off(self):
+        cfg = _FakeConfig(booleans={"phone_login_enabled": False}, strings={"sms_provider": "mock"})
         item = await self._run(cfg)
         self.assertEqual(item["status"], "off")
 

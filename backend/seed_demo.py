@@ -61,9 +61,17 @@ def _png(label: str, color: tuple[int, int, int], size: tuple[int, int] = (640, 
     return buf.getvalue()
 
 
-async def _upload_demo_image(label: str, rgb: tuple[int, int, int]) -> str:
+async def _upload_demo_image(
+    label: str,
+    rgb: tuple[int, int, int],
+    size: tuple[int, int] = (640, 360),
+) -> str:
+    """生成占位图并写入当前存储驱动（local / cos 都适用）。
+
+    :param size: 封面用 640×360（16:9），头像传 (128, 128) —— 方图在圆形裁切下不变形
+    """
     return await storage.upload_bytes(
-        _png(label, rgb), folder="demo", ext=".png", content_type="image/png"
+        _png(label, rgb, size), folder="demo", ext=".png", content_type="image/png"
     )
 
 
@@ -169,10 +177,21 @@ async def seed(check_only: bool = False) -> None:
         now = datetime.now(timezone.utc)
 
         # ---------- 分类 ----------
+        # 逐个跳过已存在的（module + name 有唯一索引）。
+        # 不能假设「跑到这里就一定是空库」：上一次可能在中途失败退出，
+        # 分类已经 commit 了 —— 那时重跑会直接撞唯一键，用户只能手动清库。
+        existing_categories = {
+            (c.module, c.name)
+            for c in (await db.execute(select(Category))).scalars().all()
+        }
+        created_categories = 0
         for module, names in CATEGORIES:
             for idx, name in enumerate(names):
+                if (module, name) in existing_categories:
+                    continue
                 db.add(Category(module=module, name=name, sort_order=idx))
-        print("分类：已创建")
+                created_categories += 1
+        print(f"分类：新增 {created_categories} 个，已存在 {len(existing_categories)} 个（跳过）")
 
         # ---------- 图片（真实落盘，不是 404 占位） ----------
         cover_urls = [

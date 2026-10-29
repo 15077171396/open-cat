@@ -223,6 +223,20 @@ async def _check_ai(db: AsyncSession) -> dict:
     enabled = [r for r in rows if r[0]]
     with_key = [r for r in enabled if (r[1] or "").strip()]
     if with_key:
+        # 有可用的，也有启用却没 Key 的 —— 这才是真「配了一半」，最容易在调用时才炸
+        if len(with_key) < len(enabled):
+            return _item(
+                key="ai",
+                label="AI 能力",
+                status="error",
+                required=False,
+                detail=(
+                    f"{len(enabled) - len(with_key)} 个已启用的模型缺 API Key"
+                    f"（可用 {len(with_key)} 个，共 {len(enabled)} 个启用）"
+                ),
+                action="给它们补 Key，或先停用 —— 选中缺 Key 的模型会直接失败",
+                link="/ai-models",
+            )
         return _item(
             key="ai",
             label="AI 能力",
@@ -233,13 +247,16 @@ async def _check_ai(db: AsyncSession) -> dict:
             link="/ai-models",
         )
     if enabled:
+        # 一个 Key 都没配：这是「还没配」，不是「配错了」。
+        # 迁移会预置几个占位模型（默认启用），若判成 error，开源用户第一次登录
+        # 就看到一片红 —— 而事实是他从没打算用 AI。
         return _item(
             key="ai",
             label="AI 能力",
-            status="error",
+            status="unconfigured",
             required=False,
-            detail=f"{len(enabled)} 个模型已启用但没填 API Key，调用会直接失败",
-            action="补 Key，或先把这些模型停用",
+            detail=f"{len(enabled)} 个模型已启用但都还没填 API Key（AI 写作与 AI 工具会提示未配置）",
+            action="在「模型管理」里给要用的模型填 Key；不用的先停用",
             link="/ai-models",
         )
     return _item(
@@ -274,6 +291,29 @@ async def _check_sms(db: AsyncSession) -> dict:
             ("sms_tencent_template_id", False),
         ],
     }.get(provider)
+
+    if provider == "mock":
+        # Mock 是**合法取值**（本地联调用：验证码不真发，回显在日志/固定值里）。
+        # 不能判成「未知服务商」—— 默认配置就是 mock，那会让每个新部署都挂一条红。
+        if phone_login:
+            return _item(
+                key="sms",
+                label="短信验证码",
+                status="ready",
+                required=False,
+                detail="Mock 模式：验证码不会真实发送（本地联调用）",
+                action="上线前在「登录管理」换成腾讯云 / 阿里云并填凭据",
+                link="/login-settings",
+            )
+        return _item(
+            key="sms",
+            label="短信验证码",
+            status="off",
+            required=False,
+            detail="Mock 模式，且手机号登录已关闭",
+            action="需要手机号登录时换真实服务商",
+            link="/login-settings",
+        )
 
     if provider in {"", "none", "off"}:
         if phone_login:

@@ -79,7 +79,12 @@ logs/*
 backend/alembic/versions/__pycache__/
 
 # 用户上传文件（运行时生成，不入库）
-# ⚠️ 本地 uploads 目录已随 P2-10 移除：上传全部走腾讯云 COS，本地无写入方。
+# 开源版默认 STORAGE_DRIVER=local → 后台上传与 seed_demo 的占位图都会写进 backend/uploads/。
+# 只保留目录本身（.gitkeep），其余一律不入库：否则跑一次测试/灌一次演示数据，
+# 仓库里就会多出几十张 69 字节的碎图，clone 下来先看到别人的测试垃圾。
+backend/uploads/*
+!backend/uploads/.gitkeep
+!backend/uploads/**/.gitkeep
 
 # Vite 配置编译产物（由 vite.config.ts 编译生成）
 admin-frontend/vite.config.js

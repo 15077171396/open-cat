@@ -324,7 +324,8 @@ async def record_export(
     放在 service 而不是端点：`tests/test_arch_guards.py` 禁止 API 层出现 `db.commit()`，
     这条约束在这里是对的 —— 事务边界应当由业务层决定。
     """
-    await record_admin_action(
+    # 注意：record_admin_action 是**同步**函数（只 add 不 commit），不要 await
+    record_admin_action(
         db,
         admin,
         "data_export",

@@ -18,6 +18,13 @@ export default defineConfig({
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
       },
+      // 本地存储驱动的文件由后端 /uploads 静态提供。
+      // 生产环境由 nginx 反代（见 nginx.conf），开发环境靠这条 ——
+      // 少了它，演示数据与后台上传的图片在本地全是 404，看起来像上传坏了。
+      '/uploads': {
+        target: 'http://127.0.0.1:8000',
+        changeOrigin: true,
+      },
     },
   },
   build: {

@@ -212,6 +212,35 @@ class RegistryTests(unittest.TestCase):
             self.assertTrue(module_registry.is_path_enabled("/api/v1/admin/export/users"))
 
 
+class RecordExportTests(unittest.IsolatedAsyncioTestCase):
+    """`record_export` 是导出链路上唯一会写库的一步，必须真的落审计。
+
+    这条用例来自真环境：`record_admin_action` 是**同步**函数，
+    最初写成 `await record_admin_action(...)` → 导出接口 500，而单测全绿
+    （测试只覆盖了 CSV 生成，没碰审计）。下面用「传 MagicMock 给它」来钉住同步性：
+    如果又写成 await，对 MagicMock 求值会直接抛 TypeError。
+    """
+
+    async def test_writes_audit_then_commits(self):
+        from app.services import export_service as svc
+
+        spec = svc.RESOURCES["users"]
+        db = mock.Mock()
+        db.commit = mock.AsyncMock()
+        admin = mock.Mock()
+
+        with mock.patch.object(svc, "record_admin_action") as record:
+            await svc.record_export(db, admin, spec, {"role": "admin"}, 42)
+
+        record.assert_called_once()
+        args, kwargs = record.call_args
+        self.assertEqual(args[2], "data_export")
+        self.assertEqual(kwargs["target_type"], "user")
+        self.assertIn("42", kwargs["summary"])
+        self.assertEqual(kwargs["detail"]["rows"], 42)
+        db.commit.assert_awaited_once()
+
+
 class AuditTests(unittest.TestCase):
     def test_export_action_is_registered(self):
         """未登记的动作码只会打 warning，筛选下拉里看不到 —— 等于隐性丢失可追溯性。"""
