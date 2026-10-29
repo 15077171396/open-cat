@@ -1,28 +1,28 @@
 # FastAPI
-fastapi==0.138.1
-uvicorn[standard]==0.30.1
+fastapi==0.162.0
+uvicorn[standard]==0.54.0
 gunicorn==22.0.0
 
 # Database
 # ⚠️ 2026-10-30 从 2.0.30 / 1.13.1 上调：旧版在 Python 3.13 下 import 即崩
 # （`TypeError: Can't replace canonical symbol for '__firstlineno__'`），
 # 而开源使用者大概率不是 3.11。这两个版本同时支持 3.11–3.13，生产镜像（3.11）不受影响。
-sqlalchemy[asyncio]==2.0.43
-aiomysql==0.2.0
-pymysql==1.1.1
-alembic==1.16.5
+sqlalchemy[asyncio]==2.1.6
+aiomysql==0.3.2
+pymysql==1.2.3
+alembic==1.20.1
 
 # Redis
 redis[hiredis]==5.0.4
 
 # Auth
-pyjwt==2.8.0
+pyjwt==2.15.1
 passlib[bcrypt]==1.7.4
 bcrypt==4.2.1
 python-multipart==0.0.32
 
 # AI
-httpx==0.27.0
+httpx==0.28.1
 
 # 对称加密（把后台配置的 AI API Key 加密后落库，见 app/core/crypto.py）
 # ⚠️ 必须显式声明：它此前只存在于开发机的 venv 里（pip show 的 Required-by 为空），
@@ -30,10 +30,10 @@ httpx==0.27.0
 cryptography==49.0.0
 
 # Utils
-pydantic==2.9.2
-pydantic-settings==2.2.1
-loguru==0.7.2
-nh3==0.3.6
+pydantic==2.14.1
+pydantic-settings==2.16.1
+loguru==0.7.3
+nh3==0.3.7
 Pillow==12.3.0
 qrcode==8.2
 
@@ -41,13 +41,13 @@ qrcode==8.2
 aiosmtplib==3.0.2
 
 # 对象存储 (腾讯云 COS)
-cos-python-sdk-v5==1.9.32
+cos-python-sdk-v5==1.9.44
 
 # Scheduler
-apscheduler==3.10.4
+apscheduler==3.11.3
 
 # Monitoring (错误监控; 未配置 SENTRY_DSN 时不加载, 见 app/core/monitoring.py)
-sentry-sdk[fastapi]==2.71.0
+sentry-sdk[fastapi]==2.73.0
 
 # Testing
 pytest==8.2.0
