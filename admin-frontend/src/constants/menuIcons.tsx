@@ -1,10 +1,7 @@
 import type { ReactNode } from 'react'
 import {
-  ApiOutlined,
   ApartmentOutlined,
-  AppstoreOutlined,
   AuditOutlined,
-  BarChartOutlined,
   BookOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -17,7 +14,6 @@ import {
   FileProtectOutlined,
   FileTextOutlined,
   GiftOutlined,
-  HddOutlined,
   HomeOutlined,
   IdcardOutlined,
   LoginOutlined,
@@ -32,7 +28,6 @@ import {
   SoundOutlined,
   TagsOutlined,
   TeamOutlined,
-  ToolOutlined,
   UserOutlined,
   WalletOutlined,
 } from '@ant-design/icons'
@@ -56,12 +51,7 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
   // 叶子图标
   dashboard: <DashboardOutlined />,
   picture: <PictureOutlined />,
-  chart: <BarChartOutlined />,
   book: <BookOutlined />,
-  hdd: <HddOutlined />,
-  appstore: <AppstoreOutlined />,
-  tool: <ToolOutlined />,
-  api: <ApiOutlined />,
   tags: <TagsOutlined />,
   sound: <SoundOutlined />,
   audit: <AuditOutlined />,

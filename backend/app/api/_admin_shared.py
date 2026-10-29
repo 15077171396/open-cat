@@ -18,17 +18,9 @@ from app.core.rbac import check_route_permission
 router = APIRouter(dependencies=[Depends(check_route_permission)])
 
 
-# 嵌套条目模型（教程 / 资源 / 扩展共用）
-# 长度上限与 DB 列定义对齐（TutorialNetdiskLink / ResourceNetdiskLink / PluginSource），
-# 超限请求直接 422，避免入库时 DataError 导致 500。
-
+# 嵌套条目模型（教程网盘链接）
+# 长度上限与 DB 列定义对齐（TutorialNetdiskLink），超限请求直接 422，避免入库时 DataError 导致 500。
 class NetdiskLinkItem(BaseModel):
     platform: str = Field(..., min_length=1, max_length=50)
-    url: str = Field(..., min_length=1, max_length=1000)
-    extract_code: Optional[str] = Field(None, max_length=20)
-
-
-class PluginSourceItem(BaseModel):
-    source_name: str = Field(..., min_length=1, max_length=50)
     url: str = Field(..., min_length=1, max_length=1000)
     extract_code: Optional[str] = Field(None, max_length=20)

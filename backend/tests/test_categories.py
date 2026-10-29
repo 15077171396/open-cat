@@ -21,9 +21,6 @@ from pydantic import ValidationError
 
 from app.core.exceptions import AppException
 from app.models.category import Category
-from app.models.node import Node
-from app.models.resource import Resource
-from app.models.tool import Tool
 from app.schemas.category import NAME_MAX_LENGTH, CategoryCreate, CategoryReorder, CategoryUpdate
 from app.services import category_service
 from app.services.category_service import (
@@ -35,19 +32,18 @@ from app.services.category_service import (
 from tests.conftest import FakeRedis
 from tests.fake_db import MemorySession
 
-
 class ModuleWhitelistTests(unittest.TestCase):
     """模块白名单必须与 MODULE_TABLE_MAP 一致（不得再出现第四份硬编码）"""
 
-    def test_table_map_covers_the_five_admin_tabs(self):
-        """守卫自身要有牙：前端「分类管理」页恰好这 5 个 Tab，少一个就是漏配"""
-        self.assertEqual(
-            set(MODULE_TABLE_MAP),
-            {"tutorial", "resource", "node", "plugin", "tool"},
-        )
+    def test_table_map_covers_every_content_module(self):
+        """分类的模块白名单必须与内容类型注册表同源：新增内容类型时漏配，
+        表现为「新增分类」直接 422，而注册表测试仍绿。"""
+        from app.core.content_types import IMPLEMENTED_MODULES
+
+        self.assertEqual(set(MODULE_TABLE_MAP), set(IMPLEMENTED_MODULES))
 
     def test_every_module_can_create_a_category(self):
-        """回归：tool 曾被 schema 白名单漏掉，「在线工具」新增分类必 422"""
+        """每个已实现的内容模块都必须能新增分类（白名单漏登记 → 必 422）"""
         for module in MODULE_TABLE_MAP:
             with self.subTest(module=module):
                 body = CategoryCreate(module=module, name="新分类")
@@ -59,14 +55,13 @@ class ModuleWhitelistTests(unittest.TestCase):
 
     def test_name_is_bounded_by_the_db_column(self):
         """超长名称原先直落 MySQL → DataError 500，现在挡成 422"""
-        CategoryCreate(module="tool", name="x" * NAME_MAX_LENGTH)
+        CategoryCreate(module="tutorial", name="x" * NAME_MAX_LENGTH)
         with self.assertRaises(ValidationError):
-            CategoryCreate(module="tool", name="x" * (NAME_MAX_LENGTH + 1))
+            CategoryCreate(module="tutorial", name="x" * (NAME_MAX_LENGTH + 1))
         with self.assertRaises(ValidationError):
             CategoryUpdate(name="x" * (NAME_MAX_LENGTH + 1))
         with self.assertRaises(ValidationError):
-            CategoryCreate(module="tool", name="")
-
+            CategoryCreate(module="tutorial", name="")
 
 class _CategoryFixture(unittest.IsolatedAsyncioTestCase):
     """共用：内存会话 + FakeRedis（重排会失效分类缓存，不替换会去连真实 Redis）"""
@@ -78,69 +73,6 @@ class _CategoryFixture(unittest.IsolatedAsyncioTestCase):
 
     def tearDown(self):
         self._patcher.stop()
-
-
-class ModuleOverviewTests(_CategoryFixture):
-    """分类管理页的内容计数与孤儿分类"""
-
-    def _seed(self):
-        self.db.seed(
-            Category(id=1, module="node", name="加载", sort_order=1),
-            Category(id=2, module="node", name="图像", sort_order=2),
-            Category(id=3, module="node", name="未使用分类", sort_order=3),
-            # 内容：图像 ×2、加载 ×1，另有「潜空间」×3 是内容在用但分类表没有的
-            Node(id=11, name="节点A", category="图像"),
-            Node(id=12, name="节点B", category="图像"),
-            Node(id=13, name="节点C", category="加载"),
-            Node(id=14, name="节点D", category="潜空间"),
-            Node(id=15, name="节点E", category="潜空间"),
-            Node(id=16, name="节点F", category="潜空间"),
-        )
-
-    async def test_counts_per_category(self):
-        self._seed()
-        data = await get_module_overview(self.db, "node")
-        counts = {item["name"]: item["content_count"] for item in data["items"]}
-        self.assertEqual(counts, {"加载": 1, "图像": 2, "未使用分类": 0})
-
-    async def test_orphan_categories_are_reported(self):
-        """内容里出现、分类表未登记的取值必须列出来（否则前台按它筛选永远筛不到）"""
-        self._seed()
-        data = await get_module_overview(self.db, "node")
-        self.assertEqual(data["orphans"], [{"name": "潜空间", "content_count": 3}])
-
-    async def test_total_content_includes_orphans(self):
-        """总数含孤儿，否则「共 N 条内容」会比实际少"""
-        self._seed()
-        data = await get_module_overview(self.db, "node")
-        self.assertEqual(data["total_content"], 6)
-
-    async def test_empty_module_is_not_an_error(self):
-        data = await get_module_overview(self.db, "plugin")
-        self.assertEqual(data["items"], [])
-        self.assertEqual(data["orphans"], [])
-        self.assertEqual(data["total_content"], 0)
-
-    async def test_resource_module_uses_its_own_column(self):
-        """资源的内容列是 resource_type（不是 category）—— 取错列会静默返回全 0"""
-        self.db.seed(
-            Category(id=21, module="resource", name="model", sort_order=1),
-            Resource(id=31, name="资源A", resource_type="model"),
-            Resource(id=32, name="资源B", resource_type="tool"),
-        )
-        data = await get_module_overview(self.db, "resource")
-        self.assertEqual(data["items"][0]["content_count"], 1)
-        self.assertEqual(data["orphans"], [{"name": "tool", "content_count": 1}])
-
-    async def test_tool_module_is_supported(self):
-        """回归：tool 曾整条链路不可用（既不能建分类，也不该统计不到）"""
-        self.db.seed(
-            Category(id=41, module="tool", name="Prompt", sort_order=1),
-            Tool(id=51, name="工具A", category="Prompt"),
-        )
-        data = await get_module_overview(self.db, "tool")
-        self.assertEqual(data["items"][0]["content_count"], 1)
-
 
 class ReorderTests(_CategoryFixture):
     """整组重排：顺序即新的 sort_order（从 1 开始）"""
@@ -189,7 +121,6 @@ class ReorderTests(_CategoryFixture):
     async def test_empty_list_is_rejected_by_schema(self):
         with self.assertRaises(ValidationError):
             CategoryReorder(ids=[])
-
 
 if __name__ == "__main__":
     unittest.main()

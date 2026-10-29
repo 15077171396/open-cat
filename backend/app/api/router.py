@@ -7,15 +7,11 @@ from app.schemas.common import ApiResponse
 from app.services import health_service
 from app.api.auth import router as auth_router
 from app.api.tutorials import router as tutorials_router
-from app.api.resources import router as resources_router
 from app.api.users import router as users_router
-from app.api.tools import router as tools_router
 from app.api.categories import router as categories_router
 from app.api.admin import router as admin_router
 from app.api.admin_audit import router as admin_audit_router
 from app.api.admin_rbac import router as admin_rbac_router
-from app.api.nodes import router as nodes_router
-from app.api.plugins import router as plugins_router
 from app.api.stats import router as stats_router
 from app.api.home import router as home_router
 from app.api.announcements import router as announcements_router
@@ -37,10 +33,6 @@ api_router = APIRouter(prefix="/api/v1")
 # 注册各模块路由
 api_router.include_router(auth_router, prefix="/auth", tags=["认证"])
 api_router.include_router(tutorials_router, prefix="/tutorials", tags=["教程"])
-api_router.include_router(resources_router, prefix="/resources", tags=["资源"])
-api_router.include_router(tools_router, prefix="/tools", tags=["工具"])
-api_router.include_router(nodes_router, prefix="/nodes", tags=["节点百科"])
-api_router.include_router(plugins_router, prefix="/plugins", tags=["扩展推荐"])
 api_router.include_router(users_router, prefix="/users", tags=["用户中心"])
 api_router.include_router(categories_router, prefix="/categories", tags=["分类"])
 api_router.include_router(admin_router, prefix="/admin", tags=["管理后台"])

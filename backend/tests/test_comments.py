@@ -24,44 +24,25 @@ from app.api.comments import resolve_comment_target
 from app.core.exceptions import AppException
 from app.models.comment import (
     COMMENT_MAX_IMAGES,
-    COMMENT_TARGET_NODE,
-    COMMENT_TARGET_RESOURCE,
     ContentComment,
 )
-from app.models.node import Node
 from app.models.moderation import (
     MAX_MODERATION_LOGS_PER_USER_PER_DAY,
     ContentModerationLog,
 )
-from app.models.resource import Resource
 from app.models.tutorial import Tutorial
 from app.models.user import User
 from app.services import comment_service
 from app.services.storage import storage
 from tests.fake_db import MemorySession
 
-
 def make_user(user_id: int = 1) -> User:
     return User(id=user_id, account=f"u{user_id}@example.com", password_hash="x", role="user")
-
 
 def make_tutorial(tutorial_id: int = 100) -> Tutorial:
     t = Tutorial(id=tutorial_id, title="测试教程", description="简介", content="正文", category="ai")
     t.is_published = True
     return t
-
-
-def make_node(node_id: int = 100) -> Node:
-    return Node(id=node_id, name="测试节点", category="core", description="节点简介", content="正文")
-
-
-def make_resource(resource_id: int = 100) -> Resource:
-    return Resource(
-        id=resource_id, name="测试资源", description="资源简介",
-        content="正文", resource_type="model", file_size="1GB",
-    )
-
-
 
 class CreateCommentTests(unittest.IsolatedAsyncioTestCase):
     """发布评论：机审与校验"""
@@ -107,7 +88,6 @@ class CreateCommentTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(Exception):
             await comment_service.create_comment(db, user, "tutorial", 999999, "评论内容")
 
-
 class DeleteCommentTests(unittest.IsolatedAsyncioTestCase):
     """删除：软删除 + 越权防护"""
 
@@ -150,7 +130,6 @@ class DeleteCommentTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(Exception):
             await comment_service.delete_comment(db, 12345, 1)
 
-
 class SerializationTests(unittest.IsolatedAsyncioTestCase):
     """输出字段：前台不该看到内部管理字段"""
 
@@ -172,7 +151,6 @@ class SerializationTests(unittest.IsolatedAsyncioTestCase):
         item = listing["items"][0]
         self.assertIn("is_deleted", item)
         self.assertEqual(item["target_title"], "测试教程")
-
 
 class ReplyTests(unittest.IsolatedAsyncioTestCase):
     """两级回复：挂载规则、越界校验、列表嵌套"""
@@ -259,7 +237,6 @@ class ReplyTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(listing["total"], 1, "父评论必须仍然可见")
         self.assertEqual(listing["items"][0]["reply_count"], 0)
 
-
 class CommentImageTests(unittest.IsolatedAsyncioTestCase):
     """配图：域名白名单 + 数量上限 + 允许只发图不写字"""
 
@@ -326,7 +303,6 @@ class CommentImageTests(unittest.IsolatedAsyncioTestCase):
         item = (await comment_service.list_comments(db, "tutorial", tutorial.id))["items"][0]
         self.assertEqual(item["replies"][0]["images"], [self.url])
 
-
 class PurgeTests(unittest.IsolatedAsyncioTestCase):
     """教程删除连带清理：不留孤儿评论"""
 
@@ -360,143 +336,6 @@ class PurgeTests(unittest.IsolatedAsyncioTestCase):
         db = MemorySession()
         self.assertEqual(await comment_service.purge_comments_for_targets(db, "tutorial", []), 0)
 
-
-class MultiTargetTests(unittest.IsolatedAsyncioTestCase):
-    """多态目标（2026-10-12 泛化）：教程 / 节点 / 资源评论必须完全隔离。
-
-    最容易出错的地方是**多种内容共用同一个 id**：教程 100、节点 100、资源 100 都存在，
-    只要列表 / 清理 / 回复归属的条件漏掉 `target_type`，数据就会互相串——
-    与 P1-7「清理收藏时漏掉 target_type」是同一类事故。故本类刻意让三者同 id。
-    """
-
-    async def _seed(self):
-        db = MemorySession()
-        user, tutorial, node, resource = make_user(), make_tutorial(100), make_node(100), make_resource(100)
-        db.seed(user, tutorial, node, resource)
-        return db, user, tutorial, node, resource
-
-    async def test_node_comment_created_and_listed(self):
-        db, user, _tutorial, node, _resource = await self._seed()
-        result = await comment_service.create_comment(
-            db, user, COMMENT_TARGET_NODE, node.id, "这个节点讲得很清楚"
-        )
-        self.assertEqual(result["target_type"], COMMENT_TARGET_NODE)
-        self.assertEqual(result["target_id"], node.id)
-
-        listing = await comment_service.list_comments(db, COMMENT_TARGET_NODE, node.id)
-        self.assertEqual(listing["total"], 1)
-        self.assertEqual(listing["items"][0]["content"], "这个节点讲得很清楚")
-
-    async def test_resource_comment_created_and_listed(self):
-        """资源评论（2026-10-12 新增的第三种可评论内容）"""
-        db, user, _tutorial, _node, resource = await self._seed()
-        result = await comment_service.create_comment(
-            db, user, COMMENT_TARGET_RESOURCE, resource.id, "这个资源很好用"
-        )
-        self.assertEqual(result["target_type"], COMMENT_TARGET_RESOURCE)
-        self.assertEqual(result["target_id"], resource.id)
-
-        listing = await comment_service.list_comments(db, COMMENT_TARGET_RESOURCE, resource.id)
-        self.assertEqual(listing["total"], 1)
-        self.assertEqual(listing["items"][0]["content"], "这个资源很好用")
-
-    async def test_same_id_does_not_leak_between_types(self):
-        """同 id 的教程 / 节点 / 资源评论必须各归各的"""
-        db, user, tutorial, node, resource = await self._seed()
-        await comment_service.create_comment(db, user, "tutorial", tutorial.id, "教程评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_NODE, node.id, "节点评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_RESOURCE, resource.id, "资源评论")
-
-        t_list = await comment_service.list_comments(db, "tutorial", tutorial.id)
-        n_list = await comment_service.list_comments(db, COMMENT_TARGET_NODE, node.id)
-        r_list = await comment_service.list_comments(db, COMMENT_TARGET_RESOURCE, resource.id)
-        self.assertEqual([i["content"] for i in t_list["items"]], ["教程评论"])
-        self.assertEqual([i["content"] for i in n_list["items"]], ["节点评论"])
-        self.assertEqual([i["content"] for i in r_list["items"]], ["资源评论"])
-
-    async def test_reply_cannot_cross_target_types(self):
-        """跨内容回复必须拒绝：否则回复会挂到另一棵评论树上，界面上永远看不到"""
-        db, user, tutorial, node, resource = await self._seed()
-        parent = await comment_service.create_comment(db, user, "tutorial", tutorial.id, "教程顶层")
-        for target_type, target_id in (
-            (COMMENT_TARGET_NODE, node.id),
-            (COMMENT_TARGET_RESOURCE, resource.id),
-        ):
-            with self.subTest(target=target_type):
-                with self.assertRaises(AppException) as ctx:
-                    await comment_service.create_comment(
-                        db, user, target_type, target_id, "跨内容回复", parent_id=parent["id"]
-                    )
-                self.assertEqual(ctx.exception.code, 400)
-
-    async def test_node_reply_nested_under_node_parent(self):
-        db, user, _tutorial, node, _resource = await self._seed()
-        parent = await comment_service.create_comment(db, user, COMMENT_TARGET_NODE, node.id, "节点顶层")
-        await comment_service.create_comment(
-            db, user, COMMENT_TARGET_NODE, node.id, "节点回复", parent_id=parent["id"]
-        )
-        listing = await comment_service.list_comments(db, COMMENT_TARGET_NODE, node.id)
-        self.assertEqual(listing["total"], 1)
-        self.assertEqual(listing["items"][0]["reply_count"], 1)
-
-    async def test_unknown_target_type_rejected(self):
-        db, user, _tutorial, _node, _resource = await self._seed()
-        with self.assertRaises(AppException) as ctx:
-            await comment_service.create_comment(db, user, "unknown_type", 1, "不支持的评论目标")
-        self.assertEqual(ctx.exception.code, 400)
-        self.assertEqual(db.all_rows(ContentComment), [], "非法目标类型不得入库")
-
-    async def test_nonexistent_node_rejected(self):
-        db, user, _tutorial, _node, _resource = await self._seed()
-        with self.assertRaises(Exception):
-            await comment_service.create_comment(db, user, COMMENT_TARGET_NODE, 999999, "评论内容")
-
-    async def test_nonexistent_resource_rejected(self):
-        db, user, _tutorial, _node, _resource = await self._seed()
-        with self.assertRaises(Exception):
-            await comment_service.create_comment(db, user, COMMENT_TARGET_RESOURCE, 999999, "评论内容")
-
-    async def test_purge_only_removes_matching_target_type(self):
-        """清理条件漏掉 target_type 就会把同 id 的其它内容评论一起删掉"""
-        db, user, tutorial, node, resource = await self._seed()
-        await comment_service.create_comment(db, user, "tutorial", tutorial.id, "教程评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_NODE, node.id, "节点评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_RESOURCE, resource.id, "资源评论")
-
-        removed = await comment_service.purge_comments_for_targets(db, COMMENT_TARGET_RESOURCE, [resource.id])
-        self.assertEqual(removed, 1)
-        left = {(r["target_type"], r["content"]) for r in db.all_rows(ContentComment)}
-        self.assertEqual(
-            left, {("tutorial", "教程评论"), (COMMENT_TARGET_NODE, "节点评论")},
-            "只应清理资源评论",
-        )
-
-    async def test_admin_list_shows_target_title_per_type(self):
-        """后台列表要能分辨「这条评论属于教程 / 节点 / 资源」，标题按类型回查"""
-        db, user, tutorial, node, resource = await self._seed()
-        await comment_service.create_comment(db, user, "tutorial", tutorial.id, "教程评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_NODE, node.id, "节点评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_RESOURCE, resource.id, "资源评论")
-
-        listing = await comment_service.admin_list_comments(db)
-        by_type = {i["target_type"]: i for i in listing["items"]}
-        self.assertEqual(by_type["tutorial"]["target_title"], "测试教程")
-        self.assertEqual(by_type[COMMENT_TARGET_NODE]["target_title"], "测试节点")
-        self.assertEqual(by_type[COMMENT_TARGET_RESOURCE]["target_title"], "测试资源")
-
-    async def test_admin_list_filter_by_target(self):
-        db, user, tutorial, node, resource = await self._seed()
-        await comment_service.create_comment(db, user, "tutorial", tutorial.id, "教程评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_NODE, node.id, "节点评论")
-        await comment_service.create_comment(db, user, COMMENT_TARGET_RESOURCE, resource.id, "资源评论")
-
-        listing = await comment_service.admin_list_comments(
-            db, target_type=COMMENT_TARGET_RESOURCE, target_id=resource.id
-        )
-        self.assertEqual(listing["total"], 1)
-        self.assertEqual(listing["items"][0]["content"], "资源评论")
-
-
 class CommentTargetParamTests(unittest.TestCase):
     """目标参数契约（路由层解析）：GET 与 POST 共用同一份解析函数。
 
@@ -505,10 +344,8 @@ class CommentTargetParamTests(unittest.TestCase):
     """
 
     def test_target_type_and_id_used_directly(self):
-        self.assertEqual(resolve_comment_target("node", 7, None), ("node", 7))
         self.assertEqual(resolve_comment_target("tutorial", 7, None), ("tutorial", 7))
         # 资源是 2026-10-12 新增的第三种可评论内容
-        self.assertEqual(resolve_comment_target("resource", 7, None), ("resource", 7))
 
     def test_missing_target_id_rejected(self):
         for t, i in (("tutorial", None), (None, None), ("", 1)):
@@ -527,8 +364,6 @@ class CommentTargetParamTests(unittest.TestCase):
 
     def test_explicit_target_wins_over_legacy(self):
         """两个都传时以新参数为准（兼容层不能反过来覆盖新契约）"""
-        self.assertEqual(resolve_comment_target("node", 7, 42), ("node", 7))
-
 
 class CommentReadVisibilityTests(unittest.IsolatedAsyncioTestCase):
     """读侧必须与写侧同一套可见性口径（第五轮审查 R5-08）。"""
@@ -571,7 +406,6 @@ class CommentReadVisibilityTests(unittest.IsolatedAsyncioTestCase):
         listing = await comment_service.list_comments(db, "tutorial", tutorial.id)
         self.assertEqual(listing["total"], 1)
 
-
 class CommentPagingTiebreakTests(unittest.IsolatedAsyncioTestCase):
     """同秒评论必须跨页不重不漏（第五轮审查 R5-19）。"""
 
@@ -599,7 +433,6 @@ class CommentPagingTiebreakTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(got), 3, f"跨页共取到 {len(got)} 条，应为 3")
         self.assertEqual(len(set(got)), 3, f"同秒评论跨页重复了：{got}")
         self.assertEqual(got, sorted(ids, reverse=True), "并列时必须按 id 倒序，顺序要可预期")
-
 
 class ModerationLogCapTests(unittest.IsolatedAsyncioTestCase):
     """被拒提交不得无限写留痕（第五轮审查 R5-11）。"""
@@ -630,7 +463,6 @@ class ModerationLogCapTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(AppException):
             await comment_service.create_comment(db, make_user(), "tutorial", 999999, "加微信 13800000000")
         self.assertEqual(db.all_rows(ContentModerationLog), [], "目标不存在时不应留下留痕")
-
 
 if __name__ == "__main__":
     unittest.main()

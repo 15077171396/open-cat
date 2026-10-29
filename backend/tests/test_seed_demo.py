@@ -19,10 +19,7 @@ from app.models.announcement import Announcement
 from app.models.category import Category
 from app.models.comment import ContentComment
 from app.models.feedback import Feedback
-from app.models.node import Node, Plugin
 from app.models.point_transaction import PointTransaction
-from app.models.resource import Resource
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
@@ -34,11 +31,7 @@ MODELS = {
     "Category": Category,
     "ContentComment": ContentComment,
     "Feedback": Feedback,
-    "Node": Node,
-    "Plugin": Plugin,
     "PointTransaction": PointTransaction,
-    "Resource": Resource,
-    "Tool": Tool,
     "Tutorial": Tutorial,
     "TutorialNode": TutorialNode,
     "User": User,
@@ -65,7 +58,7 @@ class SeedFieldNameTests(unittest.TestCase):
                     problems.append(f"{node.func.id}.{kw.arg}（第 {node.lineno} 行）")
 
         # 至少要真的扫到东西，否则说明 AST 结构与预期不符（例如改成了工厂函数）
-        self.assertGreater(checked, 10, "没有识别到模型构造调用，守卫可能失效了")
+        self.assertGreater(checked, 5, "没有识别到模型构造调用，守卫可能失效了")
         self.assertEqual(problems, [], f"seed_demo.py 用了模型上不存在的字段: {problems}")
 
     def test_required_columns_are_provided(self):
@@ -103,7 +96,6 @@ class SeedFieldNameTests(unittest.TestCase):
         """幂等标记必须真的落到标题上，否则重复执行会灌两份数据。"""
         text = SEED.read_text(encoding="utf-8")
         self.assertIn("{MARK}{title}", text)
-        self.assertIn("{MARK}{name}", text)
 
 
 class PlaceholderImageTests(unittest.TestCase):

@@ -1,4 +1,4 @@
-"""列表导出端点：`GET /admin/export/{resource}` 系列。
+"""列表导出端点：`GET /admin/export/{resource}` 系列（用户 / 教程 / 积分流水）。
 
 为什么按资源拆成多条路径，而不是一个 `/export?resource=users`：
 
@@ -87,28 +87,6 @@ async def export_tutorials(
         },
     )
     return await _csv_response(db, admin, "tutorials", filters)
-
-
-@router.get("/export/resources")
-async def export_resources(
-    keyword: str = Query(None, max_length=KEYWORD_MAX_LENGTH),
-    resource_type: str = Query(None, max_length=30),
-    is_featured: bool = Query(None),
-    deleted: str = Query("active", description="active / deleted / all"),
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    """导出资源列表（CSV）。"""
-    filters = export_service.pick_filters(
-        export_service.get_spec("resources"),
-        {
-            "keyword": keyword,
-            "resource_type": resource_type,
-            "is_featured": is_featured,
-            "deleted": deleted,
-        },
-    )
-    return await _csv_response(db, admin, "resources", filters)
 
 
 @router.get("/export/point-transactions")

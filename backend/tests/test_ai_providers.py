@@ -33,7 +33,6 @@ from app.services.ai.openai_provider import OpenAIProvider
 from app.services.ai.qwen_provider import QwenProvider
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TOOLS_EDIT = REPO_ROOT / "admin-frontend" / "src" / "pages" / "Tools" / "Edit.tsx"
 
 # sorted 后的注册名（registry 按名字排序返回）
 # custom = 「自定义（OpenAI 兼容）」，2026-10-27 新增：接 Moonshot/智谱/Ollama 等
@@ -235,27 +234,6 @@ class TestProtocolContract(_ProviderTestBase):
         for provider in self._providers():
             await provider.close()
             self.assertTrue(provider.client.is_closed)
-
-
-class TestFrontendModelOptions(unittest.TestCase):
-    """工具编辑页的模型下拉必须来自模型管理接口，而不是前端写死的供应商清单。
-
-    写死清单会与 ai_models 漂移：后台新增模型选不到、删除的模型仍显示，
-    且不会报错。这里钉死「必须请求 /admin/ai-models/options」与「不允许硬编码清单」。
-    """
-
-    @classmethod
-    def setUpClass(cls):
-        cls.source = io.open(TOOLS_EDIT, encoding="utf-8").read()
-
-    def test_tool_editor_fetches_model_options(self):
-        self.assertIn("/admin/ai-models/options", self.source)
-
-    def test_tool_editor_has_no_hardcoded_provider_list(self):
-        self.assertIsNone(
-            re.search(r"const AI_MODEL_OPTIONS = \[", self.source),
-            "工具编辑页又出现了硬编码 AI_MODEL_OPTIONS —— 会与模型管理漂移",
-        )
 
 
 class TestUsageOutIsolation(_ProviderTestBase):

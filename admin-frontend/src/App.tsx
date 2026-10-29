@@ -12,14 +12,6 @@ const AdminLayout = lazy(() => import('./components/Layout/AdminLayout'))
 const Dashboard = lazy(() => import('./pages/Dashboard'))
 const TutorialsList = lazy(() => import('./pages/Tutorials/List'))
 const TutorialsEdit = lazy(() => import('./pages/Tutorials/Edit'))
-const ResourcesList = lazy(() => import('./pages/Resources/List'))
-const ResourcesEdit = lazy(() => import('./pages/Resources/Edit'))
-const NodesList = lazy(() => import('./pages/Nodes/List'))
-const NodesEdit = lazy(() => import('./pages/Nodes/Edit'))
-const ToolsList = lazy(() => import('./pages/Tools/List'))
-const ToolsEdit = lazy(() => import('./pages/Tools/Edit'))
-const PluginsList = lazy(() => import('./pages/Plugins/List'))
-const PluginsEdit = lazy(() => import('./pages/Plugins/Edit'))
 const CategoriesList = lazy(() => import('./pages/Categories/List'))
 const AnnouncementsList = lazy(() => import('./pages/Announcements/List'))
 const UsersList = lazy(() => import('./pages/Users/List'))
@@ -88,18 +80,6 @@ export default function App() {
                 <Route path="/tutorials" element={perm('tutorial:view', <TutorialsList />)} />
                 <Route path="/tutorials/new" element={perm('tutorial:create', <TutorialsEdit />)} />
                 <Route path="/tutorials/:id/edit" element={perm('tutorial:edit', <TutorialsEdit />)} />
-                <Route path="/resources" element={perm('resource:view', <ResourcesList />)} />
-                <Route path="/resources/new" element={perm('resource:create', <ResourcesEdit />)} />
-                <Route path="/resources/:id/edit" element={perm('resource:edit', <ResourcesEdit />)} />
-                <Route path="/nodes" element={perm('node:view', <NodesList />)} />
-                <Route path="/nodes/new" element={perm('node:create', <NodesEdit />)} />
-                <Route path="/nodes/:id/edit" element={perm('node:edit', <NodesEdit />)} />
-                <Route path="/tools" element={perm('tool:view', <ToolsList />)} />
-                <Route path="/tools/new" element={perm('tool:create', <ToolsEdit />)} />
-                <Route path="/tools/:id/edit" element={perm('tool:edit', <ToolsEdit />)} />
-                <Route path="/plugins" element={perm('plugin:view', <PluginsList />)} />
-                <Route path="/plugins/new" element={perm('plugin:create', <PluginsEdit />)} />
-                <Route path="/plugins/:id/edit" element={perm('plugin:edit', <PluginsEdit />)} />
                 <Route path="/categories" element={perm('category:view', <CategoriesList />)} />
                 <Route path="/announcements" element={perm('announcement:view', <AnnouncementsList />)} />
                 <Route path="/payment-products" element={perm('payment_product:view', <PaymentProductsPage />)} />

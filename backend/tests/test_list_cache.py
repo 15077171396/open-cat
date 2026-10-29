@@ -4,7 +4,7 @@
 
 1. **键必须随参数变化**：漏一个参数就会「换个分类还是旧结果」；
 2. **键必须稳定**：同一组参数两次调用要命中同一个键，否则缓存永不命中（等于白写）；
-3. **写操作要能清掉列表缓存**：`invalidate_nodes()` 之类必须按前缀删掉 `list:nodes:*`，
+3. **写操作要能清掉列表缓存**：`invalidate_tutorials()` 之类必须按前缀删掉 `list:nodes:*`，
    否则下架的内容还能在列表里活到 TTL 到期。
 """
 
@@ -79,15 +79,15 @@ class ListCacheRoundTripTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_invalidate_clears_list_prefix(self):
         """内容写操作必须清掉该模块的列表缓存，否则下架内容会活到 TTL 到期"""
-        node_key = content_cache.list_cache_key("nodes", {"page": 1})
-        plugin_key = content_cache.list_cache_key("plugins", {"page": 1})
-        await content_cache.set_cached_list(node_key, {"items": []})
-        await content_cache.set_cached_list(plugin_key, {"items": []})
+        tutorial_key = content_cache.list_cache_key("tutorials", {"page": 1})
+        other_key = content_cache.list_cache_key("categories", {"page": 1})
+        await content_cache.set_cached_list(tutorial_key, {"items": []})
+        await content_cache.set_cached_list(other_key, {"items": []})
 
-        await content_cache.invalidate_nodes()
+        await content_cache.invalidate_tutorials()
 
-        self.assertIsNone(await self.redis.get(node_key), "节点列表缓存应被清掉")
-        self.assertIsNotNone(await self.redis.get(plugin_key), "不应误删其它模块的缓存")
+        self.assertIsNone(await self.redis.get(tutorial_key), "教程列表缓存应被清掉")
+        self.assertIsNotNone(await self.redis.get(other_key), "不应误删其它模块的缓存")
 
 
 if __name__ == '__main__':

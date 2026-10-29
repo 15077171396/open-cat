@@ -53,10 +53,6 @@ const SOURCE_COLORS = { phone: '#1677ff', email: '#722ed1' } as const
 
 /** 内容资产条形配色（按「内容体量级」由深到浅，便于一眼区分板块） */
 const CONTENT_COLORS = {
-  resources: '#1677ff',
-  nodes: '#36cfc9',
-  plugins: '#722ed1',
-  tools: '#fa8c16',
   tutorials: '#52c41a',
 } as const
 
@@ -185,28 +181,14 @@ export default function Dashboard() {
   )
   const sourceTotal = data.registration_source.phone + data.registration_source.email
 
+  // 内容资产只剩教程一种类型：新增业务模块时在这里补一行（并同步后端 content_overview）
   const contentItems = useMemo<BarItem[]>(
     () => [
-      { key: 'resources', label: '资源', value: data.content_overview.resources, color: CONTENT_COLORS.resources },
-      { key: 'nodes', label: '知识百科节点', value: data.content_overview.nodes, color: CONTENT_COLORS.nodes },
-      { key: 'plugins', label: '扩展', value: data.content_overview.plugins, color: CONTENT_COLORS.plugins },
-      { key: 'tools', label: '在线工具', value: data.content_overview.tools, color: CONTENT_COLORS.tools },
       { key: 'tutorials', label: '已发布教程', value: data.content_overview.tutorials, color: CONTENT_COLORS.tutorials },
     ],
     [data.content_overview],
   )
   const contentTotal = contentItems.reduce((sum, it) => sum + it.value, 0)
-
-  const topItems = useMemo<BarItem[]>(
-    () =>
-      data.top_resources.map((r) => ({
-        key: String(r.id),
-        label: r.name,
-        value: r.download_count,
-        extra: `浏览 ${r.view_count}`,
-      })),
-    [data.top_resources],
-  )
 
   if (error) {
     return (
@@ -424,32 +406,6 @@ export default function Dashboard() {
             extra={<span className="dash-card__extra">共 {contentTotal} 项</span>}
           >
             <BarList items={contentItems} loading={loading} emptyText="暂无内容" />
-          </Card>
-        </Col>
-        <Col xs={24} xl={12}>
-          <Card
-            className="dash-card"
-            variant="outlined"
-            title={
-              <span style={cardTitleStyle}>
-                <HddOutlined style={{ marginRight: 8, color: '#8c8c8c' }} />
-                资源下载榜 Top 5
-              </span>
-            }
-            extra={
-              can('resource:view') ? (
-                <Button type="link" size="small" onClick={() => navigate('/resources')}>
-                  查看全部
-                </Button>
-              ) : null
-            }
-          >
-            <BarList
-              items={topItems}
-              ranked
-              loading={loading}
-              emptyText="暂无下载记录"
-            />
           </Card>
         </Col>
       </Row>

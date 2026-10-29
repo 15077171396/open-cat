@@ -1,4 +1,4 @@
-"""管理后台路由（聚合入口）：按域拆分为 13 个模块，本文件按原注册顺序 import 聚合
+"""管理后台路由（聚合入口）：按域拆分为 9 个模块，本文件按原注册顺序 import 聚合
 （import 即执行各模块的 @router 装饰器完成路由注册）。
 FastAPI 按注册顺序匹配路由（batch-delete 必须先于 {tutorial_id}），域间顺序由本文件 import 顺序决定。
 """
@@ -12,10 +12,6 @@ from app.api import (  # noqa: F401
     # 列表导出（CSV）：数据外带，权限与各自列表页一致，每次导出写审计
     admin_export,
     admin_tutorials,
-    admin_resources,
-    admin_plugins,
-    admin_nodes,
-    admin_tools,
     admin_users,
     admin_redeem_codes,
     admin_announcements,

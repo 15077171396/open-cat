@@ -30,7 +30,6 @@ from app.models.comment import (
     ContentComment,
     MAX_COMMENT_IMAGES_PER_USER_PER_DAY,
 )
-from app.models.node import Node
 from app.models.tutorial import Tutorial
 from app.models.user import User
 from tests.conftest import FakeRedis
@@ -42,14 +41,17 @@ ADMIN = User(id=9001, account="admin@test", password_hash="x", role="admin")
 
 
 def _seed_db() -> MemorySession:
-    """教程 100 与节点 100 **同 id**，各挂一条评论 —— 路由只要漏掉 target_type 就会串。"""
+    """内存库：一条已发布教程 + 它下面的一条评论。
+
+    评论目标解析需要实体存在；管理端列表还要能从 target_id 反查标题。
+    """
     db = MemorySession()
-    tutorial = Tutorial(id=100, title="教程A", description="简介", content="正文", category="ai")
-    tutorial.is_published = True
-    db.seed(AUTHOR, ADMIN, tutorial, Node(id=100, name="节点A", category="core", description="简介", content="正文"))
+    db.seed(Tutorial(id=100, title="教程A", is_published=True))
     db.seed(
-        ContentComment(id=501, target_type="tutorial", target_id=100, user_id=AUTHOR.id, content="教程侧评论"),
-        ContentComment(id=502, target_type="node", target_id=100, user_id=AUTHOR.id, content="节点侧评论"),
+        ContentComment(
+            id=1, target_type="tutorial", target_id=100,
+            user_id=AUTHOR.id, content="教程侧评论",
+        )
     )
     return db
 
@@ -86,28 +88,7 @@ class _RouteTests(unittest.IsolatedAsyncioTestCase):
             for dep in (get_db, _rbac.check_route_permission, require_admin):
                 app.dependency_overrides.pop(dep, None)
 
-
 class PublicCommentRouteTests(_RouteTests):
-    async def test_target_type_selects_the_right_tree(self):
-        async with self._client() as client:
-            node = (await client.get("/api/v1/comments", params={"target_type": "node", "target_id": 100})).json()
-            tutorial = (await client.get("/api/v1/comments", params={"target_type": "tutorial", "target_id": 100})).json()
-        self.assertEqual([i["content"] for i in node["data"]["items"]], ["节点侧评论"])
-        self.assertEqual([i["content"] for i in tutorial["data"]["items"]], ["教程侧评论"])
-
-    async def test_omitting_target_type_silently_means_tutorial(self):
-        """**当前契约**：省略 target_type 不报错，按教程处理。
-
-        这是路由默认值造成的行为，纯函数用例测不到（`resolve_comment_target` 单测里
-        传的是显式 None）。本用例把它钉下来，是为了让这个决定**可见**：
-        将来有人把默认值改成必填（更严格、也更合理），这里会红，逼他显式确认
-        「旧 bundle 会不会被打成 400」——而不是悄悄改掉一个对外行为。
-        """
-        async with self._client() as client:
-            resp = await client.get("/api/v1/comments", params={"target_id": 100})
-        self.assertEqual(resp.status_code, 200)
-        self.assertEqual([i["content"] for i in resp.json()["data"]["items"]], ["教程侧评论"])
-
     async def test_unknown_target_type_is_400_not_500(self):
         async with self._client() as client:
             resp = await client.get("/api/v1/comments", params={"target_type": "plugin", "target_id": 100})
@@ -118,10 +99,9 @@ class PublicCommentRouteTests(_RouteTests):
         from app.services import comment_service
 
         async with self._client() as client:
-            via_route = (await client.get("/api/v1/comments", params={"target_type": "node", "target_id": 100})).json()
-        via_service = await comment_service.list_comments(self.db, "node", 100)
+            via_route = (await client.get("/api/v1/comments", params={"target_type": "tutorial", "target_id": 100})).json()
+        via_service = await comment_service.list_comments(self.db, "tutorial", 100)
         self.assertEqual([i["id"] for i in via_route["data"]["items"]], [i["id"] for i in via_service["items"]])
-
 
 class AdminCommentRouteTests(_RouteTests):
     async def test_legacy_tutorial_id_still_filters(self):
@@ -146,23 +126,14 @@ class AdminCommentRouteTests(_RouteTests):
         self.assertEqual(items[0]["tutorial_title"], "教程A")
         self.assertEqual(items[0]["target_title"], "教程A")
 
-    async def test_node_rows_do_not_carry_tutorial_alias(self):
-        """别名只在教程行上给：node/resource 行不得凭空多出 tutorial_id（避免扩大对外承诺面）"""
-        async with self._client() as client:
-            items = (await client.get("/api/v1/admin/comments", params={"target_type": "node", "target_id": 100})).json()["data"]["items"]
-        self.assertEqual([i["content"] for i in items], ["节点侧评论"])
-        self.assertNotIn("tutorial_id", items[0])
-        self.assertNotIn("tutorial_title", items[0])
-
     async def test_new_params_win_over_legacy(self):
         """同时给新参数与旧参数时以新参数为准（兼容层不能反过来覆盖新契约）"""
         async with self._client() as client:
             items = (await client.get(
                 "/api/v1/admin/comments",
-                params={"target_type": "node", "target_id": 100, "tutorial_id": 777},
+                params={"target_type": "tutorial", "target_id": 100, "tutorial_id": 777},
             )).json()["data"]["items"]
-        self.assertEqual([i["content"] for i in items], ["节点侧评论"])
-
+        self.assertEqual([i["content"] for i in items], ["教程侧评论"])
 
 class ResolveTargetContractTests(unittest.TestCase):
     """把「路由默认值」与纯函数行为的**差异**写清楚（防下一个审查员误判）。"""
@@ -172,7 +143,6 @@ class ResolveTargetContractTests(unittest.TestCase):
             resolve_comment_target(None, 100, None)   # 纯函数：缺类型必须拒
         # 而经路由时 target_type 有默认值 "tutorial"，同样的请求会被解释成教程评论
         self.assertEqual(resolve_comment_target("tutorial", 100, None), ("tutorial", 100))
-
 
 class CommentImageUploadQuotaTests(unittest.IsolatedAsyncioTestCase):
     """评论配图必须有按用户的日张数上限（第五轮审查 R5-12）。
@@ -253,7 +223,6 @@ class CommentImageUploadQuotaTests(unittest.IsolatedAsyncioTestCase):
             "新用户应正常走到内容校验，而不是被别人的配额拦住（429）",
         )
 
-
 class _ExpiredAfterRollbackUser:
     """回滚后读属性即抛 MissingGreenlet —— 真实 AsyncSession 的 expire-on-rollback 语义。
 
@@ -277,7 +246,6 @@ class _ExpiredAfterRollbackUser:
             )
         return getattr(self._user, name)
 
-
 class _RollbackSession:
     """只实现本路由用到的 rollback()，并把回滚如实转成「对象过期」。"""
 
@@ -286,7 +254,6 @@ class _RollbackSession:
 
     async def rollback(self) -> None:
         self._target.expire()
-
 
 class CommentImageUploadRollbackTests(unittest.IsolatedAsyncioTestCase):
     """`POST /comments/images` 在 `await db.rollback()` 之后不得再碰 `current_user` 的属性。
@@ -371,7 +338,6 @@ class CommentImageUploadRollbackTests(unittest.IsolatedAsyncioTestCase):
             await self._post_png(client)
         self.assertEqual(str(await self._redis.get("comment_image:user_daily:131")), "1")
         self.assertIsNone(await self._redis.get("comment_image:user_daily:None"))
-
 
 class CommentImageUploadCosFailureTests(unittest.IsolatedAsyncioTestCase):
     """COS 侧失败必须落在「图片存储失败」这条可定位的 500 上，而不是全局兜底。

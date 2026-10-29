@@ -43,17 +43,16 @@ backend/
 │   │   ├── admin.py          #   管理端聚合入口（自身 0 路由）
 │   │   ├── admin_*.py        #   15 个管理域模块（原 1515 行的 admin.py 按域拆出）
 │   │   └── _admin_shared.py  #   共享 router 与跨域模型
-│   ├── services/             # 业务逻辑（49 个 + ai/ + third_party_fetch/ 两个子包）
-│   ├── models/               # SQLAlchemy 模型（22 个文件）
+│   ├── services/             # 业务逻辑（含 ai/ 与 third_party_fetch/ 两个子包）
+│   ├── models/               # SQLAlchemy 模型
 │   ├── schemas/              # Pydantic 出入参
 │   ├── core/                 # security / crypto / permissions / rbac / rate_limit / exceptions / monitoring / request_context
 │   └── utils/                # verification / sanitize / time 等
 ├── scheduler/tasks.py        # APScheduler 定时任务（独立容器运行，不在 app 进程内）
 ├── alembic/versions/         # 迁移
-├── tests/                    # pytest（41 文件 / 633 用例）
-├── seed_data.py              # 基础种子数据
-├── seed_more.py              # 扩展内容种子
-└── migrate_base64_v2.py      # 一次性数据迁移脚本（把正文里的 base64 图片搬到 COS）；默认 dry-run，`--apply` 才写库
+├── tests/                    # pytest（离线可跑，见上）
+├── seed_data.py              # 基础种子（管理员 + 少量教程）
+└── seed_demo.py             # 演示数据（教程/分类/评论/反馈/公告，图片真实落盘）
 ```
 
 模块与路由的**实际数量、清单、权限**见 [项目说明](../docs/03-开发/项目说明.md) 第三 / 五 / 七章。

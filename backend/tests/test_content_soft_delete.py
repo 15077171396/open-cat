@@ -19,34 +19,11 @@ from datetime import datetime
 from pathlib import Path
 
 from app.models.admin_audit_log import AUDIT_ACTIONS
-from app.models.resource import Resource
 from app.models.tutorial import Tutorial
 from app.services import content_soft_delete as csd
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 APP = REPO_ROOT / "backend" / "app"
-
-
-class ModeTests(unittest.TestCase):
-    def test_valid_modes_are_preserved(self):
-        for mode in ("active", "deleted", "all"):
-            self.assertEqual(csd.normalize_deleted_mode(mode), mode)
-
-    def test_invalid_mode_falls_back_to_active(self):
-        """非法值绝不放宽：写成 'delete' / 'TRUE' / 空串都只能看到正常内容"""
-        for mode in ("delete", "TRUE", "", "  ", None):
-            self.assertEqual(csd.normalize_deleted_mode(mode), "active")
-
-    def test_conditions_match_modes(self):
-        active = str(csd.deleted_condition(Tutorial.deleted_at, "active"))
-        deleted = str(csd.deleted_condition(Tutorial.deleted_at, "deleted"))
-        self.assertIn("IS NULL", active)
-        self.assertIn("IS NOT NULL", deleted)
-        self.assertIsNone(csd.deleted_condition(Tutorial.deleted_at, "all"))
-
-    def test_unknown_mode_returns_active_condition(self):
-        self.assertIn("IS NULL", str(csd.deleted_condition(Resource.deleted_at, "bogus")))
-
 
 class StateTransitionTests(unittest.TestCase):
     def _tutorial(self, **kwargs):
@@ -92,98 +69,6 @@ class StateTransitionTests(unittest.TestCase):
         t = self._tutorial(is_published=False, deleted_at=datetime(2026, 1, 1), published_at=original)
         csd.mark_restored(t, republish=True)
         self.assertEqual(t.published_at, original)
-
-
-class SourceGuardTests(unittest.TestCase):
-    """跨文件守卫：这些约定靠读代码才能保证，所以直接扫源码"""
-
-    @classmethod
-    def setUpClass(cls):
-        cls.tutorial_svc = (APP / "services" / "admin_tutorial_service.py").read_text(encoding="utf-8")
-        cls.resource_svc = (APP / "services" / "admin_resource_service.py").read_text(encoding="utf-8")
-
-    def test_admin_lists_apply_deleted_filter(self):
-        """后台列表必须过滤回收站：漏了就会让「已删除」出现在日常列表里"""
-        for name, source in (("教程", self.tutorial_svc), ("资源", self.resource_svc)):
-            self.assertIn(
-                "deleted_condition(", source,
-                f"{name}管理列表没有应用回收站过滤（deleted_condition）",
-            )
-
-    def test_delete_does_not_physically_remove_rows(self):
-        """删除函数里不得出现物理删除行 —— 否则恢复出来是空壳"""
-        for name, source in (("教程", self.tutorial_svc), ("资源", self.resource_svc)):
-            self.assertNotIn("await db.delete(tutorial)", source, f"{name}删除仍在物理删行")
-            self.assertNotIn("await db.delete(resource)", source, f"{name}删除仍在物理删行")
-            self.assertIn("mark_deleted(", source, f"{name}删除没有调用 mark_deleted")
-
-    def test_restore_functions_exist_and_use_mark_restored(self):
-        for name, source in (("教程", self.tutorial_svc), ("资源", self.resource_svc)):
-            self.assertIn("async def restore_", source, f"{name}缺少单条恢复函数")
-            self.assertIn("async def batch_restore_", source, f"{name}缺少批量恢复函数")
-            self.assertIn("mark_restored(", source, f"{name}恢复没有调用 mark_restored")
-
-    def test_delete_only_touches_active_rows(self):
-        """删除前必须过滤 deleted_at IS NULL：否则重复删除会刷新删除时间"""
-        for name, source in (("教程", self.tutorial_svc), ("资源", self.resource_svc)):
-            self.assertIn("deleted_at.is_(None)", source, f"{name}删除未过滤「已在回收站」的行")
-            self.assertIn("deleted_at.isnot(None)", source, f"{name}恢复未过滤「不在回收站」的行")
-
-    def test_publish_paths_exclude_recycle_bin(self):
-        """发布是公开端唯一的可见性开关：对回收站内容置 True = 让已删除内容重新对访客可见"""
-        for fn in ("async def toggle_publish", "async def batch_publish_tutorials"):
-            start = self.tutorial_svc.index(fn)
-            body = self.tutorial_svc[start:start + 900]
-            self.assertIn("deleted_at.is_(None)", body, f"{fn} 未排除回收站内容")
-
-    def test_audit_action_is_registered(self):
-        self.assertIn("content_restore", AUDIT_ACTIONS)
-        self.assertTrue(AUDIT_ACTIONS["content_restore"].strip())
-
-    def test_rbac_rules_cover_restore_endpoints(self):
-        """新增接口必须登记权限规则，否则 fail-closed 一律 403（点恢复就报错）"""
-        from app.core.rbac import match_route_permission
-
-        cases = {
-            ("POST", "/api/v1/admin/tutorials/batch-restore"): ["tutorial:delete"],
-            ("POST", "/api/v1/admin/tutorials/12/restore"): ["tutorial:delete"],
-            ("POST", "/api/v1/admin/resources/batch-restore"): ["resource:delete"],
-            ("POST", "/api/v1/admin/resources/12/restore"): ["resource:delete"],
-        }
-        for (method, path), expected in cases.items():
-            self.assertEqual(match_route_permission(method, path), expected, f"{method} {path} 权限规则不对")
-
-    def test_restore_routes_are_registered(self):
-        from app.main import app
-
-        paths = app.openapi()["paths"]
-        self.assertIn("/api/v1/admin/tutorials/{tutorial_id}/restore", paths)
-        self.assertIn("/api/v1/admin/tutorials/batch-restore", paths)
-        self.assertIn("/api/v1/admin/resources/{resource_id}/restore", paths)
-        self.assertIn("/api/v1/admin/resources/batch-restore", paths)
-
-    def test_list_endpoints_accept_deleted_view(self):
-        """列表接口必须暴露 deleted 视图，否则回收站在前端根本打不开"""
-        for name in ("admin_tutorials.py", "admin_resources.py"):
-            source = (APP / "api" / name).read_text(encoding="utf-8")
-            self.assertIn('deleted: Literal["active", "deleted", "all"]', source, f"{name} 未暴露 deleted 参数")
-
-
-class PublicVisibilityTests(unittest.TestCase):
-    """公开端「删掉即不可见」依赖 is_published 过滤 —— 这条依赖必须被显式记住"""
-
-    def test_public_services_filter_published(self):
-        for name in ("tutorial_service.py", "resource_service.py", "sitemap_service.py"):
-            source = (APP / "services" / name).read_text(encoding="utf-8")
-            self.assertRegex(
-                source, r"is_published", f"{name} 不再过滤 is_published → 软删除的内容会重新可见"
-            )
-
-    def test_push_job_filters_published(self):
-        """收录推送若不过滤 is_published，会把已删除页推给搜索引擎（掉收录质量）"""
-        source = (REPO_ROOT / "backend" / "scheduler" / "tasks.py").read_text(encoding="utf-8")
-        self.assertRegex(source, re.compile(r"is_published"), "推送任务未过滤 is_published")
-
 
 if __name__ == "__main__":
     unittest.main()

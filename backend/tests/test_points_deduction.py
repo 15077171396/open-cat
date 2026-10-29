@@ -15,12 +15,9 @@ from datetime import datetime, timedelta, timezone
 
 from app.core.exceptions import AppException
 from app.models.point_transaction import PointTransaction
-from app.models.tool import Tool
 from app.models.user import User
 from app.services import point_service as ps
-from app.services import tool_service
 from tests.fake_db import MemorySession
-
 
 def make_user(*, id: int = 1, points: int = 100, role: str = "user",
               vip_expire_in: timedelta | None = None) -> User:
@@ -34,83 +31,6 @@ def make_user(*, id: int = 1, points: int = 100, role: str = "user",
         free_used_seconds=0,
         vip_expire_time=(now + vip_expire_in).replace(tzinfo=None) if vip_expire_in else None,
     )
-
-
-def make_tool(*, id: int = 1, cost: int = 10) -> Tool:
-    return Tool(id=id, name="测试工具", description="", category="prompt", points_cost=cost)
-
-
-class TestAtomicCharge(unittest.IsolatedAsyncioTestCase):
-    """tool_service._charge_points 的原子扣减"""
-
-    async def test_charge_deducts_and_records_tx(self):
-        db = MemorySession()
-        user = make_user(points=100)
-        db.seed(user)
-        cost = await tool_service._charge_points(db, user, make_tool(cost=30))
-        await db.flush()
-
-        self.assertEqual(cost, 30)
-        self.assertEqual(user.points, 70)  # refresh 后内存快照已修正
-        rows = db.all_rows(PointTransaction)
-        self.assertEqual(len(rows), 1)
-        # 流水余额必须与真实余额一致，否则后台审计对不上账
-        self.assertEqual(rows[0]["balance_after"], 70)
-        self.assertEqual(rows[0]["points"], -30)
-        self.assertEqual(rows[0]["type"], ps.TYPE_CONSUME)
-
-    async def test_insufficient_points_rejected(self):
-        db = MemorySession()
-        user = make_user(points=5)
-        db.seed(user)
-        with self.assertRaises(AppException) as ctx:
-            await tool_service._charge_points(db, user, make_tool(cost=10))
-        self.assertEqual(ctx.exception.code, 403)
-        self.assertTrue(ctx.exception.data.get("insufficient_points"))
-        # 余额不足时不得产生任何扣减与流水
-        self.assertEqual(db.all_rows(User)[0]["points"], 5)
-        self.assertEqual(len(db.all_rows(PointTransaction)), 0)
-
-    async def test_free_tool_and_vip_are_not_charged(self):
-        db = MemorySession()
-        user = make_user(points=100)
-        db.seed(user)
-        self.assertEqual(await tool_service._charge_points(db, user, make_tool(cost=0)), 0)
-        self.assertEqual(user.points, 100)
-
-        vip = make_user(id=2, points=100, role="vip", vip_expire_in=timedelta(days=1))
-        db.seed(vip)
-        self.assertEqual(await tool_service._charge_points(db, vip, make_tool(cost=50)), 0)
-        self.assertEqual(vip.points, 100)
-
-    async def test_expired_vip_is_charged(self):
-        """VIP 过期后应按普通用户扣费，不能继续免费"""
-        db = MemorySession()
-        user = make_user(id=3, points=100, role="vip", vip_expire_in=timedelta(days=-1))
-        db.seed(user)
-        cost = await tool_service._charge_points(db, user, make_tool(cost=20))
-        self.assertEqual(cost, 20)
-        self.assertEqual(user.points, 80)
-
-    async def test_concurrent_charges_never_go_negative(self):
-        """并发扣费：原子 UPDATE 的 WHERE points >= cost 必须挡住超扣"""
-        db = MemorySession()
-        user = make_user(points=100)
-        db.seed(user)
-        tool = make_tool(cost=30)
-
-        results = await asyncio.gather(
-            *[tool_service._charge_points(db, user, tool) for _ in range(6)],
-            return_exceptions=True,
-        )
-        succeeded = [r for r in results if not isinstance(r, BaseException)]
-        failed = [r for r in results if isinstance(r, AppException)]
-
-        # 100 积分 / 每次 30 → 恰好 3 次成功，余额 10，绝不出现负数
-        self.assertEqual(len(succeeded), 3)
-        self.assertEqual(len(failed), 3)
-        self.assertEqual(db.all_rows(User)[0]["points"], 10)
-
 
 class TestAdminAdjust(unittest.IsolatedAsyncioTestCase):
     """point_service.adjust_points 的管理端调整"""
@@ -174,7 +94,6 @@ class TestAdminAdjust(unittest.IsolatedAsyncioTestCase):
         user = make_user(points=0)
         db, _ = await self._adjust(user, "grant", 10, note="活动奖励")
         self.assertEqual(db.all_rows(PointTransaction)[0]["description"], "活动奖励")
-
 
 if __name__ == "__main__":
     unittest.main()

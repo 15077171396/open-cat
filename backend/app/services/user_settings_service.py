@@ -282,13 +282,13 @@ async def cleanup_personal_data_on_reactivation(db: AsyncSession, user: User) ->
 
     from app.models.favorite import Favorite
     from app.models.learning import LearningRecord
-    from app.models.download import Download, ToolUsageLog
+    from app.models.download import Download
     from app.models.message import Message
 
     user.nickname = None
     user.bio = None
     user.avatar_url = None
-    for model in (Favorite, LearningRecord, Download, ToolUsageLog, Message, NotificationSetting):
+    for model in (Favorite, LearningRecord, Download, Message, NotificationSetting):
         await db.execute(delete(model).where(model.user_id == user.id))
     # 个人统计/等级缓存已随注销清理，此处兜底再清一次
     await redis_client.delete(f"user_stats:{user.id}", f"user_level:{user.id}")

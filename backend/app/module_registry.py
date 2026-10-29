@@ -81,34 +81,6 @@ MODULES: tuple[ModuleDef, ...] = (
         menu_keys=("/tutorials",),
     ),
     ModuleDef(
-        key="resource",
-        label="资源",
-        default_enabled=True,
-        path_prefixes=("/api/v1/admin/resources", "/api/v1/admin/export/resources"),
-        menu_keys=("/resources",),
-    ),
-    ModuleDef(
-        key="node",
-        label="知识百科",
-        default_enabled=True,
-        path_prefixes=("/api/v1/admin/nodes",),
-        menu_keys=("/nodes",),
-    ),
-    ModuleDef(
-        key="tool",
-        label="在线工具",
-        default_enabled=True,
-        path_prefixes=("/api/v1/admin/tools",),
-        menu_keys=("/tools",),
-    ),
-    ModuleDef(
-        key="plugin",
-        label="扩展推荐",
-        default_enabled=True,
-        path_prefixes=("/api/v1/admin/plugins",),
-        menu_keys=("/plugins",),
-    ),
-    ModuleDef(
         key="category",
         label="分类",
         default_enabled=True,
@@ -138,7 +110,7 @@ MODULES: tuple[ModuleDef, ...] = (
             "/api/v1/admin/scheduled-jobs",
             "/api/v1/admin/search-keywords",
         ),
-        menu_keys=("/", "umami-stats", "/search-keywords", "/scheduled-jobs", "/readiness"),
+        menu_keys=("/", "/search-keywords", "/scheduled-jobs", "/readiness"),
     ),
     ModuleDef(
         key="announcement",

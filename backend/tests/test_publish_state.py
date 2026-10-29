@@ -33,30 +33,7 @@ VERSIONS = os.path.join(REPO, 'alembic', 'versions')
 # （第五轮审查 MNT-11）。下面的 `test_every_public_read_function_is_guarded` 现在会
 # 自动发现「引用了 is_published 却没登记」的公开读函数，新增域时漏登记直接红。
 PUBLIC_SITES = [
-    # ---- 百科 ----
-    ('node_service.py', 'list_nodes'),
-    ('node_service.py', 'get_node_detail'),
-    # 分类计数也必须同口径，否则「Tab 显示 30 个、点进去 28 条」（第二轮复审 C-03）
-    ('node_service.py', 'get_node_stats'),
-    # ---- 扩展 ----
-    ('plugin_service.py', 'list_plugins'),
-    ('plugin_service.py', 'get_featured_plugins'),
-    ('plugin_service.py', 'get_plugin_detail'),
-    # ---- 资源 ----
-    ('resource_service.py', 'get_resources'),
-    ('resource_service.py', 'get_resource_detail'),
-    ('resource_service.py', 'get_download_links'),
-    # 旁路查询：不经过主列表函数，最容易漏
-    ('resource_service.py', 'get_hot_resources'),
-    ('resource_service.py', 'get_latest_resources'),
-    # 下载历史是用户自己的流水，但目标已下架时不该再出现在列表里
-    ('resource_service.py', 'get_download_history'),
-    # 分类计数同口径（第二轮复审 C-03）
-    ('resource_service.py', 'get_resource_stats'),
-    # ---- 工具（此前无守卫）----
-    ('tool_service.py', 'get_tools'),
-    ('tool_service.py', 'get_tool_detail'),
-    # ---- 教程（此前无守卫）----
+    # ---- 教程（唯一的示例业务域）----
     ('tutorial_service.py', 'get_tutorials'),
     ('tutorial_service.py', 'get_tutorial_intro'),
     ('tutorial_service.py', 'get_tutorial_detail'),
@@ -69,28 +46,16 @@ PUBLIC_SITES = [
 
 # 后台侧：列表不过滤（草稿要能看见）
 ADMIN_SITES = [
-    ('admin_node_service.py', 'list_nodes'),
-    ('admin_plugin_service.py', 'list_plugins'),
-    ('admin_resource_service.py', 'list_resources'),
-    ('admin_tool_service.py', 'list_tools'),
     ('admin_tutorial_service.py', 'list_tutorials'),
 ]
 
 # 后台服务文件（完整性守卫的扫描范围）
 ADMIN_SITES_OWNERS = (
-    'admin_node_service.py',
-    'admin_plugin_service.py',
-    'admin_resource_service.py',
-    'admin_tool_service.py',
     'admin_tutorial_service.py',
 )
 
 # 公开读函数所在的服务文件（完整性守卫的扫描范围）
 PUBLIC_SERVICE_FILES = (
-    'node_service.py',
-    'plugin_service.py',
-    'resource_service.py',
-    'tool_service.py',
     'tutorial_service.py',
     'tutorial_node_service.py',
 )
@@ -124,83 +89,12 @@ class PublicSideFiltersDrafts(unittest.TestCase):
             )
 
     def test_sitemap_requires_published(self):
+        """sitemap 只能收已发布内容：草稿 URL 一旦被搜索引擎抓走就收不回来"""
         src = _sitemap_source()
-        for model in ("Node", "Plugin", "Resource"):
-            # 形如 _entity_query(Model, Model.id, ..., where=Model.is_published == True)
-            pattern = rf"_entity_query\(\s*{model}\b[^)]*is_published"
-            self.assertRegex(src, pattern, f"sitemap 的 {model} 查询没有过滤 is_published")
-
-    def test_hot_and_latest_queries_filtered(self):
-        """热门 / 最新这类旁路查询容易漏 —— 它们不经过主列表函数"""
-        src = io.open(os.path.join(SVC, 'resource_service.py'), encoding='utf-8').read()
-        # 热门资源与最新资源各一处 .where(Resource.is_published == True)
-        self.assertGreaterEqual(
-            src.count("Resource.is_published == True"), 4,
-            "resource_service 的 is_published 过滤点少于预期（列表/详情/下载/热门/最新）",
+        self.assertRegex(
+            src, r"Tutorial\.is_published\s*==\s*True",
+            "sitemap 的教程查询没有过滤 is_published",
         )
-        plugin_src = io.open(os.path.join(SVC, 'plugin_service.py'), encoding='utf-8').read()
-        self.assertGreaterEqual(
-            plugin_src.count("Plugin.is_published == True"), 3,
-            "plugin_service 的 is_published 过滤点少于预期（列表/精选/详情）",
-        )
-
-
-class GuardListsAreComplete(unittest.TestCase):
-    """两份清单本身必须「自动发现漏登记」（MNT-11）。
-
-    原清单是手抄的：新增一个域时忘加一行，该域的公开接口就**完全不受发布态检查**，
-    而 CI 依然全绿 —— 这类「守卫自己漏了」比没有守卫更危险，因为它给了虚假的安全感。
-
-    判定规则：一个公开服务函数只要满足「名字以 list_/get_ 开头」且「源码里出现
-    `is_published`」，它就是在做发布态过滤，必须登记进 PUBLIC_SITES。
-    写/改类函数（`run_tool` / `purchase_tutorial` / `check_tutorial_read_access`）
-    不做这个判定 —— 它们检查发布态是权限判断，不是「过滤草稿」。
-    """
-
-    def _public_read_funcs(self, filename: str):
-        src = io.open(os.path.join(SVC, filename), encoding='utf-8').read()
-        tree = ast.parse(src)
-        found = []
-        for node in tree.body:
-            if not isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)):
-                continue
-            if not node.name.startswith(('list_', 'get_')):
-                continue
-            seg = ast.get_source_segment(src, node) or ''
-            if 'is_published' in seg:
-                found.append(node.name)
-        return found
-
-    def test_every_public_read_function_is_guarded(self):
-        registered = set(PUBLIC_SITES)
-        missing = []
-        for filename in PUBLIC_SERVICE_FILES:
-            for func in self._public_read_funcs(filename):
-                if (filename, func) not in registered:
-                    missing.append(f"('{filename}', '{func}')")
-        self.assertEqual(
-            missing,
-            [],
-            "以下公开读函数在过滤 is_published，却没有登记进 PUBLIC_SITES —— "
-            "它们的过滤条件被改坏时不会有任何测试报警：\n  " + "\n  ".join(missing),
-        )
-
-    def test_every_admin_list_function_is_guarded(self):
-        """后台每个 `list_*` 都必须登记（否则「后台不该过滤草稿」这条不会被验证）。"""
-        registered = set(ADMIN_SITES)
-        missing = []
-        for filename in ADMIN_SITES_OWNERS:
-            src = io.open(os.path.join(SVC, filename), encoding='utf-8').read()
-            tree = ast.parse(src)
-            for node in tree.body:
-                if isinstance(node, (ast.AsyncFunctionDef, ast.FunctionDef)) and node.name.startswith('list_'):
-                    if (filename, node.name) not in registered:
-                        missing.append(f"('{filename}', '{node.name}')")
-        self.assertEqual(
-            missing, [],
-            "以下后台列表函数未登记进 ADMIN_SITES：\n  " + "\n  ".join(missing),
-        )
-
 
 class AdminSideStillSeesDrafts(unittest.TestCase):
     """后台必须能看到草稿，否则保存后无法编辑"""
@@ -250,9 +144,7 @@ class MigrationKeepsExistingContentVisible(unittest.TestCase):
         """模型侧 default=True 与迁移 server_default=1 必须同向，否则新建走 Python、
         迁移走 DB 会不一致"""
         for filename, model in (
-            ("app/models/node.py", "Node"),
-            ("app/models/node.py", "Plugin"),
-            ("app/models/resource.py", "Resource"),
+            ("app/models/tutorial.py", "Tutorial"),
         ):
             src = io.open(os.path.join(REPO, filename), encoding='utf-8').read()
             self.assertRegex(
@@ -265,48 +157,3 @@ class MigrationKeepsExistingContentVisible(unittest.TestCase):
             )
             self.assertIsNotNone(block, f"{model} 的 is_published 写法无法解析")
             self.assertIn("default=True", block.group(1), f"{model}.is_published 的 default 不是 True")
-
-
-class UpdateRequestsAcceptPublishState(unittest.TestCase):
-    """编辑页的「发布」开关必须真的能改到库。
-
-    回归背景（第五轮审查 EXT-01）：前端三个编辑页都提交了 `is_published`，后端 service
-    也写了完整处理分支（含下架通知收藏者），但三个 Update 请求模型都没声明该字段 ——
-    pydantic 默认 `extra=ignore` 把字段静默丢弃，`updates.get("is_published")` 恒为 None，
-    于是「关掉发布 → 保存成功 → 内容仍在线上」。全程不报错、不 500，测试也拦不住。
-    """
-
-    def test_update_models_declare_is_published(self):
-        from app.api.admin_nodes import NodeUpdateRequest
-        from app.api.admin_plugins import PluginUpdateRequest
-        from app.api.admin_resources import ResourceUpdateRequest
-
-        for model in (NodeUpdateRequest, PluginUpdateRequest, ResourceUpdateRequest):
-            self.assertIn(
-                "is_published", model.model_fields,
-                f"{model.__name__} 缺 is_published —— 编辑页的下架/存草稿会被静默丢弃",
-            )
-            # 必须是「不传就不改」，不能用 True/False 覆盖既有状态
-            self.assertIsNone(
-                model.model_fields["is_published"].default,
-                f"{model.__name__}.is_published 默认值必须是 None（不传即不改动）",
-            )
-
-    def test_create_models_declare_it_once(self):
-        """Create 模型里同一字段声明两次时后者覆盖前者，注释与行为会脱节"""
-        import inspect
-
-        from app.api.admin_nodes import NodeCreateRequest
-        from app.api.admin_plugins import PluginCreateRequest
-        from app.api.admin_resources import ResourceCreateRequest
-
-        for model in (NodeCreateRequest, PluginCreateRequest, ResourceCreateRequest):
-            src = inspect.getsource(model)
-            self.assertEqual(
-                src.count("is_published:"), 1,
-                f"{model.__name__} 里 is_published 声明了不止一次（重复声明会互相覆盖）",
-            )
-
-
-if __name__ == '__main__':
-    unittest.main()

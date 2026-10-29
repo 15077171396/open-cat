@@ -43,10 +43,6 @@ SVC = os.path.join(REPO, "app", "services")
 # 模块 → 后台服务文件（新增内容类型时必须补一行，否则本守卫会直接报「没有服务文件」）
 ADMIN_FILES = {
     "tutorial": "admin_tutorial_service.py",
-    "node": "admin_node_service.py",
-    "resource": "admin_resource_service.py",
-    "plugin": "admin_plugin_service.py",
-    "tool": "admin_tool_service.py",
 }
 
 
@@ -112,10 +108,8 @@ class ExpectationTests(unittest.TestCase):
     def test_derived_matrix_is_not_empty(self):
         """三个期望集合都不能为空，否则下面的守卫会静默空转。"""
         fav = {m for m, s in CONTENT_TYPES.items() if s.favoritable and s.model is not None}
-        author = {m for m in CONTENT_TYPES if "author_name" in _columns(m)}
         content = {m for m in CONTENT_TYPES if "content" in _columns(m)}
         self.assertTrue(fav, "没有可收藏类型，notify 守卫失效")
-        self.assertTrue(author, "没有带作者列的类型，author 守卫失效")
         self.assertTrue(content, "没有富文本类型，sanitize 守卫失效")
 
 
@@ -136,16 +130,6 @@ class CrossCuttingMatrixTests(unittest.TestCase):
             sorted(missing), [],
             f"以下类型的 admin service 从不调用 notify_favoriters_unpublished："
             f"{sorted(missing)}。它们可被收藏，下架后收藏者不会收到任何通知。",
-        )
-
-    def test_types_with_author_column_fill_author(self):
-        expected = {m for m in CONTENT_TYPES if "author_name" in _columns(m)}
-        missing = [m for m in expected if "fill_author_if_absent" not in _src(m)]
-        self.assertEqual(
-            sorted(missing), [],
-            f"以下类型的模型有 author_name 列，但 admin service 从不调用 "
-            f"fill_author_if_absent：{sorted(missing)}。后台新建的内容会永远没有作者，"
-            "前台也就永远不渲染作者行。",
         )
 
     def test_types_with_rich_text_sanitize_content(self):

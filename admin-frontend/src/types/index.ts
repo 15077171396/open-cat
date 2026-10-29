@@ -307,12 +307,8 @@ export interface DashboardTrendPoint {
 
 /** 看板内容资产计数 */
 export interface DashboardContentOverview {
-  /** 已发布教程数 */
+  /** 已发布教程数（新增业务模块时在这里补字段） */
   tutorials: number
-  resources: number
-  plugins: number
-  nodes: number
-  tools: number
 }
 
 /** 看板待办计数 */
@@ -322,13 +318,6 @@ export interface DashboardPending {
 }
 
 /** 看板资源下载榜条目 */
-export interface DashboardTopResource {
-  id: number
-  name: string
-  download_count: number
-  view_count: number
-  resource_type: string
-}
 
 // AI 用量与成本护栏
 
@@ -446,7 +435,6 @@ export interface DashboardData {
   today_tool_usage?: number
   content_overview?: Partial<DashboardContentOverview>
   pending?: Partial<DashboardPending>
-  top_resources?: DashboardTopResource[]
 }
 
 /** 归一化后的看板数据：增强字段必定存在，组件内无需判空 */
@@ -459,7 +447,6 @@ export interface NormalizedDashboard extends DashboardData {
   today_tool_usage: number
   content_overview: DashboardContentOverview
   pending: DashboardPending
-  top_resources: DashboardTopResource[]
 }
 
 // 系统状态（GET /admin/system-status）

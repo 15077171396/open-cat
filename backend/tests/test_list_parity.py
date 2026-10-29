@@ -26,12 +26,10 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # backend/
 SVC = os.path.join(REPO, 'app', 'services')
 
 # 域名 → (public 文件, public 列表函数, admin 文件, admin 列表函数)
+# 只剩教程一个业务域：新增业务模块时在这里登记一行，本守卫才会检查它的公开/后台列表
+# 键集合是否一致（漏登记 = 该模块的两侧字段漂移无人发现）。
 DOMAINS = {
     'tutorial': ('tutorial_service.py', 'get_tutorials', 'admin_tutorial_service.py', 'list_tutorials'),
-    'node': ('node_service.py', 'list_nodes', 'admin_node_service.py', 'list_nodes'),
-    'resource': ('resource_service.py', 'get_resources', 'admin_resource_service.py', 'list_resources'),
-    'plugin': ('plugin_service.py', 'list_plugins', 'admin_plugin_service.py', 'list_plugins'),
-    'tool': ('tool_service.py', 'get_tools', 'admin_tool_service.py', 'list_tools'),
 }
 
 # 两侧键集合的**有意**差异（第四轮审查逐字段核对后的判定）：
@@ -46,31 +44,6 @@ INTENDED_DELTA = {
         'public_only': set(),
         'admin_only': {'is_published', 'updated_at'},
     },
-    'node': {
-        # 2026-10-13：后台百科列表改版后需要封面缩略图 / 预览量 / 更新时间列，
-        # 这三个键已由 public-only 收敛为两侧共有（不再登记）。
-        'public_only': {
-            # 2026-10-12：百科卡片改横排布局，需要作者/头像；后台列表不渲染
-            'author_name', 'author_avatar_url',
-        },
-        'admin_only': set(),
-    },
-    'resource': {
-        # 2026-10-13：后台资源列表改版后需要封面缩略图/置顶角标/预览量与标签列，
-        # 这四个键已由 public-only 收敛为两侧共有（不再登记）。
-        'public_only': {
-            'content_list', 'updated_at',
-            # 2026-10-12：资源卡片展示「预览量 + 作者(头像)」，后台列表表格不渲染作者
-            'author_name', 'author_avatar_url',
-        },
-        # 2026-10-18：发布状态（草稿 / 已发布）只在后台列表与编辑表单可见，
-        # 公开列表根本取不到草稿，故登记为 admin-only（与 tutorial/tool 同口径）。
-        'admin_only': {'created_at', 'is_published'},
-    },
-    # 2026-10-12：扩展卡片改为展示「预览量 + 作者(头像)」，后台列表表格不渲染作者
-    # （运营在编辑表单里看到/填写作者），故登记为 public-only。
-    'plugin': {'public_only': {'author_name', 'author_avatar_url'}, 'admin_only': set()},
-    'tool': {'public_only': set(), 'admin_only': {'is_published'}},
 }
 
 
@@ -209,17 +182,12 @@ class KeywordEntryTests(unittest.TestCase):
         ]
         self.assertEqual(sorted(hits), ['contains', 'escape_like'])
 
-    def test_all_five_domains_declare_search_columns(self):
-        from app.services.search import (
-            NODE_SEARCH_COLS, PLUGIN_SEARCH_COLS, RESOURCE_SEARCH_COLS,
-            TOOL_SEARCH_COLS, TUTORIAL_SEARCH_COLS,
-        )
+    def test_every_domain_declares_search_columns(self):
+        """新增业务域时把它的 *_SEARCH_COLS 加进来：检索列少的域会在站内搜索里
+        出现「搜不到正文」的怪现象（MULTI 全文索引缺列 → 只命中标题）。"""
+        from app.services.search import TUTORIAL_SEARCH_COLS
 
-        for cols in (
-            TUTORIAL_SEARCH_COLS, RESOURCE_SEARCH_COLS, NODE_SEARCH_COLS,
-            PLUGIN_SEARCH_COLS, TOOL_SEARCH_COLS,
-        ):
-            self.assertGreaterEqual(len(cols), 2, '每个域的检索列至少含名称与简介')
+        self.assertGreaterEqual(len(TUTORIAL_SEARCH_COLS), 2, '每个域的检索列至少含名称与简介')
 
 
 class SerializationParityTests(unittest.TestCase):

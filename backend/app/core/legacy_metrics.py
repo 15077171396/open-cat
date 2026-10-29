@@ -12,7 +12,6 @@ from app.redis import log_redis_degraded, redis_client
 # 已登记的兼容事件。新增兼容分支必须同时登记到这里，否则只会被当成「未知事件」
 # 打一条 warning 而永远不进看板。取值由 tests/test_legacy_metrics.py 静态守卫。
 LEGACY_EVENTS = (
-    "plugin_legacy_sort",   # GET /plugins?sort=hottest|rating（旧小程序包）
     "comment_legacy_param",  # GET/POST /comments?tutorial_id=（旧用户端）
     "admin_legacy_param",   # GET /admin/comments?tutorial_id=（旧管理端 bundle）
 )

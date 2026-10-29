@@ -93,27 +93,27 @@ class CollectUrlBoundsTests(unittest.TestCase):
 
     def test_every_query_is_limited_and_ordered(self):
         seen = []
-        _collect(lambda: _RecordingSession(seen, [[]] * 6))
+        _collect(lambda: _RecordingSession(seen, [[]] * 2))
 
-        self.assertEqual(len(seen), 6, "板块查询数量变了，本守卫的覆盖面需同步")
+        self.assertEqual(len(seen), 2, "板块查询数量变了，本守卫的覆盖面需同步")
         for i, stmt in enumerate(seen):
             self.assertTrue(_is_bounded(stmt), f"第 {i + 1} 条收集查询无界或截断序不稳定")
 
     def test_limit_matches_the_documented_cap(self):
         seen = []
-        _collect(lambda: _RecordingSession(seen, [[]] * 6))
+        _collect(lambda: _RecordingSession(seen, [[]] * 2))
         for stmt in seen:
             self.assertEqual(stmt._limit, tasks._MAX_PUSH_URLS_PER_TYPE)
 
     def test_duplicate_urls_are_collapsed(self):
         """同一 URL 重复提交既浪费当日共享配额，也会让推送通道被判低质。"""
-        # 每个板块各喂两份相同值：不去重的话返回 12 条
-        rows = [[5, 5], [(5, 7), (5, 7)], [5], [5], [5], [5]]
+        # 两个板块各喂两份相同值：不去重的话返回 4 条
+        rows = [[5, 5], [(5, 7), (5, 7)]]
         seen = []
         urls = _collect(lambda: _RecordingSession(seen, rows))
 
-        self.assertEqual(len(urls), 6, f"去重后应剩 6 条，实际 {len(urls)} 条：{urls}")
-        self.assertEqual(len(set(urls)), 6)
+        self.assertEqual(len(urls), 2, f"去重后应剩 2 条，实际 {len(urls)} 条：{urls}")
+        self.assertEqual(len(set(urls)), 2)
         self.assertTrue(any(u.endswith("/tutorials/5") for u in urls))
         self.assertTrue(any(u.endswith("/tutorials/5/c/7") for u in urls))
 
@@ -127,14 +127,10 @@ class UpdatedAtIndexGuardTests(unittest.TestCase):
     内容量上来后靠人想起这条 🟡。
     """
 
-    # collect_recent_urls 实际扫的 6 张表（对过 scheduler/tasks.py 的 6 条查询）
+    # collect_recent_urls 实际扫的表（对过 scheduler/tasks.py 的查询）
     SCANNED = {
         "tutorials": "app.models.tutorial",
         "tutorial_nodes": "app.models.tutorial_node",
-        "plugins": "app.models.node",
-        "nodes": "app.models.node",
-        "resources": "app.models.resource",
-        "tools": "app.models.tool",
     }
 
     def _models(self):

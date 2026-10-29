@@ -29,10 +29,7 @@ from sqlalchemy import select, update
 from app.config import settings
 from app.core.monitoring import init_monitoring
 from app.database import async_session
-from app.models.node import Node, Plugin
-from app.models.resource import Resource
 from app.models.scheduled_job_config import ScheduledJobConfig
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
@@ -204,35 +201,6 @@ async def collect_recent_urls(hours: int = 26) -> list[str]:
             .limit(_MAX_PUSH_URLS_PER_TYPE)
         )).all()
         urls += [f"{base}/tutorials/{t}/c/{n}" for t, n in chapters]
-
-        plugins = (await db.execute(
-            select(Plugin.id).where(Plugin.updated_at >= since)
-            .order_by(Plugin.updated_at.desc(), Plugin.id.desc())
-            .limit(_MAX_PUSH_URLS_PER_TYPE)
-        )).scalars().all()
-        urls += [f"{base}/plugins/{p}" for p in plugins]
-
-        nodes = (await db.execute(
-            select(Node.id).where(Node.updated_at >= since)
-            .order_by(Node.updated_at.desc(), Node.id.desc())
-            .limit(_MAX_PUSH_URLS_PER_TYPE)
-        )).scalars().all()
-        urls += [f"{base}/nodes/{n}" for n in nodes]
-
-        resources = (await db.execute(
-            select(Resource.id).where(Resource.updated_at >= since)
-            .order_by(Resource.updated_at.desc(), Resource.id.desc())
-            .limit(_MAX_PUSH_URLS_PER_TYPE)
-        )).scalars().all()
-        urls += [f"{base}/resources/{r}" for r in resources]
-
-        tools = (await db.execute(
-            select(Tool.id)
-            .where(Tool.is_published == True, Tool.updated_at >= since)  # noqa: E712
-            .order_by(Tool.updated_at.desc(), Tool.id.desc())
-            .limit(_MAX_PUSH_URLS_PER_TYPE)
-        )).scalars().all()
-        urls += [f"{base}/tools/{t}" for t in tools]
 
     # 去重：同一条 URL 重复提交既浪费当日共享配额，也会让推送通道被判低质
     return list(dict.fromkeys(urls))

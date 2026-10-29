@@ -26,7 +26,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session
-from app.services import admin_resource_service, admin_tutorial_service, admin_user_service
+from app.services import admin_tutorial_service, admin_user_service
 from app.services.admin_audit_service import record_admin_action
 
 # 单次导出的硬上限。20k 行 CSV 约 3–5 MB，浏览器与 Excel 都不吃力；
@@ -126,18 +126,6 @@ async def _fetch_tutorials(db: AsyncSession, page: int, size: int, f: dict) -> d
     )
 
 
-async def _fetch_resources(db: AsyncSession, page: int, size: int, f: dict) -> dict:
-    return await admin_resource_service.list_resources(
-        db,
-        page,
-        size,
-        keyword=f.get("keyword") or None,
-        resource_type=f.get("resource_type") or None,
-        is_featured=f.get("is_featured"),
-        deleted=f.get("deleted") or "active",
-    )
-
-
 async def _fetch_points(db: AsyncSession, page: int, size: int, f: dict) -> dict:
     """复用列表接口同一个查询函数（含它对 type/direction 的合法性校验）。
 
@@ -196,23 +184,6 @@ RESOURCES: dict[str, ExportSpec] = {
             Column("浏览量", "view_count"),
             Column("创建时间", "created_at", _time),
             Column("更新时间", "updated_at", _time),
-        ),
-    ),
-    "resources": ExportSpec(
-        key="resources",
-        label="资源",
-        perm="resource:view",
-        target_type="resource",
-        fetch=_fetch_resources,
-        filters=("keyword", "resource_type", "is_featured", "deleted"),
-        columns=(
-            Column("ID", "id"),
-            Column("名称", "name"),
-            Column("类型", "resource_type"),
-            Column("文件大小", "file_size"),
-            Column("下载次数", "download_count"),
-            Column("精选", "is_featured"),
-            Column("创建时间", "created_at", _time),
         ),
     ),
     "point-transactions": ExportSpec(

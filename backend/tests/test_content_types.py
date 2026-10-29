@@ -66,11 +66,6 @@ class CapabilityMatrixTests(unittest.TestCase):
     EXPECTED = {
         # module: (commentable, favoritable, learnable, reserved)
         "tutorial": (True, True, True, False),
-        "node": (True, True, False, False),
-        "resource": (True, True, False, False),
-        "plugin": (False, True, False, False),
-        "tool": (False, False, False, False),
-        "workflow": (False, True, False, True),
     }
 
     def test_matrix_matches_expected(self):
@@ -161,14 +156,6 @@ class PurgeDispatchTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertEqual(await purge_content_records(MemorySession(), "tutorial", []), {})
         self.assertEqual(await purge_content_records(MemorySession(), "tutorial", None), {})
-
-    async def test_type_without_user_records_does_nothing(self):
-        """tool 既不可收藏也不可评论、没有学习记录 —— 删它不该去动任何用户表。"""
-        from app.services.content_purge import purge_content_records
-        from tests.fake_db import MemorySession
-
-        self.assertEqual(await purge_content_records(MemorySession(), "tool", [1]), {})
-
 
 if __name__ == "__main__":
     unittest.main()

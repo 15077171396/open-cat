@@ -34,10 +34,7 @@ from app.models.announcement import Announcement
 from app.models.category import Category
 from app.models.comment import ContentComment
 from app.models.feedback import Feedback
-from app.models.node import Node, Plugin
 from app.models.point_transaction import PointTransaction
-from app.models.resource import Resource
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
@@ -75,12 +72,10 @@ async def _upload_demo_image(
     )
 
 
+# 分类的 module 必须落在内容类型注册表里（categories.module 有白名单校验）。
+# 新增内容类型时在这里补一组分类。
 CATEGORIES = [
     ("tutorial", ["入门基础", "提示词", "工作流", "本地部署"]),
-    ("resource", ["模型", "工作流文件", "素材包"]),
-    ("node", ["图像生成", "文本处理", "视频"]),
-    ("tool", ["图像", "文本", "效率"]),
-    ("plugin", ["ComfyUI", "Coze", "其他"]),
 ]
 
 TUTORIALS = [
@@ -89,32 +84,6 @@ TUTORIALS = [
     ("LoRA 训练从零到一", "素材整理、打标、训练与验证", "工作流", ["素材与打标", "参数设置", "效果验证"]),
     ("本地部署的性能调优", "显存、量化与批处理", "本地部署", ["显存规划", "量化选择", "吞吐测试"]),
     ("图生视频工作流", "让静态图动起来的三种做法", "工作流", ["关键帧", "运动控制", "后期合成"]),
-]
-
-NODES = [
-    ("KSampler 采样器", "图像生成", "控制采样步数、CFG 与采样器类型"),
-    ("CLIP Text Encode", "文本处理", "把提示词编码成模型可读的条件向量"),
-    ("VAE Decode", "图像生成", "把潜空间张量解码为像素图"),
-    ("ControlNet 应用", "图像生成", "用边缘/深度约束构图"),
-    ("AnimateDiff 加载器", "视频", "为静态模型注入时序运动"),
-]
-
-RESOURCES = [
-    ("常用 LoRA 合集", "12 个风格化 LoRA", "模型"),
-    ("高质量工作流包", "10 个可直接运行的 JSON", "工作流文件"),
-    ("图标素材包", "300+ 扁平图标", "素材包"),
-]
-
-TOOLS = [
-    ("图片压缩", "批量压缩与格式转换", "图像", "frontend"),
-    ("提示词优化", "把口语描述改写成结构化提示词", "文本", "ai"),
-    ("尺寸计算器", "按比例换算常用分辨率", "效率", "frontend"),
-]
-
-PLUGINS = [
-    ("ComfyUI Manager", "ComfyUI", "插件与模型的可视化管理器"),
-    ("ControlNet 预处理器", "ComfyUI", "常用预处理器集合"),
-    ("Coze 助手", "Coze", "把 Coze 智能体接入工作流"),
 ]
 
 FEEDBACKS = [
@@ -144,7 +113,7 @@ async def _has_demo(db) -> bool:
 
 async def _has_real_content(db) -> bool:
     """库里已有非示例内容 → 说明不是全新环境，需要显式确认。"""
-    for model in (Tutorial, Resource, Node, Tool, Plugin):
+    for model in (Tutorial,):
         total = int((await db.execute(select(func.count()).select_from(model))).scalar() or 0)
         demo = 0
         if model is Tutorial:
@@ -267,69 +236,6 @@ async def seed(check_only: bool = False) -> None:
                 )
         print(f"教程：{len(tutorials)} 篇 / {sum(len(t[3]) for t in TUTORIALS)} 个章节")
 
-        # ---------- 百科 ----------
-        for idx, (name, category, desc) in enumerate(NODES):
-            db.add(
-                Node(
-                    name=f"{MARK}{name}",
-                    category=category,
-                    description=desc,
-                    content=f"<p>{desc}。演示节点，可编辑。</p>",
-                    view_count=random.randint(50, 900),
-                    is_published=True,
-                    cover_image=cover_urls[idx % len(cover_urls)],
-                )
-            )
-        print(f"百科：{len(NODES)} 条")
-
-        # ---------- 资源 ----------
-        for idx, (name, desc, rtype) in enumerate(RESOURCES):
-            db.add(
-                Resource(
-                    name=f"{MARK}{name}",
-                    description=desc,
-                    content=f"<p>{desc}。演示资源。</p>",
-                    resource_type=rtype,
-                    # 非空列：该列没有默认值，漏填在真实库上是 IntegrityError
-                    file_size=f"{random.randint(1, 40)}.{random.randint(0, 9)}GB",
-                    download_count=random.randint(10, 800),
-                    view_count=random.randint(100, 2000),
-                    is_published=True,
-                    cover_image=cover_urls[idx % len(cover_urls)],
-                )
-            )
-        print(f"资源：{len(RESOURCES)} 条")
-
-        # ---------- 工具 ----------
-        for name, desc, category, tool_type in TOOLS:
-            db.add(
-                Tool(
-                    name=f"{MARK}{name}",
-                    description=desc,
-                    category=category,
-                    tool_type=tool_type,
-                    usage_count=random.randint(0, 500),
-                    is_published=True,
-                    access_mode="free",
-                    points_cost=0,
-                )
-            )
-        print(f"工具：{len(TOOLS)} 条")
-
-        # ---------- 扩展 ----------
-        for name, category, desc in PLUGINS:
-            db.add(
-                Plugin(
-                    name=f"{MARK}{name}",
-                    category=category,
-                    description=desc,
-                    content=f"<p>{desc}。演示扩展。</p>",
-                    view_count=random.randint(20, 400),
-                    is_published=True,
-                )
-            )
-        print(f"扩展：{len(PLUGINS)} 条")
-
         # ---------- 评论 ----------
         comments = [
             "写得很清楚，跟着做一遍就通了。",
@@ -388,7 +294,7 @@ async def seed(check_only: bool = False) -> None:
                         points=delta,
                         balance_after=balance,
                         type=tx_types[(idx + k) % len(tx_types)],
-                        description="演示流水：工具消耗" if delta < 0 else "演示流水：签到奖励",
+                        description="演示流水：积分消耗" if delta < 0 else "演示流水：签到奖励",
                         operator_id=admin.id if admin and tx_types[(idx + k) % len(tx_types)] == "admin_set" else None,
                         created_at=now - timedelta(days=k, hours=idx),
                     )

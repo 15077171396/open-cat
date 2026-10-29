@@ -10,7 +10,7 @@ from app.models.auth_request import AuthRequest
 from app.models.category import Category
 from app.models.comment import ContentComment
 from app.models.content_view import ContentView
-from app.models.download import Download, ToolUsageLog
+from app.models.download import Download
 from app.models.favorite import Favorite
 from app.models.feedback import Feedback
 from app.models.image_asset import ImageAsset
@@ -18,16 +18,13 @@ from app.models.invite_relation import InviteRelation
 from app.models.learning import LearningRecord
 from app.models.message import Message
 from app.models.moderation import ContentModerationLog, ContentReport
-from app.models.node import Node, Plugin, PluginSource
 from app.models.payment import PaymentOrder, PaymentProduct
 from app.models.point_transaction import PointTransaction
 from app.models.rbac import Department, Permission, Role, RolePermission, UserRole
 from app.models.redemption_code import RedemptionCode, RedemptionRecord
-from app.models.resource import Resource, ResourceNetdiskLink
 from app.models.scheduled_job_config import ScheduledJobConfig
 from app.models.search_log import SearchLog
 from app.models.system_setting import SystemSetting
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial, TutorialNetdiskLink, TutorialPurchase
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
@@ -43,7 +40,6 @@ __all__ = [
     "ContentComment",
     "ContentView",
     "Download",
-    "ToolUsageLog",
     "Favorite",
     "Feedback",
     "ImageAsset",
@@ -52,9 +48,6 @@ __all__ = [
     "Message",
     "ContentModerationLog",
     "ContentReport",
-    "Node",
-    "Plugin",
-    "PluginSource",
     "PaymentOrder",
     "PaymentProduct",
     "PointTransaction",
@@ -65,12 +58,9 @@ __all__ = [
     "UserRole",
     "RedemptionCode",
     "RedemptionRecord",
-    "Resource",
-    "ResourceNetdiskLink",
     "ScheduledJobConfig",
     "SearchLog",
     "SystemSetting",
-    "Tool",
     "Tutorial",
     "TutorialNetdiskLink",
     "TutorialPurchase",

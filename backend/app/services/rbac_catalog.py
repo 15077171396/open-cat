@@ -25,30 +25,6 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     PermissionDef("tutorial:edit", "编辑教程", "button", "tutorial", "教程管理", 12),
     PermissionDef("tutorial:delete", "删除教程", "button", "tutorial", "教程管理", 13),
 
-    # 资源管理
-    PermissionDef("resource:view", "资源查看", "menu", "resource", "资源管理", 20),
-    PermissionDef("resource:create", "新增资源", "button", "resource", "资源管理", 21),
-    PermissionDef("resource:edit", "编辑资源", "button", "resource", "资源管理", 22),
-    PermissionDef("resource:delete", "删除资源", "button", "resource", "资源管理", 23),
-
-    # 知识百科（节点）
-    PermissionDef("node:view", "百科查看", "menu", "node", "知识百科", 30),
-    PermissionDef("node:create", "新增节点", "button", "node", "知识百科", 31),
-    PermissionDef("node:edit", "编辑节点", "button", "node", "知识百科", 32),
-    PermissionDef("node:delete", "删除节点", "button", "node", "知识百科", 33),
-
-    # 在线工具
-    PermissionDef("tool:view", "工具查看", "menu", "tool", "在线工具", 40),
-    PermissionDef("tool:create", "新增工具", "button", "tool", "在线工具", 41),
-    PermissionDef("tool:edit", "编辑工具", "button", "tool", "在线工具", 42),
-    PermissionDef("tool:delete", "删除工具", "button", "tool", "在线工具", 43),
-
-    # 扩展管理
-    PermissionDef("plugin:view", "扩展查看", "menu", "plugin", "扩展管理", 50),
-    PermissionDef("plugin:create", "新增扩展", "button", "plugin", "扩展管理", 51),
-    PermissionDef("plugin:edit", "编辑扩展", "button", "plugin", "扩展管理", 52),
-    PermissionDef("plugin:delete", "删除扩展", "button", "plugin", "扩展管理", 53),
-
     # 分类管理
     PermissionDef("category:view", "分类查看", "menu", "category", "分类管理", 60),
     PermissionDef("category:create", "新增分类", "button", "category", "分类管理", 61),
@@ -208,12 +184,12 @@ SYSTEM_ROLES: list[dict] = [
     {
         "code": "content_admin",
         "name": "内容管理员",
-        "description": "教程/资源/百科/工具/扩展/分类/公告的内容管理权限，含内容审核，不含用户与系统设置",
+        "description": "教程/分类/公告的内容管理权限，含内容审核，不含用户与系统设置",
         "permissions": sorted(
             code for code in ALL_PERMISSION_CODES
             if code.split(":")[0] in
             {
-                "tutorial", "resource", "node", "tool", "plugin", "category",
+                "tutorial", "category",
                 "announcement", "dashboard",
                 # 内容审核归内容侧：机审复核与举报处理都是内容运营动作
                 "moderation", "report",

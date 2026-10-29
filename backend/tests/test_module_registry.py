@@ -92,7 +92,7 @@ class SwitchSemanticsTests(unittest.TestCase):
             self.assertTrue(module_registry.is_enabled("tutorial"))
 
     def test_whitelist_only_enables_listed(self):
-        with _SettingsOverride("tutorial,resource"):
+        with _SettingsOverride("tutorial,category"):
             self.assertTrue(module_registry.is_enabled("tutorial"))
             self.assertTrue(module_registry.is_enabled("core"), "核心模块始终启用")
             self.assertFalse(module_registry.is_enabled("node"))

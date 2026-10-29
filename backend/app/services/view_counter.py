@@ -31,8 +31,6 @@ from loguru import logger
 from sqlalchemy import func, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.node import Node, Plugin
-from app.models.resource import Resource
 from app.models.tutorial import Tutorial
 from app.redis import log_redis_degraded, redis_client
 
@@ -40,9 +38,6 @@ PENDING_PREFIX = "view_pending:"
 
 # 模型键 → 表。键同时出现在 Redis 的 hash 名里，改动会影响存量待落库数据，别随手改名。
 _VIEW_TABLES: dict[str, type] = {
-    "node": Node,
-    "plugin": Plugin,
-    "resource": Resource,
     "tutorial": Tutorial,
 }
 

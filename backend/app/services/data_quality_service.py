@@ -27,13 +27,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.degrade import degrade_guard
 
 # 收藏的多态目标 → 真实表名。**只列确定存在的**：
-# `workflow` 是历史遗留取值（没有对应表），未知类型一律跳过而不是当成孤儿，
-# 否则每轮巡检都会报一批假阳性。
+# 已下线内容类型（resource / plugin / node）的历史收藏行仍然存在，
+# 未知类型一律跳过而不是当成孤儿，否则每轮巡检都会报一批假阳性。
 _FAVORITE_TARGET_TABLES: dict[str, str] = {
     "tutorial": "tutorials",
-    "resource": "resources",
-    "plugin": "plugins",
-    "node": "nodes",
 }
 
 # 各检查项的说明与严重级别：前端直接展示这些文案，改文案只改这一处

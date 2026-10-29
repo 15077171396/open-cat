@@ -45,16 +45,14 @@ MAX_COMMENTS_PER_USER_PER_DAY = 30
 # ⚠️ 只是**新增一个取值**时不需要数据迁移（列是 VARCHAR，没有 CHECK/ENUM 约束）；
 #    只有改名或删除已有取值才需要配套迁移。
 COMMENT_TARGET_TUTORIAL = "tutorial"
-COMMENT_TARGET_NODE = "node"
-COMMENT_TARGET_RESOURCE = "resource"
-COMMENT_TARGET_TYPES = (COMMENT_TARGET_TUTORIAL, COMMENT_TARGET_NODE, COMMENT_TARGET_RESOURCE)
+COMMENT_TARGET_TYPES = (COMMENT_TARGET_TUTORIAL,)
 
-# target_type 列宽：够放未来的类型名（如 "resource" / "plugin"），又不至于浪费
+# target_type 列宽：够放未来的类型名，又不至于浪费
 COMMENT_TARGET_TYPE_MAX_LENGTH = 20
 
 
 class ContentComment(Base):
-    """内容评论（教程 / 百科节点 / …）
+    """内容评论（当前只有教程，新增内容类型时按下方说明同步登记）
 
     多态目标：``(target_type, target_id)`` 指向被评论的内容。刻意**不加外键**——
     本项目的内容都是硬删除，外键级联会在删除时触发 1451，且不同内容类型分散在多张表，

@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -30,7 +30,6 @@ from app.core.exceptions import AppException
 from app.database import async_session
 from app.models.ai_model import AiModel
 from app.models.ai_writing_prompt import AiWritingPrompt
-from app.models.tool import Tool
 from app.models.user import User
 from app.services.admin_audit_service import record_admin_action
 from app.services.ai.registry import (
@@ -496,40 +495,6 @@ async def _invalidate_runtime_caches() -> None:
     await invalidate_quota_config_cache()
 
 
-async def _tool_reference_counts(db: AsyncSession) -> dict[str, int]:
-    """按模型 code 统计被多少工具引用；查询失败只降级为空（列表不因此打不开）"""
-    rows = []
-    with degrade_guard(
-        "ai_model.tool_ref_counts",
-        detail="统计模型被工具引用次数失败，列表将不显示引用数",
-    ):
-        expr = func.json_unquote(func.json_extract(Tool.ai_config, "$.model"))
-        rows = (
-            await db.execute(
-                select(expr.label("model_code"), func.count())
-                .where(Tool.ai_config.is_not(None))
-                .group_by(expr)
-            )
-        ).all()
-    return {
-        str(code): int(count or 0)
-        for code, count in rows
-        if code
-    }
-
-
-async def _tool_reference_count(db: AsyncSession, code: str) -> int:
-    expr = func.json_unquote(func.json_extract(Tool.ai_config, "$.model"))
-    return int(
-        (
-            await db.execute(
-                select(func.count()).select_from(Tool).where(expr == code)
-            )
-        ).scalar()
-        or 0
-    )
-
-
 async def _writing_prompt_reference_count(db: AsyncSession, code: str) -> int:
     """按模型 code 统计被多少 AI 写作提示词绑定。
 
@@ -545,7 +510,7 @@ async def _writing_prompt_reference_count(db: AsyncSession, code: str) -> int:
     return len(rows)
 
 
-def _serialize(row: AiModel, *, tool_refs: dict[str, int] | None = None) -> dict:
+def _serialize(row: AiModel) -> dict:
     env_key, env_base, env_model = env_values(row.provider)
     if row.api_key_enc:
         api_key_source = "database"
@@ -573,7 +538,6 @@ def _serialize(row: AiModel, *, tool_refs: dict[str, int] | None = None) -> dict
         "is_default": bool(row.is_default),
         "sort_order": int(row.sort_order or 0),
         "remark": row.remark or "",
-        "tool_refs": int((tool_refs or {}).get(row.code, 0)),
         "created_at": row.created_at.isoformat() if row.created_at else None,
         "updated_at": row.updated_at.isoformat() if row.updated_at else None,
     }
@@ -589,9 +553,8 @@ async def list_models(db: AsyncSession) -> dict:
             )
         )
     ).scalars().all()
-    refs = await _tool_reference_counts(db)
     return {
-        "items": [_serialize(row, tool_refs=refs) for row in rows],
+        "items": [_serialize(row) for row in rows],
         "providers": providers_payload(),
         "total": len(rows),
     }
@@ -808,13 +771,6 @@ async def delete_model(db: AsyncSession, model_id: int, admin: User) -> None:
     ).scalar_one_or_none()
     if row is None:
         raise AppException(code=404, message="AI 模型不存在")
-
-    refs = await _tool_reference_count(db, row.code)
-    if refs > 0:
-        raise AppException(
-            code=409,
-            message=f"该模型仍被 {refs} 个在线工具引用，请先到「在线工具」改配置，或改为禁用",
-        )
 
     if row.modality == "text":
         prompt_refs = await _writing_prompt_reference_count(db, row.code)

@@ -21,7 +21,7 @@ from app.services import rbac_service
 _PARAM = r"[^/]+"
 
 # 内容编辑辅助端点（第三方导入/翻译）：任一内容模块编辑权限即可使用
-_CONTENT_EDIT_ANY = ["tutorial:edit", "resource:edit", "plugin:edit", "node:edit"]
+_CONTENT_EDIT_ANY = ["tutorial:edit"]
 
 # 规则条目：(method, path 模板, 所需权限码列表)
 # path 模板使用 OpenAPI 风格 {param} 占位，匹配时转为正则。
@@ -42,7 +42,6 @@ _RULES: list[tuple[str, str, list[str]]] = [
     # 导出本身是数据外带，所以每个端点都会写审计（见 admin_export._csv_response）。
     ("GET", "/api/v1/admin/export/users", ["user:view"]),
     ("GET", "/api/v1/admin/export/tutorials", ["tutorial:view"]),
-    ("GET", "/api/v1/admin/export/resources", ["resource:view"]),
     ("GET", "/api/v1/admin/export/point-transactions", ["points:view"]),
     # 定时任务运行状态（周期/上次执行/是否超期）：运维只读数据，同样是 dashboard:view。
     # 刻意不新建 scheduler:view —— 新码必须配套「补种给已有内置角色」的迁移，
@@ -83,45 +82,10 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("POST", "/api/v1/admin/tutorials/{tutorial_id}/nodes/{node_id}/move", ["tutorial:edit"]),
     ("DELETE", "/api/v1/admin/tutorials/{tutorial_id}/nodes/{node_id}", ["tutorial:edit"]),
 
-    # 资源管理
-    ("GET", "/api/v1/admin/resources", ["resource:view"]),
-    ("POST", "/api/v1/admin/resources/batch-delete", ["resource:delete"]),
-    # 回收站恢复复用 :delete（理由同教程）
-    ("POST", "/api/v1/admin/resources/batch-restore", ["resource:delete"]),
-    ("POST", "/api/v1/admin/resources/{resource_id}/restore", ["resource:delete"]),
-    ("GET", "/api/v1/admin/resources/{resource_id}", ["resource:view"]),
-    ("POST", "/api/v1/admin/resources", ["resource:create"]),
-    ("PUT", "/api/v1/admin/resources/{resource_id}", ["resource:edit"]),
-    ("DELETE", "/api/v1/admin/resources/{resource_id}", ["resource:delete"]),
-
-    # 扩展管理
-    ("GET", "/api/v1/admin/plugins", ["plugin:view"]),
-    ("POST", "/api/v1/admin/plugins/batch-delete", ["plugin:delete"]),
-    ("GET", "/api/v1/admin/plugins/{plugin_id}", ["plugin:view"]),
-    ("POST", "/api/v1/admin/plugins", ["plugin:create"]),
-    ("PUT", "/api/v1/admin/plugins/{plugin_id}", ["plugin:edit"]),
-    ("DELETE", "/api/v1/admin/plugins/{plugin_id}", ["plugin:delete"]),
-
     # 内容编辑辅助（第三方资料导入 / AI 翻译）
     ("GET", "/api/v1/admin/fetch-resource", _CONTENT_EDIT_ANY),
     ("POST", "/api/v1/admin/translate-content", _CONTENT_EDIT_ANY),
     ("GET", "/api/v1/admin/translate-content/{task_id}", _CONTENT_EDIT_ANY),
-
-    # 知识百科（节点）
-    ("GET", "/api/v1/admin/nodes", ["node:view"]),
-    ("POST", "/api/v1/admin/nodes/batch-delete", ["node:delete"]),
-    ("GET", "/api/v1/admin/nodes/{node_id}", ["node:view"]),
-    ("POST", "/api/v1/admin/nodes", ["node:create"]),
-    ("PUT", "/api/v1/admin/nodes/{node_id}", ["node:edit"]),
-    ("DELETE", "/api/v1/admin/nodes/{node_id}", ["node:delete"]),
-
-    # 在线工具
-    ("GET", "/api/v1/admin/tools", ["tool:view"]),
-    ("GET", "/api/v1/admin/tools/{tool_id}", ["tool:view"]),
-    ("POST", "/api/v1/admin/tools", ["tool:create"]),
-    ("PUT", "/api/v1/admin/tools/{tool_id}", ["tool:edit"]),
-    ("PATCH", "/api/v1/admin/tools/{tool_id}/publish", ["tool:edit"]),
-    ("DELETE", "/api/v1/admin/tools/{tool_id}", ["tool:delete"]),
 
     # 用户管理
     ("GET", "/api/v1/admin/users", ["user:view"]),

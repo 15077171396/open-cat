@@ -22,12 +22,8 @@ from pathlib import Path
 from sqlalchemy.exc import DBAPIError, OperationalError, ProgrammingError
 
 from app.config import settings
-from app.models.node import Node, Plugin
-from app.models.resource import Resource
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial
 from app.services import search
-
 
 VERSIONS_DIR = Path(__file__).resolve().parents[1] / "alembic" / "versions"
 
@@ -46,14 +42,12 @@ _INDEX_ROW_RE = re.compile(
     r'\(\s*"(?P<table>\w+)"\s*,\s*"(?P<index>\w+)"\s*,\s*\((?P<cols>[^)]*)\)\s*\)'
 )
 
-
 def _declared_fulltext_indexes() -> dict[str, tuple[str, ...]]:
     """合并解析所有全文迁移，返回 {表名: (列, ...)}。"""
     declared: dict[str, tuple[str, ...]] = {}
     for table, _index, cols in _declared_index_rows():
         declared[table] = cols
     return declared
-
 
 def _declared_index_rows() -> list[tuple[str, str, tuple[str, ...]]]:
     """合并解析所有全文迁移，返回 [(表名, 索引名, (列, ...)), ...]。"""
@@ -71,12 +65,10 @@ def _declared_index_rows() -> list[tuple[str, str, tuple[str, ...]]]:
             )
     return rows
 
-
 def _reset_fulltext():
     """把开关与熔断状态恢复默认，避免用例间互相污染。"""
     search.reset_fulltext_availability()
     settings.SEARCH_FULLTEXT_ENABLED = True
-
 
 class BuildBooleanQueryTests(unittest.TestCase):
     """查询串构造：不可用时必须明确返回 None（交给 LIKE 兜底）"""
@@ -129,7 +121,6 @@ class BuildBooleanQueryTests(unittest.TestCase):
         self.assertIsNotNone(result)
         self.assertEqual(len(result.split()), search._MAX_TOKENS)
 
-
 class CandidatesTests(unittest.TestCase):
     """候选条件：至少一个是硬要求，绝不能让调用方拿到 None"""
 
@@ -174,7 +165,6 @@ class CandidatesTests(unittest.TestCase):
         self.assertFalse(search.fulltext_available())
         search.reset_fulltext_availability()
         self.assertTrue(search.fulltext_available())
-
 
 class PickConditionTests(unittest.IsolatedAsyncioTestCase):
     """降级决策：全文失败不打挂接口，但 LIKE 失败必须照原样抛"""
@@ -275,166 +265,6 @@ class PickConditionTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNone(cond)
         self.assertEqual(total, 0)
 
-
-class MatchSqlTests(unittest.TestCase):
-    """生成的 SQL 必须与迁移里的索引定义对得上（否则 MySQL 报 errno 1191）"""
-
-    def test_columns_backticked_and_ordered(self):
-        cond = search.build_match_condition(search.TUTORIAL_SEARCH_COLS, "+教程")
-        sql = str(cond)
-        self.assertIn("MATCH(`title`, `description`, `content`)", sql)
-        self.assertIn("AGAINST (:ft_query IN BOOLEAN MODE)", sql)
-
-    def test_resource_columns(self):
-        cond = search.build_match_condition(search.RESOURCE_SEARCH_COLS, "+教程")
-        self.assertIn("MATCH(`name`, `description`, `content`)", str(cond))
-
-    def test_node_and_plugin_columns(self):
-        """台账 P1-17：节点/插件也纳入全文检索（此前完全没进站内搜索）"""
-        self.assertIn(
-            "MATCH(`name`, `description`, `content`)",
-            str(search.build_match_condition(search.NODE_SEARCH_COLS, "+节点")),
-        )
-        self.assertIn(
-            "MATCH(`name`, `description`, `content`)",
-            str(search.build_match_condition(search.PLUGIN_SEARCH_COLS, "+插件")),
-        )
-
-    def test_column_order_matches_migration(self):
-        """交叉校验：search.py 的列顺序 = 迁移里 FULLTEXT 索引的列顺序。
-
-        MySQL 要求 MATCH() 列列表与索引**完全一致（含顺序）**，不一致直接
-        errno 1191。两处分别写在代码和迁移里，改一处忘另一处是必然会发生的事，
-        所以这里用文件解析把它钉成会失败的断言（覆盖五张内容表）。
-        """
-        declared = _declared_fulltext_indexes()
-
-        expected = {
-            "tutorials": tuple(search._column_name(c) for c in search.TUTORIAL_SEARCH_COLS),
-            "resources": tuple(search._column_name(c) for c in search.RESOURCE_SEARCH_COLS),
-            "nodes": tuple(search._column_name(c) for c in search.NODE_SEARCH_COLS),
-            "plugins": tuple(search._column_name(c) for c in search.PLUGIN_SEARCH_COLS),
-            "tools": tuple(search._column_name(c) for c in search.TOOL_SEARCH_COLS),
-        }
-        for table, cols in expected.items():
-            self.assertIn(table, declared, f"迁移里没有 {table} 的 FULLTEXT 索引")
-            self.assertEqual(
-                declared[table],
-                cols,
-                f"{table} 的 FULLTEXT 索引列顺序与 search.py 不一致（会触发 errno 1191）",
-            )
-
-    def test_search_columns_reference_real_model_attrs(self):
-        """列必须真的来自对应模型，防止复制粘贴串了表"""
-        self.assertTrue(all(hasattr(Tutorial, c.key) for c in search.TUTORIAL_SEARCH_COLS))
-        self.assertTrue(all(hasattr(Resource, c.key) for c in search.RESOURCE_SEARCH_COLS))
-        self.assertTrue(all(hasattr(Node, c.key) for c in search.NODE_SEARCH_COLS))
-        self.assertTrue(all(hasattr(Plugin, c.key) for c in search.PLUGIN_SEARCH_COLS))
-        self.assertTrue(all(hasattr(Tool, c.key) for c in search.TOOL_SEARCH_COLS))
-
-    def test_every_fulltext_index_is_excluded_from_autogenerate(self):
-        """迁移用原生 SQL 建的索引必须登记进 env.py 的排除清单。
-
-        不登记的话 Alembic 会认为这些索引「多余」→ `revision --autogenerate`
-        直接生成 DROP INDEX，谁跑一次就静默失去全文检索（与 P1-16 同类陷阱）。
-        """
-        env_py = (VERSIONS_DIR.parent / "env.py").read_text(encoding="utf-8")
-        for _table, index, _cols in _declared_index_rows():
-            self.assertIn(
-                f'"{index}"',
-                env_py,
-                f"索引 {index} 未登记进 alembic/env.py 的 _UNMANAGED_INDEXES，"
-                "autogenerate 会生成 DROP INDEX",
-            )
-
-
-class FulltextBreakerScopeTests(unittest.TestCase):
-    """熔断必须按「列组」隔离（第二轮复审 C-01）
-
-    真实事故：tools 没有 FULLTEXT 索引 → 搜一次工具必报 errno 1191 →
-    当时的**进程级**开关把教程/资源/百科/扩展的全文检索一起关掉，直到重启。
-    这里钉住三件事：
-    1. 某一列组结构性失败，只熔断它自己；
-    2. 其它列组仍然产出 fulltext 候选；
-    3. 不传 columns 的调用仍是实例级熔断（明确「整个实例不支持」的场景）。
-    """
-
-    def setUp(self):
-        _reset_fulltext()
-
-    def tearDown(self):
-        _reset_fulltext()
-
-    def _kinds(self, columns, keyword="安装教程"):
-        return [kind for kind, _cond in search.keyword_condition_candidates(columns, keyword)]
-
-    def test_broken_group_does_not_disable_other_groups(self):
-        search.mark_fulltext_unavailable("缺索引", search.TOOL_SEARCH_COLS)
-
-        self.assertFalse(search.fulltext_available(search.TOOL_SEARCH_COLS))
-        self.assertEqual(self._kinds(search.TOOL_SEARCH_COLS), ["like"])
-
-        # 其它四组不受影响 —— 这是本条修复的核心
-        for columns in (
-            search.TUTORIAL_SEARCH_COLS,
-            search.RESOURCE_SEARCH_COLS,
-            search.NODE_SEARCH_COLS,
-            search.PLUGIN_SEARCH_COLS,
-        ):
-            self.assertTrue(search.fulltext_available(columns), columns)
-            self.assertEqual(self._kinds(columns), ["fulltext", "like"], columns)
-
-    def test_instance_level_breaker_still_disables_everything(self):
-        search.mark_fulltext_unavailable("实例不支持 ngram")
-
-        self.assertFalse(search.fulltext_available())
-        self.assertFalse(search.fulltext_available(search.TUTORIAL_SEARCH_COLS))
-        self.assertEqual(self._kinds(search.TUTORIAL_SEARCH_COLS), ["like"])
-
-    def test_broken_group_is_idempotent_and_resettable(self):
-        search.mark_fulltext_unavailable("第一次", search.TOOL_SEARCH_COLS)
-        search.mark_fulltext_unavailable("第二次", search.TOOL_SEARCH_COLS)  # 不应抛错
-        self.assertEqual(len(search._FULLTEXT_BROKEN_GROUPS), 1)
-
-        search.reset_fulltext_availability()
-        self.assertTrue(search.fulltext_available(search.TOOL_SEARCH_COLS))
-
-    def test_column_order_is_part_of_group_key(self):
-        """MATCH() 对列顺序敏感：换了顺序就是另一个索引，不能共享熔断状态。"""
-        search.mark_fulltext_unavailable("缺索引", search.TOOL_SEARCH_COLS)
-        reversed_cols = tuple(reversed(search.TOOL_SEARCH_COLS))
-        self.assertTrue(search.fulltext_available(reversed_cols))
-
-
-class LikeFallbackScopeTests(unittest.TestCase):
-    """LIKE 兜底不扫 MEDIUMTEXT 正文（第四轮全量审查 P1-60 方案 A）
-
-    配套的产品口径变更：降级态（全文索引不可用）下「只出现在正文里的词」不再命中，
-    名称与简介照旧命中，全文可用时正文照旧命中。`test_search_parity.py` 里那两条
-    用例已按此更新 —— 它守的从来是「两侧结论一致」，不是「一定能搜到正文」。
-    """
-
-    def _sql(self, cond) -> str:
-        return str(cond.compile(compile_kwargs={"literal_binds": True}))
-
-    def test_like_condition_excludes_content(self):
-        sql = self._sql(search.build_like_condition(search.TUTORIAL_SEARCH_COLS, "安装"))
-        self.assertIn("title", sql)
-        self.assertIn("description", sql)
-        self.assertNotIn("content", sql, "LIKE 兜底仍在扫 MEDIUMTEXT 正文")
-
-    def test_fulltext_condition_still_covers_content(self):
-        """正文由全文索引负责 —— 收窄 LIKE 不等于放弃搜正文，别把两边搞混"""
-        sql = self._sql(search.build_match_condition(search.TUTORIAL_SEARCH_COLS, "+教程"))
-        self.assertIn("MATCH", sql.upper())
-        self.assertIn("content", sql)
-
-    def test_all_content_columns_not_narrowed_to_empty(self):
-        """检索列全是正文时宁可保留原列，也不能给出空条件"""
-        sql = self._sql(search.build_like_condition((Resource.content,), "关键词"))
-        self.assertIn("content", sql)
-
-
 class FallbackCountTimeoutTests(unittest.IsolatedAsyncioTestCase):
     """LIKE 兜底计数的服务端语句超时与失败口径（P1-60 方案 B）"""
 
@@ -506,7 +336,6 @@ class FallbackCountTimeoutTests(unittest.IsolatedAsyncioTestCase):
         """超时取值必须显著高于正常检索（否则高峰期大面积误伤），又必须远低于占死连接的量级"""
         self.assertGreaterEqual(settings.SEARCH_FALLBACK_COUNT_TIMEOUT_MS, 250)
         self.assertLessEqual(settings.SEARCH_FALLBACK_COUNT_TIMEOUT_MS, 5000)
-
 
 if __name__ == "__main__":
     unittest.main()

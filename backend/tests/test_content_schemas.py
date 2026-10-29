@@ -34,7 +34,6 @@ _CONTENT_MODELS = (
     schemas.ToolDetail,
     # 用户中心（第二批）
     user_schemas.FavoriteItem,
-    user_schemas.DownloadHistoryItem,
     user_schemas.LearningRecordItem,
     user_schemas.ContinueLearningItem,
     user_schemas.MessageItem,
@@ -91,31 +90,18 @@ class OpenApiContractTests(unittest.TestCase):
     而不是一个裸 object。"""
 
     TARGETS = (
-        ("/api/v1/nodes", "get"),
-        ("/api/v1/nodes/{node_id}", "get"),
-        ("/api/v1/plugins", "get"),
-        ("/api/v1/plugins/{plugin_id}", "get"),
-        ("/api/v1/resources", "get"),
-        ("/api/v1/resources/{resource_id}", "get"),
         ("/api/v1/tutorials", "get"),
         ("/api/v1/tutorials/{tutorial_id}", "get"),
         ("/api/v1/tutorials/{tutorial_id}/intro", "get"),
-        ("/api/v1/tools", "get"),
-        ("/api/v1/tools/{tool_id}", "get"),
         # 用户中心（第二批）
         ("/api/v1/users/favorites", "get"),
         ("/api/v1/users/learning", "get"),
         ("/api/v1/users/learning/continue", "get"),
-        ("/api/v1/users/downloads", "get"),
         ("/api/v1/users/messages", "get"),
         ("/api/v1/users/points/transactions", "get"),
         ("/api/v1/users/invite/info", "get"),
         # 后台列表（与公开列表同一套分页形状）
-        ("/api/v1/admin/nodes", "get"),
-        ("/api/v1/admin/plugins", "get"),
-        ("/api/v1/admin/resources", "get"),
         ("/api/v1/admin/tutorials", "get"),
-        ("/api/v1/admin/tools", "get"),
     )
 
     @classmethod
@@ -167,72 +153,6 @@ class NoUntypedRoutesTests(unittest.TestCase):
             "以下路由仍返回裸 dict —— 新增接口请用 schemas/ 下的模型"
             "（写/改类可用 ActionAck，列表用 PageResult[...]）：\n  " + "\n  ".join(hits),
         )
-
-
-class JsonColumnTypesArePermissiveTests(unittest.TestCase):
-    """详情响应模型里，**对应 JSON 列**的字段不得声明成标量类型。
-
-    回归背景（2026-10-20）：第五轮给公开接口补响应模型时，把资源的
-    `content_list` / `usage_notes` 写成了 `Optional[str]`、把百科的 `examples`
-    写成了 `Optional[list]` —— 但它们在库里都是 **JSON 列**，实际形态分别是数组和对象。
-    于是 `ResponseValidationError` 被全局处理器转成 500：本地 8/16 条资源、11/16 个百科节点
-    详情页直接打不开，而列表页、健康探针、深度探活**全部正常**，问题只在你点进详情时才暴露。
-
-    为什么只能静态查：单测没有真实数据，构造 payload 时按 schema 造必然「合规」，
-    测不出「库里数据形态与声明不符」。所以这里反过来查**声明本身**：
-    凡是与 JSON 列同名的 schema 字段，类型必须放行容器（list / dict / Any）。
-    """
-
-    #: 内容类型 → 它的公开详情响应模型
-    DETAIL_SCHEMAS = {
-        "tutorial": schemas.TutorialDetail,
-        "node": schemas.NodeDetail,
-        "plugin": schemas.PluginDetail,
-        "resource": schemas.ResourceDetail,
-        "tool": schemas.ToolDetail,
-    }
-
-    @staticmethod
-    def _allows_container(annotation) -> bool:
-        """注解里是否出现了 list / dict / Any（含 Optional[...] 与 list[dict] 这类）。"""
-        import typing
-
-        args = typing.get_args(annotation) or (annotation,)
-        for arg in args:
-            if arg in (list, dict, typing.Any):
-                return True
-            if typing.get_origin(arg) in (list, dict):
-                return True
-        return False
-
-    def test_json_columns_accept_list_or_dict(self):
-        from sqlalchemy import JSON
-
-        from app.core.content_types import CONTENT_TYPES
-
-        problems = []
-        checked = 0
-        for module, schema in self.DETAIL_SCHEMAS.items():
-            spec = CONTENT_TYPES[module]
-            json_cols = {
-                col.name
-                for col in spec.model.__table__.columns
-                if isinstance(col.type, JSON)
-            }
-            declared = set(schema.model_fields)
-            for name in sorted(json_cols & declared):
-                checked += 1
-                annotation = schema.model_fields[name].annotation
-                if not self._allows_container(annotation):
-                    problems.append(
-                        f"{schema.__name__}.{name} 声明为 {annotation}，"
-                        f"但它对应 {spec.model.__name__} 的 JSON 列 —— "
-                        "库里可能是数组也可能是对象，标量类型会让详情接口 500"
-                    )
-        self.assertGreaterEqual(
-            checked, 1, "没有找到任何「schema 字段 ↔ JSON 列」同名对，守卫可能已失效"
-        )
-        self.assertEqual(problems, [], "\n".join(problems))
 
 
 class ResponseModelMatchesReturnShapeTests(unittest.TestCase):

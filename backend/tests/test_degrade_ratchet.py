@@ -80,7 +80,7 @@ APP = os.path.join(REPO, 'app')
 # 也不能用 `degrade_guard` 放行 —— 生成失败必须让调用方拿到失败。
 # 同批次的「单张转存失败」已改用 `degrade_guard`（跳过该张、继续其余），
 # 因此本批次净增仅 1。
-# 151 → 152（2026-10-28，AI 写作 HTTP 接口批次）：`api/admin_ai_writing.py` 的
+# 151 → 138（2026-10-28，AI 写作 HTTP 接口批次）：`api/admin_ai_writing.py` 的
 # SSE 流边界 **1 处**。方向是**拒绝**，且已收口到 `degrade_closed(...)`（记
 # `[降级-拒绝]` 并抛 AppException，边界再把它翻译成 `event: error`，code=500、
 # retryable=true）：状态码在首帧发出后已无法修改，未知异常只能落成错误事件，否则
@@ -88,7 +88,7 @@ APP = os.path.join(REPO, 'app')
 # 也不能用 `degrade_guard` 放行 —— 失败必须让前端知道（brief 明确要求）。
 # 同批次「预占之后的记账失败」改用 `except BaseException` + 归还两张票据后重抛，
 # 未新增宽泛捕获。
-BROAD_EXCEPT_BASELINE = 152
+BROAD_EXCEPT_BASELINE = 138
 
 
 def _count_broad_except() -> int:

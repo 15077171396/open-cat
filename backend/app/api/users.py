@@ -16,7 +16,6 @@ from app.schemas.common import ApiResponse, KEYWORD_MAX_LENGTH
 from app.schemas.content import ItemsResult, PageResult
 from app.schemas.user_content import (
     ContinueLearningItem,
-    DownloadHistoryItem,
     FavoriteItem,
     InviteInfo,
     LearningRecordItem,
@@ -26,7 +25,6 @@ from app.schemas.user_content import (
 from app.schemas.auth import UserInfoData
 from app.services.storage import StorageError, storage
 from app.services.invite_poster import build_invite_poster
-from app.services.resource_service import get_download_history
 from app.services.auth_service import build_user_profile
 from app.services.favorite_service import (
     add_favorite,
@@ -504,22 +502,6 @@ async def delete_message_api(
     """删除消息"""
     await delete_message(db, current_user, message_id)
     return success_response({"message": "消息已删除"})
-
-
-# 下载历史
-
-@router.get("/downloads", response_model=ApiResponse[PageResult[DownloadHistoryItem]])
-async def download_history(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    keyword: str = Query(None, max_length=KEYWORD_MAX_LENGTH),
-    file_type: str = Query(None),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """下载历史"""
-    result = await get_download_history(db, current_user, page, page_size, keyword, file_type)
-    return success_response(result)
 
 
 # 积分明细

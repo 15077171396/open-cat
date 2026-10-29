@@ -169,16 +169,6 @@ class AiModelCrudTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(item["api_key_masked"].endswith("9999"))
         self.assertEqual(item["api_key_source"], "database")
 
-    async def test_delete_referenced_model_is_blocked(self):
-        result = await self._create()
-        with mock.patch.object(
-            ai_model_service, "_tool_reference_count", new=mock.AsyncMock(return_value=3)
-        ):
-            with self.assertRaises(AppException) as ctx:
-                await ai_model_service.delete_model(self.db, result["id"], self.admin)
-        self.assertEqual(ctx.exception.code, 409)
-        self.assertEqual(len(self.db.all_rows(AiModel)), 1)
-
     async def test_delete_model_bound_by_writing_prompt_is_blocked(self):
         """提示词仍绑定 model_code 时删模型 = 写作配置静默失效，必须 409。"""
         result = await self._create()
@@ -188,11 +178,8 @@ class AiModelCrudTests(unittest.IsolatedAsyncioTestCase):
             model_code=result["code"], temperature=0.7, max_tokens=2000,
             max_input_chars=6000, is_enabled=True, sort_order=10,
         ))
-        with mock.patch.object(
-            ai_model_service, "_tool_reference_count", new=mock.AsyncMock(return_value=0)
-        ):
-            with self.assertRaises(AppException) as ctx:
-                await ai_model_service.delete_model(self.db, result["id"], self.admin)
+        with self.assertRaises(AppException) as ctx:
+            await ai_model_service.delete_model(self.db, result["id"], self.admin)
         self.assertEqual(ctx.exception.code, 409)
         self.assertIn("AI 写作", ctx.exception.message)
         self.assertEqual(len(self.db.all_rows(AiModel)), 1)
@@ -201,10 +188,7 @@ class AiModelCrudTests(unittest.IsolatedAsyncioTestCase):
         await self._create(code="deepseek", display_name="DeepSeek")
         second = await self._create(code="reasoner", display_name="Reasoner")
         first = self.db.all_rows(AiModel)[0]
-        with mock.patch.object(
-            ai_model_service, "_tool_reference_count", new=mock.AsyncMock(return_value=0)
-        ):
-            await ai_model_service.delete_model(self.db, first["id"], self.admin)
+        await ai_model_service.delete_model(self.db, first["id"], self.admin)
         rows = self.db.all_rows(AiModel)
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["code"], "reasoner")

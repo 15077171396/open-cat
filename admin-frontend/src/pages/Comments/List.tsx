@@ -27,8 +27,6 @@ import PageHeader from '../../components/ui/PageHeader'
 /** 可评论的内容类型（与后端 COMMENT_TARGET_TYPES 对齐；新增类型时同步这里） */
 const TARGET_TYPE_META: Record<string, { label: string; color: string }> = {
   tutorial: { label: '教程', color: 'blue' },
-  node: { label: '百科节点', color: 'purple' },
-  resource: { label: '资源', color: 'green' },
 }
 
 function targetTypeLabel(t: string): string {

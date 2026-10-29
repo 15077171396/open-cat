@@ -14,15 +14,12 @@ from sqlalchemy.orm import load_only
 
 from app.config import settings
 from app.core.exceptions import AppException
-from app.models.node import Node, Plugin
-from app.models.resource import Resource
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 
 # 静态栏目页（其余 URL 全部来自数据库动态内容）
 # /feedback 刻意不在列：表单页无正文，且已加 noindex
-_STATIC_PATHS = ("/", "/tutorials", "/plugins", "/nodes", "/resources", "/tools", "/about", "/contact")
+_STATIC_PATHS = ("/", "/tutorials", "/about", "/contact")
 
 # 单文件 URL 上限。搜索引擎的硬上限是 50000，这里留 10% 余量：
 # ① 留出「上限调整 / 统计口径差异」的缓冲；② 单文件体积也要留出 50MB 余量。
@@ -63,8 +60,7 @@ def _date(dt: datetime | None) -> str | None:
 async def collect_sitemap_entries(db: AsyncSession) -> list[tuple[str, str | None]]:
     """汇总全站可索引 URL，返回 ``[(loc, lastmod), ...]``，顺序稳定。
 
-    顺序约定：静态栏目页在最前，其后依次是教程 / 章节 / 扩展 / 节点 / 资源 / 工具，
-    每个实体内部按 id 升序。
+    顺序约定：静态栏目页在最前，其后是教程详情与教程章节，各自按 id 升序。
     """
     base = settings.SITE_BASE_URL.rstrip("/")
     entries: list[tuple[str, str | None]] = []
@@ -98,30 +94,6 @@ async def collect_sitemap_entries(db: AsyncSession) -> list[tuple[str, str | Non
             (f"{base}/tutorials/{c.tutorial_id}/c/{c.id}", _date(c.updated_at))
             for c in chapters
         ]
-
-    # 4. 扩展 / 节点 / 资源 / 已发布工具详情页
-    plugins = (await db.execute(
-        _entity_query(Plugin, Plugin.id, Plugin.updated_at, where=Plugin.is_published == True)  # noqa: E712
-    )).scalars().all()
-    entries += [(f"{base}/plugins/{p.id}", _date(p.updated_at)) for p in plugins]
-
-    nodes = (await db.execute(
-        _entity_query(Node, Node.id, Node.updated_at, where=Node.is_published == True)  # noqa: E712
-    )).scalars().all()
-    entries += [(f"{base}/nodes/{n.id}", _date(n.updated_at)) for n in nodes]
-
-    resources = (await db.execute(
-        _entity_query(Resource, Resource.id, Resource.updated_at, where=Resource.is_published == True)  # noqa: E712
-    )).scalars().all()
-    entries += [(f"{base}/resources/{r.id}", _date(r.updated_at)) for r in resources]
-
-    tools = (await db.execute(
-        _entity_query(
-            Tool, Tool.id, Tool.updated_at,
-            where=Tool.is_published == True,  # noqa: E712
-        )
-    )).scalars().all()
-    entries += [(f"{base}/tools/{t.id}", _date(t.updated_at)) for t in tools]
 
     return entries
 

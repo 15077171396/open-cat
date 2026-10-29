@@ -43,7 +43,7 @@ class MenuGroup(NamedTuple):
 
 
 # ⚠️ 分组顺序 = 侧边栏展示顺序。按「日常使用频率」排：
-# 概览 → 内容（最高频） → 运营 → 用户与权限 → 系统（最低频，压在最下面）
+# 概览 → 内容（示例模块） → 运营 → 用户与权限 → 系统（最低频，压在最下面）
 MENU_GROUPS: tuple[MenuGroup, ...] = (
     MenuGroup(
         key="overview",
@@ -51,8 +51,6 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
         icon="home",
         items=(
             MenuItem("/", "数据看板", "dashboard", perm="dashboard:view"),
-            # 访问统计是自建 Umami，独立域名，新窗口打开
-            MenuItem("umami-stats", "访问统计", "chart", perm="dashboard:view", url="https://tj.wdmao.cn/"),
         ),
     ),
     MenuGroup(
@@ -60,17 +58,12 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
         label="内容管理",
         icon="file-text",
         items=(
+            # 教程是**示例业务模块**：列表、树形章节、富文本编辑、审核、回收站全都在，
+            # 新增自己的业务模块时照着它抄一遍即可（见 docs 的开发文档 §五）。
             MenuItem("/tutorials", "教程管理", "book", perm="tutorial:view"),
-            MenuItem("/resources", "资源管理", "hdd", perm="resource:view"),
-            MenuItem("/nodes", "知识百科", "appstore", perm="node:view"),
-            MenuItem("/tools", "在线工具", "tool", perm="tool:view"),
-            MenuItem("/plugins", "扩展管理", "api", perm="plugin:view"),
             MenuItem("/categories", "分类管理", "tags", perm="category:view"),
-            # 素材库：上传/图库导入/AI 图的统一浏览与复用。任一内容模块可编辑即可进入。
-            MenuItem(
-                "/materials", "素材库", "picture",
-                perms=("tutorial:view", "resource:view", "plugin:view", "node:view"),
-            ),
+            # 素材库：上传/图库导入/AI 图的统一浏览与复用，任何后台都用得上。
+            MenuItem("/materials", "素材库", "picture", perm="tutorial:view"),
         ),
     ),
     MenuGroup(

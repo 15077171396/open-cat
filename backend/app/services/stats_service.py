@@ -11,13 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.time import utcnow
 from app.redis import log_redis_degraded, redis_client
 from app.models.user import User
-from app.models.download import Download, ToolUsageLog
+from app.models.download import Download
 from app.models.auth_request import AuthRequest
 from app.models.feedback import Feedback
 from app.models.tutorial import Tutorial
-from app.models.resource import Resource
-from app.models.node import Node, Plugin
-from app.models.tool import Tool
 from app.core.legacy_metrics import legacy_usage_snapshot
 from app.services.content_cache import shape_key
 from app.config import settings
@@ -141,10 +138,6 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
     overview_row = (
         await db.execute(
             select(
-                select(func.count(Resource.id)).scalar_subquery().label("resources"),
-                select(func.count(Plugin.id)).scalar_subquery().label("plugins"),
-                select(func.count(Node.id)).scalar_subquery().label("nodes"),
-                select(func.count(Tool.id)).scalar_subquery().label("tools"),
                 select(func.count(Tutorial.id))
                 .where(Tutorial.is_published == True)  # noqa: E712
                 .scalar_subquery()
@@ -157,10 +150,6 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
                 .where(Feedback.status == "pending")
                 .scalar_subquery()
                 .label("pending_feedback"),
-                select(func.count(ToolUsageLog.id))
-                .where(ToolUsageLog.created_at >= today_start)
-                .scalar_subquery()
-                .label("today_tool_usage"),
                 select(func.count(func.distinct(Download.user_id)))
                 .where(Download.created_at >= trend_start)
                 .scalar_subquery()
@@ -191,31 +180,6 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
         for i in range(6, -1, -1)
     ]
 
-    # 资源下载榜 Top5（按累计下载次数，同值按 id 倒序保证结果稳定）
-    top_rows = (
-        await db.execute(
-            select(
-                Resource.id,
-                Resource.name,
-                Resource.download_count,
-                Resource.view_count,
-                Resource.resource_type,
-            )
-            .order_by(Resource.download_count.desc(), Resource.id.desc())
-            .limit(5)
-        )
-    ).all()
-    top_resources = [
-        {
-            "id": row.id,
-            "name": row.name,
-            "download_count": int(row.download_count or 0),
-            "view_count": int(row.view_count or 0),
-            "resource_type": row.resource_type,
-        }
-        for row in top_rows
-    ]
-
     # 兼容分支用量（第五轮全量审查 P2-55 之六）：摘除判据必须能在后台直接读到。
     # Redis 降级时 snapshot 返回**空 dict**，刻意不返回 `{event: 0}` ——
     # 一次抖动就显示成「旧客户端已经不再发这些参数」，会诱导把兼容分支摘错。
@@ -238,19 +202,13 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
         # —— 看板增强字段（新增，供管理后台数据看板展示）——
         "registration_trend": registration_trend,
         "active_users_7d": int(overview_row.active_users_7d or 0),
-        "today_tool_usage": int(overview_row.today_tool_usage or 0),
         "content_overview": {
             "tutorials": int(overview_row.tutorials_published or 0),
-            "resources": int(overview_row.resources or 0),
-            "plugins": int(overview_row.plugins or 0),
-            "nodes": int(overview_row.nodes or 0),
-            "tools": int(overview_row.tools or 0),
         },
         "pending": {
             "auth_requests": int(overview_row.pending_auth or 0),
             "feedbacks": int(overview_row.pending_feedback or 0),
         },
-        "top_resources": top_resources,
         "legacy_usage": legacy_usage,
     }
 
@@ -263,9 +221,9 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
 
 
 async def get_public_stats(db: AsyncSession) -> dict:
-    """首页公开统计数据 (教程/资源/扩展/用户总数)，不含缓存，由调用方管理缓存策略
+    """首页公开统计数据（教程总数 / 用户总数），不含缓存，由调用方管理缓存策略
 
-    四项 count 合并成**一次**查询（第三轮增量审查 P1-43⑤）：原先是 4 条串行
+    两项 count 合并成**一次**查询（第三轮增量审查 P1-43⑤）：原先是 4 条串行
     COUNT，在缓存击穿（固定 TTL 到期瞬间）会把 4 个 DB 往返串起来。同文件的
     `get_dashboard_stats` 早已用「scalar_subquery 一次取多列」的写法，这里与它对齐。
     """
@@ -276,17 +234,6 @@ async def get_public_stats(db: AsyncSession) -> dict:
                 .where(Tutorial.is_published == True)  # noqa: E712
                 .scalar_subquery()
                 .label("total_tutorials"),
-                # ⚠️ 资源 / 扩展也要过滤发布态（第二轮复审 C-03）：
-                # 此前只有教程加了过滤，于是首页「资源 N 个」把草稿也算进去，
-                # 与列表 total 对不上；运营下架内容后数字还不降。
-                select(func.count(Resource.id))
-                .where(Resource.is_published == True)  # noqa: E712
-                .scalar_subquery()
-                .label("total_resources"),
-                select(func.count(Plugin.id))
-                .where(Plugin.is_published == True)  # noqa: E712
-                .scalar_subquery()
-                .label("total_plugins"),
                 # 过滤已注销（软删除）用户：与 get_dashboard_stats 同一口径（P2-34）
                 select(func.count(User.id))
                 .where(User.deleted_at.is_(None))
@@ -298,7 +245,5 @@ async def get_public_stats(db: AsyncSession) -> dict:
 
     return {
         "total_tutorials": row.total_tutorials,
-        "total_resources": row.total_resources,
-        "total_plugins": row.total_plugins,
         "total_users": row.total_users,
     }

@@ -8,7 +8,6 @@ from datetime import datetime, timezone
 from app.database import async_session, engine
 from app.models.user import User
 from app.models.tutorial import Tutorial, TutorialNetdiskLink
-from app.models.resource import Resource, ResourceNetdiskLink
 from app.core.security import hash_password
 
 # 管理员口令：优先从环境变量读取，未设置则生成随机口令
@@ -187,86 +186,6 @@ async def seed():
                         extract_code=link["extract_code"],
                     ))
                 print(f"创建教程: {t_data['title']}")
-
-        # 创建资源
-        resources_data = [
-            {
-                "name": "ComfyUI 整合包 (含常用模型)",
-                "description": "一键安装的 ComfyUI 整合包，包含 SD1.5、SDXL 模型及常用自定义节点。",
-                "resource_type": "tool",
-                "file_size": "12.5 GB",
-                "content_list": ["ComfyUI 主程序", "SD 1.5 模型", "SDXL 模型", "常用自定义节点包", "启动脚本"],
-                "usage_notes": ["解压到任意目录", "运行 start.bat 启动", "浏览器访问 http://127.0.0.1:8188"],
-                "links": [
-                    {"platform": "baidu", "url": "https://pan.baidu.com/s/res1", "extract_code": "comf"},
-                    {"platform": "quark", "url": "https://pan.quark.cn/s/res1", "extract_code": "ui12"},
-                ],
-            },
-            {
-                "name": "Stable Diffusion 模型合集",
-                "description": "精选 20+ 高质量 SD 模型，覆盖二次元、写实、国风等风格。",
-                "resource_type": "model",
-                "file_size": "35.2 GB",
-                "content_list": ["二次元模型 x5", "写实模型 x8", "国风模型 x3", "特殊风格模型 x4"],
-                "usage_notes": ["选择需要的模型下载", "放入 models/checkpoints 目录", "重启 ComfyUI"],
-                "links": [
-                    {"platform": "quark", "url": "https://pan.quark.cn/s/res2", "extract_code": "sdml"},
-                ],
-            },
-            {
-                "name": "ComfyUI 工作流源码合集",
-                "description": "100+ 精选 ComfyUI 工作流 JSON 文件，可直接导入使用。",
-                "resource_type": "source",
-                "file_size": "15.8 MB",
-                "content_list": ["文生图工作流 x30", "图生图工作流 x25", "局部重绘工作流 x20", "视频生成工作流 x15", "后处理工作流 x10"],
-                "usage_notes": ["解压文件", "在 ComfyUI 中选择 Load", "导入对应的 JSON 文件"],
-                "links": [
-                    {"platform": "baidu", "url": "https://pan.baidu.com/s/res3", "extract_code": "flow"},
-                    {"platform": "github", "url": "https://github.com/example/workflows", "extract_code": None},
-                ],
-            },
-            {
-                "name": "AI 绘画 Prompt 速查手册",
-                "description": "系统整理的 AI 绘画提示词参考文档，含中英文对照和效果示例。",
-                "resource_type": "doc",
-                "file_size": "5.6 MB",
-                "content_list": ["提示词分类索引", "风格关键词 500+", "质量提升词 200+", "反向提示词模板"],
-                "usage_notes": ["下载 PDF 文档", "按分类查找关键词", "组合使用效果更佳"],
-                "links": [
-                    {"platform": "aliyun", "url": "https://www.aliyundrive.com/s/res4", "extract_code": None},
-                ],
-            },
-            {
-                "name": "LoRA 模型训练工具包",
-                "description": "完整的 LoRA 训练工具包，含训练脚本、数据集模板和预设参数。",
-                "resource_type": "tool",
-                "file_size": "2.3 GB",
-                "content_list": ["训练脚本", "数据预处理工具", "预设参数配置", "训练教程文档"],
-                "usage_notes": ["安装依赖环境", "准备训练数据集", "修改配置参数", "运行训练脚本"],
-                "links": [
-                    {"platform": "baidu", "url": "https://pan.baidu.com/s/res5", "extract_code": "lora"},
-                    {"platform": "mobile", "url": "https://yun.139.com/s/res5", "extract_code": "tr01"},
-                ],
-            },
-        ]
-
-        for r_data in resources_data:
-            result = await db.execute(select(Resource).where(Resource.name == r_data["name"]))
-            if not result.scalar_one_or_none():
-                links = r_data.pop("links")
-                resource = Resource(**r_data)
-                db.add(resource)
-                await db.flush()
-
-                for idx, link in enumerate(links):
-                    db.add(ResourceNetdiskLink(
-                        resource_id=resource.id,
-                        platform=link["platform"],
-                        url=link["url"],
-                        extract_code=link["extract_code"],
-                        sort_order=idx,
-                    ))
-                print(f"创建资源: {r_data['name']}")
 
         await db.commit()
         print("\n种子数据创建完成!")

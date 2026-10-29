@@ -40,19 +40,6 @@ class FavoriteItem(BaseModel):
     available: Optional[bool] = Field(None, description="目标是否仍可访问；false 时前端标「已下架」")
 
 
-class DownloadHistoryItem(BaseModel):
-    """下载历史条目（`/users/downloads`）。"""
-
-    model_config = _PASSTHROUGH
-
-    id: int
-    resource_id: Optional[int] = None
-    resource_name: str
-    file_size: Optional[str] = None
-    file_type: Optional[str] = Field(None, description="按后缀判定：pdf/archive/exe/other")
-    created_at: Optional[str] = None
-
-
 class LearningRecordItem(BaseModel):
     """学习记录条目（`/users/learning`）。
 

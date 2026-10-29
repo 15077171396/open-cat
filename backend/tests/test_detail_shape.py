@@ -23,12 +23,8 @@ from app.services.detail_shape import COMMON_DETAIL_KEYS, build_detail_base
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SVC = os.path.join(REPO, "app", "services")
 
-# 详情函数 → 所在文件（5 个内容类型 + 教程的 intro/整篇两个入口）
+# 详情函数 → 所在文件（教程的 intro/整篇两个入口；新增内容类型时在这里登记）
 DETAIL_FUNCS = (
-    ("node_service.py", "get_node_detail", "node"),
-    ("plugin_service.py", "get_plugin_detail", "plugin"),
-    ("resource_service.py", "get_resource_detail", "resource"),
-    ("tool_service.py", "get_tool_detail", "tool"),
     ("tutorial_service.py", "get_tutorial_intro", "tutorial"),
     ("tutorial_service.py", "get_tutorial_detail", "tutorial"),
 )
@@ -80,28 +76,31 @@ class CommonKeysTests(unittest.TestCase):
 
     def test_view_count_override_wins(self):
         """浏览量走 Redis 累加时要传「DB 值 + 待落库增量」，不能被模型旧值覆盖。"""
-        spec = CONTENT_TYPES["node"]
-        payload = build_detail_base(spec, _Stub("node"), view_count=99)
+        spec = CONTENT_TYPES["tutorial"]
+        payload = build_detail_base(spec, _Stub("tutorial"), view_count=99)
         self.assertEqual(payload["view_count"], 99)
 
     def test_missing_column_becomes_none_not_missing_key(self):
-        """Tool 没有 view_count / 作者 / SEO 列：键必须存在且为 None。"""
+        """模型缺列（如新增内容类型只有标题与正文）时：键必须存在且为 None。"""
+        import dataclasses
+
         class _Bare:
             id = 1
-            name = "工具"
+            title = "无封面内容"
             description = "d"
-            category = "prompt"
+            category = "default"
             updated_at = None
 
-        payload = build_detail_base(CONTENT_TYPES["tool"], _Bare())
+        bare_spec = dataclasses.replace(CONTENT_TYPES["tutorial"], cover_attr=None)
+        payload = build_detail_base(bare_spec, _Bare())
         self.assertIsNone(payload["view_count"])
         self.assertIsNone(payload["author_name"])
         self.assertIsNone(payload["seo_title"])
         self.assertIsNone(payload["cover_image"])
 
     def test_extra_can_override_common_keys(self):
-        spec = CONTENT_TYPES["node"]
-        payload = build_detail_base(spec, _Stub("node"), extra={"cover_image": "processed.webp"})
+        spec = CONTENT_TYPES["tutorial"]
+        payload = build_detail_base(spec, _Stub("tutorial"), extra={"cover_image": "processed.webp"})
         self.assertEqual(payload["cover_image"], "processed.webp")
 
 

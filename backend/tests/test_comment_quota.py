@@ -19,24 +19,12 @@ from sqlalchemy import update
 
 from app.core.exceptions import AppException
 from app.models.comment import MAX_COMMENTS_PER_USER_PER_DAY, ContentComment
-from app.models.node import Node
 from app.models.tutorial import Tutorial
 from app.models.user import User
 from app.services import comment_service
 from tests.fake_db import MemorySession
 
 USER = User(id=701, account="u701@example.com", password_hash="x", role="user")
-
-
-def _db(with_node: bool = False) -> MemorySession:
-    db = MemorySession()
-    tutorial = Tutorial(id=801, title="教程A", description="d", content="c", category="ai")
-    tutorial.is_published = True
-    db.seed(USER, tutorial)
-    if with_node:
-        db.seed(Node(id=801, name="节点A", category="core", description="d", content="c"))
-    return db
-
 
 def _seed_today(db: MemorySession, count: int, *, target_type: str = "tutorial", when=None) -> None:
     now = when or dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
@@ -53,17 +41,24 @@ def _seed_today(db: MemorySession, count: int, *, target_type: str = "tutorial",
         )
 
 
-class SharedBudgetTests(unittest.IsolatedAsyncioTestCase):
-    async def test_quota_is_per_user_not_per_target_type(self):
-        """刷满教程评论后，换一种内容类型继续发也必须被拒。
+def _db() -> MemorySession:
+    """内存库：放一条已发布教程（评论创建时校验目标存在）。"""
+    db = MemorySession()
+    db.seed(Tutorial(id=801, title="教程", is_published=True))
+    return db
 
-        配额数的是「该用户今日的评论行数」，条件里**没有** target_type ——
-        这条断言的意义是：将来有人「按类型分别限额」时必须显式改这里。
+
+class SharedBudgetTests(unittest.IsolatedAsyncioTestCase):
+    async def test_quota_counts_rows_regardless_of_target(self):
+        """配额数的是「该用户今日的评论行数」，与评论挂在哪个目标上无关。
+
+        这条断言的意义是：将来有人改成「按类型分别限额」时必须显式改这里
+        （否则用户换个页面继续发就能绕过限额）。
         """
-        db = _db(with_node=True)
-        _seed_today(db, MAX_COMMENTS_PER_USER_PER_DAY, target_type="tutorial")
+        db = _db()
+        _seed_today(db, MAX_COMMENTS_PER_USER_PER_DAY)
         with self.assertRaises(AppException) as ctx:
-            await comment_service.create_comment(db, USER, "node", 801, "换一种内容再发")
+            await comment_service.create_comment(db, USER, "tutorial", 801, "换一条再发")
         self.assertEqual(ctx.exception.code, 429)
 
     async def test_one_below_limit_still_passes(self):
@@ -71,7 +66,6 @@ class SharedBudgetTests(unittest.IsolatedAsyncioTestCase):
         _seed_today(db, MAX_COMMENTS_PER_USER_PER_DAY - 1)
         result = await comment_service.create_comment(db, USER, "tutorial", 801, "还能再发一条")
         self.assertEqual(result["content"], "还能再发一条")
-
 
 class DayBoundaryTests(unittest.IsolatedAsyncioTestCase):
     """日界必须是 UTC 零点。用冻结时钟才能确定性地把「本地今天 / UTC 昨天」分叉测出来。"""
@@ -134,7 +128,6 @@ class DayBoundaryTests(unittest.IsolatedAsyncioTestCase):
         result = await comment_service.create_comment(db, USER, "tutorial", 801, "新的一天")
         self.assertEqual(result["content"], "新的一天")
 
-
 class DeletedRowsStillCountTests(unittest.IsolatedAsyncioTestCase):
     async def test_soft_deleted_comments_still_consume_the_quota(self):
         db = _db()
@@ -148,7 +141,6 @@ class DeletedRowsStillCountTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(AppException) as ctx:
             await comment_service.create_comment(db, USER, "tutorial", 801, "删掉重发")
         self.assertEqual(ctx.exception.code, 429, "改了口径却没改这条断言 = 决策没被记录")
-
 
 if __name__ == "__main__":
     unittest.main()

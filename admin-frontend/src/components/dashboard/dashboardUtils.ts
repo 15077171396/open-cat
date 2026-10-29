@@ -11,7 +11,6 @@ import type {
   DashboardContentOverview,
   DashboardData,
   DashboardPending,
-  DashboardTopResource,
   DashboardTrendPoint,
   NormalizedAiUsage,
   NormalizedDashboard,
@@ -244,21 +243,6 @@ function toTrend(value: unknown): DashboardTrendPoint[] {
   }))
 }
 
-function toTopResources(value: unknown): DashboardTopResource[] {
-  if (!Array.isArray(value)) return []
-  return value.filter(isRecord).map((r) => {
-    const name = String(r.name ?? '').trim()
-    return {
-      id: toCount(r.id),
-      // 名称可能为空串（历史脏数据），给个占位避免列表出现空白行
-      name: name || '未命名资源',
-      download_count: toCount(r.download_count),
-      view_count: toCount(r.view_count),
-      resource_type: String(r.resource_type ?? ''),
-    }
-  })
-}
-
 /**
  * 把接口返回归一化成组件可直接消费的完整结构。
  * 增强字段可能因 Redis 旧缓存或后端回滚而缺失，缺字段会让整页白屏；
@@ -288,16 +272,11 @@ export function normalizeDashboard(
     today_tool_usage: toCount(src.today_tool_usage),
     content_overview: {
       tutorials: toCount(overview.tutorials),
-      resources: toCount(overview.resources),
-      plugins: toCount(overview.plugins),
-      nodes: toCount(overview.nodes),
-      tools: toCount(overview.tools),
     },
     pending: {
       auth_requests: toCount(pending.auth_requests),
       feedbacks: toCount(pending.feedbacks),
     },
-    top_resources: toTopResources(src.top_resources),
   }
 }
 

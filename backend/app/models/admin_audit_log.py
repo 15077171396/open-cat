@@ -113,13 +113,10 @@ AUDIT_ACTIONS: dict[str, str] = {
 # ⚠️ 这份清单同时是后台「按目标类型筛选」的下拉来源，写入口用了没登记的值 → 那条记录筛不出来。
 # 第五轮审查 R5-03 补上此前已在使用却漏登记的 `setting`，以及评论/举报/留痕/部门四类。
 AUDIT_TARGET_TYPES = (
-    "user", "auth_request", "redeem_code", "role", "department", "tutorial", "resource", "plugin", "node",
+    "user", "auth_request", "redeem_code", "role", "department", "tutorial",
     "announcement", "feedback", "setting", "comment", "report", "moderation_log", "ai_model",
     "ai_writing_prompt",
     "payment_product",
-    # 第五轮审查 EXT-08：admin_tool_service 早就在写 target_type="tool"，但这里没登记，
-    # 导致审计页目标列显示裸代码 `tool`（而 test_audit_taxonomy 因两张表同源派生而恒绿）
-    "tool",
     # 定时任务：target_id 为空（job_id 是字符串，不是整型主键），任务名写在 summary 里
     "scheduled_job",
     # 法律文档：一次可能改多份，target_id 留空，键名在 detail 里
@@ -140,9 +137,6 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "role": "角色",
     "department": "部门",
     "tutorial": "教程",
-    "resource": "资源",
-    "plugin": "扩展",
-    "node": "节点",
     "announcement": "公告",
     "payment_product": "充值套餐",
     "feedback": "问题反馈",
@@ -152,7 +146,6 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "comment": "评论",
     "report": "举报",
     "moderation_log": "机审留痕",
-    "tool": "工具",
     "scheduled_job": "定时任务",
     # 积分流水：导出流水时作为 target_type（按类型整体审计，无单条主键）
     "point_transaction": "积分流水",

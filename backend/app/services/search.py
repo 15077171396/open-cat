@@ -19,9 +19,6 @@ from sqlalchemy.exc import DBAPIError
 from app.config import settings
 from app.core.content_types import CONTENT_TYPES
 from app.core.exceptions import AppException
-from app.models.node import Node, Plugin
-from app.models.resource import Resource
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial
 from app.utils.sanitize import escape_like
 
@@ -39,18 +36,6 @@ def module_for_model(model) -> str:
 # 全文检索覆盖的列，**顺序必须与迁移中的 FULLTEXT 索引一致**：
 # MySQL 要求 MATCH() 列列表与某个 FULLTEXT 索引完全一致，否则报 errno 1191。
 TUTORIAL_SEARCH_COLS = (Tutorial.title, Tutorial.description, Tutorial.content)
-RESOURCE_SEARCH_COLS = (Resource.name, Resource.description, Resource.content)
-# 知识百科 / 扩展（台账 P1-17）：这两个模块此前**完全没进站内搜索**，
-# 而它们是 SEO 方案指定的栏目词承载页（「ComfyUI 节点」「ComfyUI 插件下载」）。
-# 注意：站内栏目名已统一为「扩展」，但 **SEO 关键词仍是「插件」**——
-# 那是用户真实搜索词（《SEO 与 GEO 方案》10.5 的关键词矩阵），不是栏目名，不要跟着改。
-NODE_SEARCH_COLS = (Node.name, Node.description, Node.content)
-PLUGIN_SEARCH_COLS = (Plugin.name, Plugin.description, Plugin.content)
-# 工具（第四轮审查 P2-30）：`tools` 表没有正文列，也没有 FULLTEXT 索引
-# （迁移 0028 只给 tutorials / resources 建），所以这里两列 —— 走 `apply_keyword_filter`
-# 时全文候选会命中 errno 1191 并自动降级 LIKE，行为与两侧原先手写的 LIKE 完全一致，
-# 差别只是「加一列检索目标」从此只改一处。
-TOOL_SEARCH_COLS = (Tool.name, Tool.description)
 
 # 允许进入全文查询的字符集：中英日韩数字，其余（含布尔算子 +-<>()"~* 与标点）一律作分隔符。
 # 用白名单而不是黑名单：只要漏掉一个算子字符，用户搜「C++」就可能被 MySQL 语法拒绝。

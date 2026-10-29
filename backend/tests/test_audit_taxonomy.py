@@ -87,7 +87,7 @@ def _seed() -> MemorySession:
     db = MemorySession()
     db.seed(
         AdminAuditLog(id=1, admin_id=4, admin_account="admin@aicat.com",
-                      action="content_delete", target_type="resource", target_id=11,
+                      action="content_delete", target_type="tutorial", target_id=11,
                       summary="删除内容 A", created_at=datetime(2026, 10, 13, 6, 0, 0)),
         AdminAuditLog(id=2, admin_id=4, admin_account="admin@aicat.com",
                       action="content_update", target_type="node", target_id=12,
@@ -144,7 +144,7 @@ class ListAuditLogsFilterTests(unittest.IsolatedAsyncioTestCase):
         items = (await list_audit_logs(_seed()))["items"]
         # 列表按时间倒序，别假定 items[0] 是哪一条 —— 按动作码定位
         item = next(i for i in items if i["action"] == "content_delete")
-        self.assertEqual(item["target_type_label"], "资源")
+        self.assertEqual(item["target_type_label"], "教程")
         self.assertEqual(item["risk_level"], AUDIT_RISK_DANGER)
         self.assertEqual(item["action_label"], "删除内容")
 

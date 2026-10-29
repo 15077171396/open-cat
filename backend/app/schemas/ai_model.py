@@ -43,7 +43,6 @@ class AiModelItem(BaseModel):
     is_default: Optional[bool] = None
     sort_order: Optional[int] = None
     remark: Optional[str] = None
-    tool_refs: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
 

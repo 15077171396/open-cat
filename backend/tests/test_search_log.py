@@ -162,8 +162,7 @@ class PrivacyAndScopeTests(unittest.TestCase):
 
     def test_public_call_sites_keep_logging(self):
         """公开端不能误加 log_search=False —— 那样报表永远是空的"""
-        for name in ("tutorial_service.py", "resource_service.py", "node_service.py",
-                     "plugin_service.py", "tool_service.py"):
+        for name in ("tutorial_service.py",):
             source = (APP / "services" / name).read_text(encoding="utf-8")
             self.assertNotIn("log_search=False", source, f"{name} 关掉了公开端搜索日志")
 

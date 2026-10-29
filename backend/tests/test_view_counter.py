@@ -106,11 +106,11 @@ class ViewCounterTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_register_view_uses_redis_only(self):
         """Redis 正常时：一次 HINCRBY，不写库，返回值含本次浏览"""
-        stub = _StubRedis(hashes={"view_pending:node": {"7": "2"}})
+        stub = _StubRedis(hashes={"view_pending:tutorial": {"7": "2"}})
         self.vc.redis_client = stub
         db = _RecDB()
 
-        shown = await self.vc.register_view(db, "node", 7, current=100)
+        shown = await self.vc.register_view(db, "tutorial", 7, current=100)
 
         # 已有 2 次待落库 + 本次 1 次 → 展示值 103
         self.assertEqual(shown, 103)
@@ -122,14 +122,14 @@ class ViewCounterTests(unittest.IsolatedAsyncioTestCase):
         self.vc.redis_client = _StubRedis(fail={"hincrby"})
         db = _RecDB()
 
-        shown = await self.vc.register_view(db, "node", 7, current=None)
+        shown = await self.vc.register_view(db, "tutorial", 7, current=None)
 
         self.assertEqual(shown, 1)
         self.assertEqual(len(db.statements), 1, "降级路径必须写一次库，否则计数丢失")
 
     async def test_flush_claims_then_updates(self):
         """落库：先 HDEL 认领，再逐条 UPDATE，最后提交"""
-        stub = _StubRedis(hashes={"view_pending:node": {"1": "2", "2": "1"}})
+        stub = _StubRedis(hashes={"view_pending:tutorial": {"1": "2", "2": "1"}})
         self.vc.redis_client = stub
         db = _RecDB()
 
@@ -138,19 +138,19 @@ class ViewCounterTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(flushed, 2)
         self.assertEqual(len(db.statements), 2)
         self.assertEqual(db.commits, 1)
-        self.assertEqual(stub.hashes["view_pending:node"], {}, "落库后必须清空已认领的增量")
+        self.assertEqual(stub.hashes["view_pending:tutorial"], {}, "落库后必须清空已认领的增量")
         self.assertIn("hdel", [c[0] for c in stub.calls])
 
     async def test_flush_restores_on_commit_failure(self):
         """提交失败：回滚并把增量回填，避免这批浏览凭空消失"""
-        stub = _StubRedis(hashes={"view_pending:node": {"9": "5"}})
+        stub = _StubRedis(hashes={"view_pending:tutorial": {"9": "5"}})
         self.vc.redis_client = stub
         db = _RecDB(fail_commit=True)
 
         await self.vc.flush_pending_views(db)
 
         self.assertEqual(db.rollbacks, 1)
-        self.assertEqual(stub.hashes["view_pending:node"]["9"], "5", "增量必须回填 Redis")
+        self.assertEqual(stub.hashes["view_pending:tutorial"]["9"], "5", "增量必须回填 Redis")
 
     async def test_flush_skips_when_redis_unavailable(self):
         """Redis 读不到：本轮跳过，不抛异常、不写库"""
@@ -185,7 +185,7 @@ class FlushClaimRaceTests(unittest.IsolatedAsyncioTestCase):
         self.vc.redis_client = self._orig
 
     async def test_uses_atomic_eval_when_available(self):
-        stub = _EvalStubRedis(hashes={"view_pending:node": {"1": "2", "2": "1"}})
+        stub = _EvalStubRedis(hashes={"view_pending:tutorial": {"1": "2", "2": "1"}})
         self.vc.redis_client = stub
         db = _RecDB()
 
@@ -194,7 +194,7 @@ class FlushClaimRaceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(flushed, 2)
         # 四个模型键各认领一次（空 hash 也走一次 EVAL，成本可忽略）
         self.assertEqual(stub.eval_calls, len(self.vc._VIEW_TABLES), "认领必须走 EVAL 而不是两步走")
-        self.assertEqual(stub.hashes["view_pending:node"], {})
+        self.assertEqual(stub.hashes["view_pending:tutorial"], {})
         self.assertEqual(db.commits, 1)
 
     async def test_claim_conflict_writes_nothing(self):
@@ -205,7 +205,7 @@ class FlushClaimRaceTests(unittest.IsolatedAsyncioTestCase):
                 self.calls.append(("hdel", key, *fields))
                 return 0  # 全被别的进程删掉了
 
-        self.vc.redis_client = _LostRaceStub(hashes={"view_pending:node": {"1": "2"}})
+        self.vc.redis_client = _LostRaceStub(hashes={"view_pending:tutorial": {"1": "2"}})
         db = _RecDB()
 
         flushed = await self.vc.flush_pending_views(db)
@@ -216,7 +216,7 @@ class FlushClaimRaceTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_eval_failure_falls_back_without_double_count(self):
         """EVAL 不可用时退回两步走，但必须校验 HDEL 删除数"""
-        stub = _EvalStubRedis(hashes={"view_pending:node": {"5": "3"}}, fail={"eval"})
+        stub = _EvalStubRedis(hashes={"view_pending:tutorial": {"5": "3"}}, fail={"eval"})
         self.vc.redis_client = stub
         db = _RecDB()
 
@@ -228,7 +228,7 @@ class FlushClaimRaceTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_large_backlog_is_committed_in_batches(self):
         """积压上千条时分段提交，避免一个秒级长事务"""
-        hashes = {"view_pending:node": {str(i): "1" for i in range(1, 1201)}}
+        hashes = {"view_pending:tutorial": {str(i): "1" for i in range(1, 1201)}}
         stub = _EvalStubRedis(hashes=hashes)
         self.vc.redis_client = stub
         db = _RecDB()
@@ -249,14 +249,14 @@ class FlushClaimRaceTests(unittest.IsolatedAsyncioTestCase):
                 if self.commits >= 2:
                     raise RuntimeError("second batch failed")
 
-        hashes = {"view_pending:node": {str(i): "1" for i in range(1, 1201)}}
+        hashes = {"view_pending:tutorial": {str(i): "1" for i in range(1, 1201)}}
         stub = _EvalStubRedis(hashes=hashes)
         self.vc.redis_client = stub
         db = _FailSecondCommitDB()
 
         await self.vc.flush_pending_views(db)
 
-        restored = sum(int(v) for v in stub.hashes["view_pending:node"].values())
+        restored = sum(int(v) for v in stub.hashes["view_pending:tutorial"].values())
         self.assertEqual(restored, 1200 - self.vc._FLUSH_BATCH_SIZE)
         self.assertEqual(db.rollbacks, 1)
 

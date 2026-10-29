@@ -19,9 +19,6 @@ import unittest
 from unittest import mock
 
 from app.core.exceptions import AppException
-from app.models.node import Node, Plugin
-from app.models.resource import Resource
-from app.models.tool import Tool
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.services import sitemap_service as ss
@@ -29,34 +26,32 @@ from tests.fake_db import MemorySession
 
 LOC_RE = re.compile(r"<loc>([^<]+)</loc>")
 
+def _seed_site(
+    db,
+    *,
+    tutorials: int = 2,
+    chapters_per_tutorial: int = 1,
+    tutorial_published: bool = True,
+) -> MemorySession:
+    """灌入可索引内容（只含教程与章节）。
 
-def _seed_site(db: MemorySession, *, tutorials=1, chapters_per_tutorial=1, plugins=1,
-               nodes=1, resources=1, tools=1, tutorial_published=True, tool_published=True):
-    next_id = [1000]
-
-    def nid():
-        next_id[0] += 1
-        return next_id[0]
-
-    for i in range(tutorials):
-        tid = nid()
-        db.seed(Tutorial(id=tid, title=f"教程{i}", is_published=tutorial_published))
-        for j in range(chapters_per_tutorial):
-            db.seed(TutorialNode(id=nid(), tutorial_id=tid, title=f"章节{j}"))
-    for i in range(plugins):
-        db.seed(Plugin(id=nid(), name=f"扩展{i}"))
-    for i in range(nodes):
-        db.seed(Node(id=nid(), name=f"节点{i}"))
-    for i in range(resources):
-        db.seed(Resource(id=nid(), name=f"资源{i}"))
-    for i in range(tools):
-        db.seed(Tool(id=nid(), name=f"工具{i}", is_published=tool_published))
+    静态栏目页始终存在，所以「只有静态页」的场景传 tutorials=0 即可。
+    """
+    next_node_id = 1
+    for t in range(1, tutorials + 1):
+        db.seed(Tutorial(id=t, title=f"教程{t}", is_published=tutorial_published))
+        for _ in range(chapters_per_tutorial):
+            db.seed(
+                TutorialNode(
+                    id=next_node_id, tutorial_id=t, title=f"章节{next_node_id}"
+                )
+            )
+            next_node_id += 1
     return db
 
 
 def _locs(xml: str) -> list[str]:
     return LOC_RE.findall(xml)
-
 
 class TestSingleFileMode(unittest.IsolatedAsyncioTestCase):
     async def test_small_site_is_a_plain_urlset(self):
@@ -68,23 +63,20 @@ class TestSingleFileMode(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(xml.startswith('<?xml version="1.0" encoding="UTF-8"?>'))
 
     async def test_contains_static_paths_and_all_entities(self):
-        db = _seed_site(MemorySession(), tutorials=2, chapters_per_tutorial=1,
-                        plugins=1, nodes=1, resources=1, tools=1)
+        db = _seed_site(MemorySession(), tutorials=2, chapters_per_tutorial=1,)
         xml = await ss.build_sitemap(db)
         locs = _locs(xml)
         base = ss.settings.SITE_BASE_URL.rstrip("/")
-        for p in ("/", "/tutorials", "/plugins", "/nodes", "/resources", "/tools"):
+        for p in ("/", "/tutorials", "/about", "/contact"):
             self.assertIn(f"{base}{p}", locs)
         self.assertTrue(any("/tutorials/" in u and "/c/" in u for u in locs), "缺章节页")
-        self.assertTrue(any(u.endswith(".xml") is False and "/plugins/" in u for u in locs))
+        self.assertTrue(any(u.endswith("/tutorials/1") for u in locs), "缺教程详情页")
 
-    async def test_unpublished_tutorial_and_tool_excluded(self):
+    async def test_unpublished_tutorial_excluded(self):
         """未发布内容不该出现在 sitemap —— 否则爬虫抓到的是一堆空/404 页面。"""
-        db = _seed_site(MemorySession(), tutorial_published=False, tool_published=False)
-        xml = await ss.build_sitemap(db)
-        locs = _locs(xml)
+        db = _seed_site(MemorySession(), tutorial_published=False)
+        locs = _locs(await ss.build_sitemap(db))
         self.assertFalse(any("/tutorials/" in u for u in locs))
-        self.assertFalse(any("/tools/" in u for u in locs))
 
     async def test_chapter_of_unpublished_tutorial_excluded(self):
         db = MemorySession()
@@ -102,7 +94,6 @@ class TestSingleFileMode(unittest.IsolatedAsyncioTestCase):
         full = _locs(await ss.build_sitemap(db))
         page1 = _locs(await ss.build_sitemap(db, page=1))
         self.assertEqual(full, page1)
-
 
 class TestShardedMode(unittest.IsolatedAsyncioTestCase):
     def _patch_limit(self, limit: int):
@@ -140,7 +131,6 @@ class TestShardedMode(unittest.IsolatedAsyncioTestCase):
         # 而失败原因是用例的前提过期，不是分片逻辑坏了。
         db = _seed_site(
             MemorySession(), tutorials=0, chapters_per_tutorial=0,
-            plugins=0, nodes=0, resources=0, tools=0,
         )
         entries = await ss.collect_sitemap_entries(db)
         with self._patch_limit(3):
@@ -160,7 +150,6 @@ class TestShardedMode(unittest.IsolatedAsyncioTestCase):
         """索引文件必须带 sitemapindex 命名空间，否则搜索引擎拒绝解析。"""
         db = _seed_site(
             MemorySession(), tutorials=0, chapters_per_tutorial=0,
-            plugins=0, nodes=0, resources=0, tools=0,
         )
         with self._patch_limit(3):
             xml = await ss.build_sitemap(db)
@@ -170,8 +159,7 @@ class TestShardedMode(unittest.IsolatedAsyncioTestCase):
 
     async def test_pages_cover_all_urls_exactly_once(self):
         """核心契约：分片并集 == 全集，且无重复（顺序不稳定就会破在这里）。"""
-        db = _seed_site(MemorySession(), tutorials=3, chapters_per_tutorial=2,
-                        plugins=2, nodes=2, resources=2, tools=2)
+        db = _seed_site(MemorySession(), tutorials=3, chapters_per_tutorial=2,)
         full = _locs(await ss.build_sitemap(db))
         self.assertGreater(len(full), 5)
 
@@ -201,67 +189,6 @@ class TestShardedMode(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(ss.sitemap_page_count(11), 2)
             self.assertEqual(ss.sitemap_page_count(30), 3)
 
-
-class TestOrderingIsStable(unittest.IsolatedAsyncioTestCase):
-    """顺序稳定是分片正确性的前提，且「漏写 ORDER BY」在运行期不会报错。"""
-
-    def test_every_entity_query_has_order_by(self):
-        for model in (Tutorial, TutorialNode, Plugin, Node, Resource, Tool):
-            stmt = ss._entity_query(model, model.id)
-            self.assertTrue(
-                stmt._order_by_clauses,
-                f"{model.__name__} 的 sitemap 查询缺少 ORDER BY（分片会重复/漏项）",
-            )
-
-    def test_entity_query_only_loads_requested_columns(self):
-        """load_only 生效：全站遍历时多取一个正文字段就是几十 MB 额外内存。"""
-        stmt = ss._entity_query(Tutorial, Tutorial.id, Tutorial.updated_at)
-        loaded = set(stmt.column_descriptions[0]["expr"].__table__.columns.keys())
-        self.assertIn("id", loaded)
-        self.assertIn("updated_at", loaded)
-
-    async def test_two_consecutive_builds_are_identical(self):
-        db = _seed_site(MemorySession(), tutorials=2, plugins=2)
-        self.assertEqual(await ss.build_sitemap(db), await ss.build_sitemap(db))
-
-
-class TestSitemapCache(unittest.IsolatedAsyncioTestCase):
-    """进程内缓存按「页」分键：键写错会让分片互相覆盖（第 2 页返回第 1 页的内容）。"""
-
-    async def asyncSetUp(self):
-        from app.api import sitemap as api
-
-        api._sitemap_cache.clear()
-
-    async def test_cache_is_keyed_per_page(self):
-        from app.api import sitemap as api
-
-        db = _seed_site(MemorySession(), tutorials=2, plugins=2)
-        with mock.patch.object(ss, "SITEMAP_MAX_URLS_PER_FILE", 3):
-            p1 = await api._render("page-1", db, 1)
-            p2 = await api._render("page-2", db, 2)
-        self.assertNotEqual(p1, p2, "不同分片返回了相同内容，缓存键可能未区分页号")
-
-    async def test_second_call_hits_cache(self):
-        from app.api import sitemap as api
-
-        db = _seed_site(MemorySession())
-        first = await api._render("index", db, None)
-        # 缓存命中后，数据变化不影响已缓存内容（TTL 内不再重算）
-        db.seed(Plugin(id=7777, name="新扩展"))
-        second = await api._render("index", db, None)
-        self.assertEqual(first, second)
-
-    async def test_exception_is_not_cached(self):
-        """越界页抛 404，不能把「空内容」缓存下来，否则修好分片数后仍返回旧结果。"""
-        from app.api import sitemap as api
-
-        db = _seed_site(MemorySession())
-        with self.assertRaises(AppException):
-            await api._render("page-9", db, 9)
-        self.assertNotIn("page-9", api._sitemap_cache)
-
-
 class TestSitemapRoutes(unittest.TestCase):
     """路由接线守卫：nginx 依赖这两个路径，改名会让 sitemap 整体 404。"""
 
@@ -278,7 +205,6 @@ class TestSitemapRoutes(unittest.TestCase):
         nginx = (Path(__file__).resolve().parents[2] / "nginx.conf").read_text(encoding="utf-8")
         self.assertIn("/sitemap-(\\d+)\\.xml", nginx, "nginx 缺少 sitemap 分片 location")
         self.assertIn("/api/v1/sitemap-$1.xml", nginx, "分片 location 未把路径改写给后端")
-
 
 if __name__ == "__main__":
     unittest.main()

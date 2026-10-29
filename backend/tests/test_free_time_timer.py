@@ -223,7 +223,7 @@ class SeedFreeStartedAtTests(unittest.TestCase):
 
     def test_seed_scripts_set_free_started_at(self):
         root = Path(__file__).resolve().parents[2] / "backend"
-        for name in ("seed_data.py", "seed_more.py"):
+        for name in ("seed_data.py", "seed_demo.py"):
             path = root / name
             self.assertTrue(path.exists(), f"缺少种子脚本 {name}")
             text = path.read_text(encoding="utf-8")

@@ -17,43 +17,46 @@
 import unittest
 from datetime import datetime
 
-from app.models.comment import COMMENT_TARGET_NODE, COMMENT_TARGET_TUTORIAL, ContentComment
-from app.models.node import Node
+from app.models.comment import COMMENT_TARGET_TUTORIAL, ContentComment
 from app.models.tutorial import Tutorial
 from app.models.user import User
 from app.services import comment_service
 from tests.fake_db import MemorySession
 
-
-def _seed() -> tuple[MemorySession, User]:
-    """三条评论跨三天，另有一条已删除的、一条纯图片的"""
-    db = MemorySession()
-    user = User(id=1, account="u1@example.com", password_hash="x", role="user")
-    tutorial = Tutorial(id=100, title="测试教程", description="简介", content="正文", category="ai")
-    tutorial.is_published = True
-    node = Node(id=200, name="测试节点", category="core", description="简介", content="正文")
-    db.seed(user, tutorial, node)
-    db.seed(
-        ContentComment(id=1, target_type=COMMENT_TARGET_TUTORIAL, target_id=100, user_id=1,
-                       content="10-10 的评论", created_at=datetime(2026, 10, 10, 8, 0, 0)),
-        ContentComment(id=2, target_type=COMMENT_TARGET_TUTORIAL, target_id=100, user_id=1,
-                       content="10-12 的评论", created_at=datetime(2026, 10, 12, 8, 0, 0)),
-        ContentComment(id=3, target_type=COMMENT_TARGET_NODE, target_id=200, user_id=1,
-                       content="10-14 的评论", created_at=datetime(2026, 10, 14, 8, 0, 0)),
-        # 已删除：默认不得出现在列表里
-        ContentComment(id=4, target_type=COMMENT_TARGET_TUTORIAL, target_id=100, user_id=1,
-                       content="已删除的评论", created_at=datetime(2026, 10, 12, 9, 0, 0),
-                       deleted_at=datetime(2026, 10, 12, 10, 0, 0)),
-        # 纯图片评论：正文为空，配图靠 images 字段
-        ContentComment(id=5, target_type=COMMENT_TARGET_TUTORIAL, target_id=100, user_id=1,
-                       content="", images=["https://cdn.example.com/a.png"],
-                       created_at=datetime(2026, 10, 12, 11, 0, 0)),
-    )
-    return db, user
-
-
 def _ids(data: dict) -> list[int]:
     return [i["id"] for i in data["items"]]
+
+
+def _seed():
+    """5 条评论（全部挂在同一篇教程上，含 1 条已删除、1 条纯图片）。
+
+    时间刻意跨三天：区间筛选、包含已删、关键字 AND 三组断言都靠这些时间点分叉。
+    """
+    db = MemorySession()
+    db.seed(Tutorial(id=100, title="测试教程", is_published=True))
+    # 评论作者必须存在：列表要回填 author_account，缺行时只会退化成「匿名用户」
+    db.seed(User(id=1, account="reader@example.com", password_hash="x", role="user"))
+    rows = [
+        (1, "10-10 的评论", datetime(2026, 10, 10, 10, 0, 0), None),
+        (2, "10-12 08:00 的评论", datetime(2026, 10, 12, 8, 0, 0), None),
+        (3, "10-14 的评论", datetime(2026, 10, 14, 10, 0, 0), None),
+        (4, "已删除的评论", datetime(2026, 10, 12, 9, 0, 0), datetime(2026, 10, 12, 12, 0, 0)),
+        (5, "", datetime(2026, 10, 12, 11, 0, 0), None),
+    ]
+    for cid, content, created_at, deleted_at in rows:
+        db.seed(
+            ContentComment(
+                id=cid,
+                target_type=COMMENT_TARGET_TUTORIAL,
+                target_id=100,
+                user_id=1,
+                content=content,
+                images=["https://cdn.example.com/a.png"] if cid == 5 else None,
+                created_at=created_at,
+                deleted_at=deleted_at,
+            )
+        )
+    return db, rows
 
 
 class AdminListFilterTests(unittest.IsolatedAsyncioTestCase):
@@ -106,7 +109,7 @@ class AdminListFilterTests(unittest.IsolatedAsyncioTestCase):
             db, target_type=COMMENT_TARGET_TUTORIAL,
             start_at=datetime(2026, 10, 12, 0, 0, 0), end_at=datetime(2026, 10, 12, 23, 59, 59),
         )
-        self.assertEqual(_ids(data), [5, 2], "节点那条（10-14）不该出现在本区间内")
+        self.assertEqual(_ids(data), [5, 2], "10-14 那条不该出现在本区间内")
 
     async def test_range_and_keyword_are_anded(self):
         db, _ = _seed()
@@ -118,7 +121,6 @@ class AdminListFilterTests(unittest.IsolatedAsyncioTestCase):
     async def test_no_filters_returns_all_visible(self):
         db, _ = _seed()
         self.assertEqual((await comment_service.admin_list_comments(db))["total"], 4)
-
 
 class AdminListShapeTests(unittest.IsolatedAsyncioTestCase):
     async def test_image_only_comment_is_listed_and_carries_images(self):
@@ -133,14 +135,13 @@ class AdminListShapeTests(unittest.IsolatedAsyncioTestCase):
         db, _ = _seed()
         items = {i["id"]: i for i in (await comment_service.admin_list_comments(db))["items"]}
         self.assertEqual(items[1]["target_title"], "测试教程")
-        self.assertEqual(items[3]["target_title"], "测试节点")
+        self.assertEqual(items[3]["target_title"], "测试教程")
 
     async def test_manage_only_fields_are_present(self):
         db, _ = _seed()
         item = (await comment_service.admin_list_comments(db))["items"][0]
         for key in ("is_deleted", "deleted_at", "updated_at", "author_account", "parent_id"):
             self.assertIn(key, item, f"后台列表缺 {key} —— 前端按缺失渲染会静默空列")
-
 
 if __name__ == "__main__":
     unittest.main()

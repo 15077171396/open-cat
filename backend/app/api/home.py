@@ -1,4 +1,4 @@
-"""首页聚合路由 (首屏一次请求聚合全部数据，7 个请求 → 1 个)"""
+"""首页聚合路由（首屏一次请求聚合教程/分类/公告/统计，4 个请求 → 1 个）"""
 
 import asyncio
 import contextlib
@@ -16,10 +16,6 @@ from app.redis import log_redis_degraded, redis_client
 from app.schemas.common import ApiResponse
 from app.services.stats_service import get_public_stats
 from app.services.tutorial_service import get_tutorials
-from app.services.node_service import list_nodes
-from app.services.tool_service import get_tools
-from app.services.resource_service import get_resources
-from app.services.plugin_service import list_plugins
 from app.services.category_service import list_categories_with_tutorial_count
 from app.services.announcement_service import list_latest_announcements
 from app.services.content_cache import home_aggregate_key
@@ -32,7 +28,7 @@ router = APIRouter()
 CACHE_TTL = 60  # 首屏数据允许短暂陈旧，缓存 60 秒显著降低 DB 压力
 
 _EMPTY_PAGE = {"items": [], "total": 0}
-_EMPTY_STATS = {"total_tutorials": 0, "total_resources": 0, "total_plugins": 0, "total_users": 0}
+_EMPTY_STATS = {"total_tutorials": 0, "total_users": 0}
 
 # 进程内 single-flight 锁：TTL 到期瞬间避免 N 个并发请求各自重复执行
 # 8 个子查询（放大 8N 倍 DB 压力），拿到锁后二次检查缓存
@@ -144,13 +140,9 @@ async def home_aggregate():
                 return success_response(stale)
 
         # AsyncSession 不支持并发复用，每个子查询独立开 Session 后并发执行
-        stats, tutorials, nodes, tools, resources, plugins, categories, announcements = await asyncio.gather(
+        stats, tutorials, categories, announcements = await asyncio.gather(
             _run_with_session(get_public_stats),
             _run_with_session(lambda db: get_tutorials(db, 1, 8, sort="hottest")),
-            _run_with_session(lambda db: list_nodes(db, 1, 5)),
-            _run_with_session(lambda db: get_tools(db, 1, 5)),
-            _run_with_session(lambda db: get_resources(db, 1, 9, sort_by="download_count")),
-            _run_with_session(lambda db: list_plugins(db, 1, 5)),
             _run_with_session(lambda db: list_categories_with_tutorial_count(db)),
             _run_with_session(lambda db: list_latest_announcements(db, 5)),
         )
@@ -158,10 +150,6 @@ async def home_aggregate():
         data = {
             "stats": stats or _EMPTY_STATS,
             "tutorials": tutorials or _EMPTY_PAGE,
-            "nodes": nodes or _EMPTY_PAGE,
-            "tools": tools or _EMPTY_PAGE,
-            "resources": resources or _EMPTY_PAGE,
-            "plugins": plugins or _EMPTY_PAGE,
             "categories": categories or [],
             "announcements": announcements or [],
         }
