@@ -45,6 +45,7 @@ const AuditLogsList = lazy(() => import('./pages/AuditLogs/List'))
 const SearchKeywordsPage = lazy(() => import('./pages/SearchKeywords'))
 const MaterialsPage = lazy(() => import('./pages/Materials'))
 const ScheduledJobsPage = lazy(() => import('./pages/ScheduledJobs'))
+const ReadinessPage = lazy(() => import('./pages/Readiness'))
 const ProfilePage = lazy(() => import('./pages/Profile'))
 
 const pageLoaderStyle: React.CSSProperties = {
@@ -151,8 +152,16 @@ export default function App() {
                 <Route path="/ai-models" element={perm('ai_model:view', <AiModelsPage />)} />
                 {/* AI 写作：提示词是 AI 行为配置，与模型管理共用 ai_model:view */}
                 <Route path="/ai-writing" element={perm('ai_model:view', <AiWritingPage />)} />
+                {/* 部署体检：只读运维页，与「系统状态」卡同层级，复用 dashboard:view */}
+                <Route
+                  path="/readiness"
+                  element={perm('dashboard:view', <ReadinessPage />)}
+                />
                 {/* 定时任务：只读运维页，复用看板的 dashboard:view（与「系统状态」卡同层级数据） */}
-                <Route path="/scheduled-jobs" element={perm('dashboard:view', <ScheduledJobsPage />)} />
+                <Route
+                  path="/scheduled-jobs"
+                  element={perm('dashboard:view', <ScheduledJobsPage />)}
+                />
                 <Route path="/roles" element={perm('role:view', <RolesList />)} />
                 <Route path="/departments" element={perm('department:view', <DepartmentsList />)} />
                 <Route path="/audit-logs" element={perm('audit:view', <AuditLogsList />)} />

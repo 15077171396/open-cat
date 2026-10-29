@@ -25,6 +25,7 @@ from app.services.audit_service import (
 from app.services.stats_service import get_dashboard_stats
 from app.services.ai_usage_service import get_usage_summary as get_ai_usage_summary
 from app.services.system_status_service import get_system_status
+from app.services import readiness_service
 from app.services import scheduled_job_admin_service as job_admin
 from app.services.funnel_service import get_funnel_overview
 from app.services.search_log_service import get_keyword_report
@@ -113,6 +114,23 @@ async def system_status(
     缓存 30 秒即可；且它不依赖任何业务表，数据库故障时依然能回答「哪里坏了」。
     """
     return success_response(await get_system_status())
+
+
+@router.get("/readiness", response_model=ApiResponse[StatsResult])
+async def deployment_readiness(
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """部署体检：存储 / 站点地址 / 邮件 / 短信 / AI / 支付六项是否真的可用。
+
+    与 `/system-status` 的分工：那边回答「依赖是否活着」（MySQL/Redis/备份/心跳），
+    这边回答「能力是否可用」。共同点是都只读，且复用 `dashboard:view` ——
+    新建权限码必须配「补种给已有角色」的迁移，而这里的信息层级与系统状态卡相同。
+
+    判定口径复用既有实现（邮件走 `mail_settings_service.channel_status`，
+    AI/短信/支付走 integration 配置），避免「体检说好、实际报错」的分裂。
+    """
+    return success_response(await readiness_service.collect(db))
 
 
 @router.get("/scheduled-jobs", response_model=ApiResponse[StatsResult])

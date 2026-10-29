@@ -8,6 +8,7 @@ import {
   BookOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
+  MedicineBoxOutlined,
   CommentOutlined,
   ControlOutlined,
   CreditCardOutlined,
@@ -81,6 +82,7 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
   'credit-card': <CreditCardOutlined />,
   mail: <MailOutlined />,
   clock: <ClockCircleOutlined />,
+  readiness: <MedicineBoxOutlined />,
   user: <UserOutlined />,
 }
 

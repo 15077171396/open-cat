@@ -33,6 +33,8 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("GET", "/api/v1/admin/ai-usage", ["dashboard:view"]),
     # 系统状态（依赖探活/库版本/备份年龄/任务心跳）同样只读，复用 dashboard:view
     ("GET", "/api/v1/admin/system-status", ["dashboard:view"]),
+    # 部署体检（存储/站点地址/邮件/短信/AI/支付是否真的可用）：运维只读，同上
+    ("GET", "/api/v1/admin/readiness", ["dashboard:view"]),
     # 定时任务运行状态（周期/上次执行/是否超期）：运维只读数据，同样是 dashboard:view。
     # 刻意不新建 scheduler:view —— 新码必须配套「补种给已有内置角色」的迁移，
     # 而这里的信息量与「系统状态」卡完全同一层级

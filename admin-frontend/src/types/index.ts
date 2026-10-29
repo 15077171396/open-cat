@@ -908,3 +908,45 @@ export interface MenuTree {
   groups: MenuGroup[]
   footer: MenuLeaf[]
 }
+
+// ===== 部署体检（GET /admin/readiness） =====
+//
+// 状态语义由后端定义，前端只做呈现：
+//   ready        配好了，能用
+//   unconfigured 没配（required=true 时算「阻塞首发」）
+//   error        配了但不完整/不可用 —— 比没配更危险，用户以为自己配好了
+//   off          功能明确关闭（不是问题）
+export type ReadinessStatus = 'ready' | 'unconfigured' | 'error' | 'off'
+
+export interface ReadinessItem {
+  key: string
+  label: string
+  status: ReadinessStatus
+  /** 必填项未就绪 → 阻塞上线；可选项没配只影响对应功能 */
+  required: boolean
+  /** 一句话结论：此刻是什么状态 */
+  detail: string
+  /** 下一步做什么（可空） */
+  action: string
+  /** 前端跳转路径（可空，例如 /mail-settings） */
+  link: string
+}
+
+export interface ReadinessSummary {
+  total: number
+  ready: number
+  off: number
+  error: number
+  /** 只统计「必填项未就绪」，可选项不算 */
+  blocking: number
+  blocking_keys: string[]
+  deployable: boolean
+}
+
+export interface ReadinessData {
+  ts: number
+  items: ReadinessItem[]
+  summary: ReadinessSummary
+  storage_driver: string
+  app_env: string
+}

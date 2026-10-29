@@ -129,6 +129,8 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
             MenuItem("/ai-writing", "AI 写作", "robot", perm="ai_model:view"),
             # 定时任务：只读运维页（周期/上次执行/是否超期）。
             # 复用 dashboard:view —— 与「数据看板 → 系统状态」卡同一份数据、同一层级权限
+            # 部署体检放在定时任务之前：首次部署时先看「还差什么」，再看「任务跑没跑」
+            MenuItem("/readiness", "部署体检", "readiness", perm="dashboard:view"),
             MenuItem("/scheduled-jobs", "定时任务", "clock", perm="dashboard:view"),
             # 审计与「内容审核」图标刻意区分（同一图标会让两个菜单看起来是同一件事）
             MenuItem("/audit-logs", "操作审计", "file-search", perm="audit:view"),
