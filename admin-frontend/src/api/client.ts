@@ -40,6 +40,26 @@ export async function apiDelete<T>(url: string, config?: AxiosRequestConfig): Pr
   return res.data
 }
 
+/**
+ * 生成一个幂等键，配合 `idempotentConfig(key)` 用在「重复执行会改变结果」的写操作上
+ * （批量删除、调整积分、群发通知…）。
+ *
+ * ⚠️ 用法是**一次用户动作一个 key**：在动作开始前生成（例如弹确认框时），
+ * 而不是在发请求时生成 —— 每次请求都新生成一个 key，等于没有幂等。
+ */
+export function newIdempotencyKey(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID()
+  }
+  // 老浏览器兜底（后台主要跑在现代浏览器，这里只求不抛错）
+  return `idem-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+/** 把幂等键包成请求配置，直接作为 apiPost/apiDelete 的最后一个参数传入 */
+export function idempotentConfig(key: string): AxiosRequestConfig {
+  return { headers: { 'Idempotency-Key': key } }
+}
+
 // 请求拦截：自动携带管理员 JWT
 client.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token

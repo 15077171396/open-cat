@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Button,
   Form,
@@ -12,7 +12,7 @@ import {
 } from 'antd'
 import type { TableProps } from 'antd'
 import { NotificationOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
-import { apiGet, apiPost } from '../../api/client'
+import { apiGet, apiPost, idempotentConfig, newIdempotencyKey } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
 import { getErrorMessage } from '../../utils/error'
 import { formatTime } from '../../utils/datetime'
@@ -55,6 +55,9 @@ export default function MessageList() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [sendOpen, setSendOpen] = useState(false)
+  // 幂等键按「一次发送动作」生成：弹窗打开时换新 key，提交时带上它。
+  // 连点两次「发送」= 同一个 key，服务端只发一批；关掉重开 = 新 key，是一次新的发送。
+  const sendKeyRef = useRef(newIdempotencyKey())
   const [userOptions, setUserOptions] = useState<{ label: string; value: number }[]>([])
   const [form] = Form.useForm<SendFormValues>()
   const target = Form.useWatch('target', form)
@@ -100,13 +103,17 @@ export default function MessageList() {
     // ModalForm 传宽类型；字段定义在 SendFormValues，收敛回具体类型
     const values = raw as unknown as SendFormValues
     try {
-      const result = await apiPost<{ batch_id: string; sent_count: number }>('/admin/messages', {
-        title: values.title.trim(),
-        content: values.content.trim(),
-        link: values.link?.trim() || null,
-        target: values.target,
-        user_ids: values.target === 'users' ? values.user_ids : null,
-      })
+      const result = await apiPost<{ batch_id: string; sent_count: number }>(
+        '/admin/messages',
+        {
+          title: values.title.trim(),
+          content: values.content.trim(),
+          link: values.link?.trim() || null,
+          target: values.target,
+          user_ids: values.target === 'users' ? values.user_ids : null,
+        },
+        idempotentConfig(sendKeyRef.current),
+      )
       toast.success(`已发送给 ${result.sent_count} 位用户`)
       setSendOpen(false)
       setPage(1)
@@ -187,6 +194,7 @@ export default function MessageList() {
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={() => {
+                  sendKeyRef.current = newIdempotencyKey()
                   setSendOpen(true)
                 }}
               >

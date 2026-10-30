@@ -17,6 +17,7 @@ from app.config import settings
 from app import logging as _logging  # noqa: F401
 from app.api.content import CONTENT_PREFIX, build_content_openapi
 from app.core.exceptions import register_exception_handlers, success_response
+from app.core.idempotency import IdempotencyMiddleware
 from app.core.monitoring import init_monitoring
 from app.core.rate_limit import RateLimitMiddleware
 from app.core.request_context import REQUEST_ID_HEADER, RequestIdMiddleware
@@ -118,6 +119,12 @@ def create_app() -> FastAPI:
 
     # 中间件注册顺序：后添加者在最外层。限流（内层）先注册、CORS（外层）后注册：
     # 预检 OPTIONS 由 CORS 直接消化不消耗限流配额；限流 429 响应也带 CORS 头
+
+    # 幂等**最内层**（最先注册 = 最后执行）：只包住真正的业务处理，
+    # 重放命中时不再消耗限流配额、也不重复走一遍安全头逻辑；限流仍在它外面，
+    # 所以「同一个 key 被刷」照样会被限流拦住。
+    # 不带 Idempotency-Key 的请求直接放行，对现有行为零影响。
+    app.add_middleware(IdempotencyMiddleware)
 
     app.add_middleware(RateLimitMiddleware)
 

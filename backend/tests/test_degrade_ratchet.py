@@ -88,7 +88,17 @@ APP = os.path.join(REPO, 'app')
 # 也不能用 `degrade_guard` 放行 —— 失败必须让前端知道（brief 明确要求）。
 # 同批次「预占之后的记账失败」改用 `except BaseException` + 归还两张票据后重抛，
 # 未新增宽泛捕获。
-BROAD_EXCEPT_BASELINE = 138
+# 138 → 139（2026-10-30，登录会话批次）：`core/session_store.py` 的 Redis 收口点 **1 处**。
+# 方向是**放行**（记降级日志后按「没有这台设备」处理），且整个模块只留这一个捕获点：
+# 7 个会话操作（登记 / 续期 / 读取 / 列表 / 清理 / 吊销 / 剪枝）全部走 `_guarded(event, call)`。
+# 为什么不复用 `degrade_guard`：这里面对的全是 Redis 抖动，需要 `log_redis_degraded`
+# 的 60s 窗口限流（degrade_guard 没有），否则 Redis 一挂就会把日志刷满。
+# 139 → 140（2026-10-30，写操作幂等批次）：`core/idempotency.py` 的 Redis 收口点 **1 处**，
+# 同样走 `_redis(event, call, default)` 单点收口（读占位符 / 抢占 / 写结果三条路径共用）。
+# 方向是**放行**：幂等是安全网，不是准入门槛，缓存不可用不该让写操作失败。
+# 同批次的「下游抛异常要清占位符再重抛」改用 `except BaseException`，未计入基线
+# （那处必须重抛，不属于降级；用 BaseException 还能顺带覆盖客户端断开）。
+BROAD_EXCEPT_BASELINE = 140
 
 
 def _count_broad_except() -> int:

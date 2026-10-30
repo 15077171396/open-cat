@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Avatar, Button, Input, Modal, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { DeleteOutlined, EyeOutlined, MinusCircleOutlined, PlusOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
-import { apiDelete, apiGet, apiPost } from '../../api/client'
+import { apiDelete, apiGet, apiPost, idempotentConfig, newIdempotencyKey } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
 import UserDetailDrawer, { AUTH_STATUS_MAP, formatDuration } from './UserDetailDrawer'
 import UserEditModal from './UserEditModal'
@@ -194,6 +194,9 @@ export default function UsersList() {
   }
 
   const handleBatchDelete = () => {
+    // 幂等键在**弹窗打开时**生成：同一个确认框里连点两次「删除」会被服务端识别为同一次动作，
+    // 只删一遍。放到 onOk 里生成就失去意义了（每次点击都是一个新 key）。
+    const idemKey = newIdempotencyKey()
     Modal.confirm({
       title: '批量删除',
       content: `确认删除选中的 ${selectedIds.length} 个用户？采用软删除（与用户注销一致），关联数据保留。`,
@@ -203,9 +206,11 @@ export default function UsersList() {
       onOk: async () => {
         setBatchLoading(true)
         try {
-          const data = await apiPost<{ deleted: number }>('/admin/users/batch-delete', {
-            ids: selectedIds,
-          })
+          const data = await apiPost<{ deleted: number }>(
+            '/admin/users/batch-delete',
+            { ids: selectedIds },
+            idempotentConfig(idemKey),
+          )
           toast.success(`已删除 ${data.deleted} 个用户`)
           setSelectedIds([])
           // 当前页删空时回退一页，避免停留在越界空页
