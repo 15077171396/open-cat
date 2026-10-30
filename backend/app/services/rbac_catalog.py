@@ -5,6 +5,8 @@ code 命名: {module}:{action}。"""
 
 from typing import NamedTuple
 
+from app.core.i18n import pick
+
 
 class PermissionDef(NamedTuple):
     code: str
@@ -161,15 +163,78 @@ ALL_PERMISSION_CODES: set[str] = {p.code for p in PERMISSION_CATALOG}
 MENU_PERMISSION_CODES: set[str] = {p.code for p in PERMISSION_CATALOG if p.type == "menu"}
 
 
-def permissions_grouped_by_module() -> dict[str, dict]:
+# ---------- 英文文案 ----------
+# 权限名与模块名同样由后端下发，语言协商见 core/i18n.py。
+# 权限名按「动作 + 模块」拼装而不是逐条手写：64 个码只有 11 种动作 × 25 个模块，
+# 逐条维护会在新增权限时漏翻，而拼装能自动覆盖新码。
+MODULE_NAMES_EN: dict[str, str] = {
+    "dashboard": "Dashboard",
+    "tutorial": "Tutorial",
+    "category": "Category",
+    "announcement": "Announcement",
+    "payment_product": "Recharge Plan",
+    "payment_order": "Payment Order",
+    "moderation": "Content Review",
+    "comment": "Comment",
+    "feedback": "Feedback",
+    "message": "Notification",
+    "user": "User",
+    "auth_request": "Identity Review",
+    "points": "Points",
+    "redeem_code": "Redeem Code",
+    "role": "Role",
+    "department": "Department",
+    "setting": "Setting",
+    "login_setting": "Login Setting",
+    "legal_doc": "Legal Document",
+    "payment_setting": "Payment Channel",
+    "mail_setting": "Email Setting",
+    "ai_model": "AI Model",
+    "scheduler": "Scheduled Job",
+    "audit": "Audit Log",
+    "report": "Report",
+}
+
+ACTION_NAMES_EN: dict[str, str] = {
+    "view": "View",
+    "create": "Create",
+    "edit": "Edit",
+    "update": "Update",
+    "delete": "Delete",
+    "disable": "Disable",
+    "restore": "Restore",
+    "handle": "Handle",
+    "review": "Review",
+    "send": "Send",
+    "manage": "Manage",
+}
+
+
+def module_name_en(module: str) -> str | None:
+    return MODULE_NAMES_EN.get(module)
+
+
+def permission_name_en(permission: PermissionDef) -> str:
+    """英文权限名；任一半缺失时回退中文（宁可中英混排，也不要空标签）"""
+    module, _, action = permission.code.partition(":")
+    module_label = MODULE_NAMES_EN.get(module)
+    action_label = ACTION_NAMES_EN.get(action)
+    if not module_label or not action_label:
+        return permission.name
+    return f"{action_label} {module_label}"
+
+
+def permissions_grouped_by_module(locale: str = "zh") -> dict[str, dict]:
     """按模块分组（权限分配树渲染用）：{module: {name, menu, buttons: [...]}}"""
     groups: dict[str, dict] = {}
     for p in sorted(PERMISSION_CATALOG, key=lambda x: x.sort):
-        g = groups.setdefault(p.module, {"name": p.module_name, "menu": None, "buttons": []})
+        module_label = pick(locale, p.module_name, module_name_en(p.module))
+        item_name = pick(locale, p.name, permission_name_en(p))
+        g = groups.setdefault(p.module, {"name": module_label, "menu": None, "buttons": []})
         if p.type == "menu":
-            g["menu"] = {"code": p.code, "name": p.name}
+            g["menu"] = {"code": p.code, "name": item_name}
         else:
-            g["buttons"].append({"code": p.code, "name": p.name})
+            g["buttons"].append({"code": p.code, "name": item_name})
     return groups
 
 

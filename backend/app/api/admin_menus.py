@@ -11,6 +11,7 @@
 
 from fastapi import Depends
 
+from app.core.i18n import request_locale
 from app.core.permissions import require_admin
 from app.core.exceptions import success_response
 from app.schemas.common import ApiResponse
@@ -23,10 +24,11 @@ from app.api._admin_shared import router
 @router.get("/menus", response_model=ApiResponse[ActionAck])
 async def admin_menu_tree(
     admin: User = Depends(require_admin),
+    locale: str = Depends(request_locale),
 ):
     """侧边菜单树（分组 + 叶子项 + 权限码 + 图标名）。
 
     返回**全量结构**，不按用户过滤：过滤逻辑单一地放在前端
     （`AdminLayout` 的 visibleMenuItems），避免两端各有一份权限口径。
     """
-    return success_response(admin_menu.menu_tree())
+    return success_response(admin_menu.menu_tree(locale=locale))

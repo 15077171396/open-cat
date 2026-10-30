@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.core.i18n import request_locale
 from app.core.permissions import require_admin
 from app.core.rbac import check_route_permission
 from app.core.exceptions import success_response
@@ -83,9 +84,10 @@ async def rbac_profile(
 @router.get("/rbac/permissions", response_model=ApiResponse[ActionAck])
 async def permission_catalog(
     admin: User = Depends(require_admin),
+    locale: str = Depends(request_locale),
 ):
     """权限目录树（按模块分组，角色权限分配界面数据源）"""
-    return success_response({"items": await rbac_service.list_permission_tree()})
+    return success_response({"items": await rbac_service.list_permission_tree(locale)})
 
 
 # 角色管理

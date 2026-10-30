@@ -21,6 +21,8 @@
 
 from typing import NamedTuple
 
+from app.core.i18n import DEFAULT_LOCALE, pick
+
 
 class MenuItem(NamedTuple):
     """侧边栏叶子节点（一个可点击的页面入口）"""
@@ -138,9 +140,65 @@ MENU_FOOTER: tuple[MenuItem, ...] = (
 )
 
 
-def _item_to_dict(item: MenuItem) -> dict:
+# 英文文案（按 key 索引）。**缺译回退中文**，不会出现空菜单；
+# tests/test_i18n.py 断言「每个菜单 key 都有英文」，防止新增菜单时静默漏翻。
+MENU_LABELS_EN: dict[str, str] = {
+    # 分组
+    "overview": "Overview",
+    "content": "Content",
+    "operations": "Operations",
+    "users": "Users & Permissions",
+    "system": "System",
+    # 概览
+    "/": "Dashboard",
+    # 内容
+    "/tutorials": "Tutorials",
+    "/categories": "Categories",
+    "/materials": "Media Library",
+    # 运营
+    "/announcements": "Announcements",
+    "/payment-products": "Recharge Plans",
+    "/payment-orders": "Payment Orders",
+    "/moderation": "Content Review",
+    "/comments": "Comments",
+    "/feedback": "User Feedback",
+    "/messages": "Notifications",
+    "/search-keywords": "Search Terms",
+    # 用户与权限
+    "/users": "Users",
+    "/auth-requests": "Identity Review",
+    "/points": "Points Ledger",
+    "/redeem-codes": "Redeem Codes",
+    "/roles": "Roles",
+    "/departments": "Departments",
+    # 系统
+    "/settings": "Settings",
+    "/login-settings": "Login",
+    "/legal-documents": "Legal Documents",
+    "/payment-settings": "Payment Channels",
+    "/mail-settings": "Email",
+    "/ai-models": "AI Models",
+    "/ai-writing": "AI Writing",
+    "/readiness": "Deployment Check",
+    "/scheduled-jobs": "Scheduled Jobs",
+    "/audit-logs": "Audit Log",
+    # 分组之外
+    "/profile": "Profile",
+}
+
+
+def localized_label(key: str, zh: str, locale: str) -> str:
+    """菜单文案：英文缺失时回退中文（`pick` 已保证不返回空串）"""
+    return pick(locale, zh, MENU_LABELS_EN.get(key))
+
+
+def _item_to_dict(item: MenuItem, locale: str = DEFAULT_LOCALE) -> dict:
     """叶子节点 → 接口响应（省略空字段，避免前端拿到一堆 null）"""
-    data: dict = {"key": item.key, "label": item.label, "icon": item.icon}
+    data: dict = {
+        "key": item.key,
+        "label": localized_label(item.key, item.label, locale),
+        "icon": item.icon,
+    }
     if item.perm:
         data["perm"] = item.perm
     if item.perms:
@@ -150,7 +208,7 @@ def _item_to_dict(item: MenuItem) -> dict:
     return data
 
 
-def menu_tree(only_enabled: bool = True) -> dict:
+def menu_tree(only_enabled: bool = True, locale: str = DEFAULT_LOCALE) -> dict:
     """菜单树（GET /admin/menus 的 data 部分）。
 
     :param only_enabled: 按 `module_registry` 的模块开关过滤。
@@ -170,15 +228,15 @@ def menu_tree(only_enabled: bool = True) -> dict:
         groups.append(
             {
                 "key": group.key,
-                "label": group.label,
+                "label": localized_label(group.key, group.label, locale),
                 "icon": group.icon,
-                "items": [_item_to_dict(item) for item in items],
+                "items": [_item_to_dict(item, locale) for item in items],
             }
         )
 
     return {
         "groups": groups,
-        "footer": [_item_to_dict(item) for item in MENU_FOOTER if keeps(item)],
+        "footer": [_item_to_dict(item, locale) for item in MENU_FOOTER if keeps(item)],
     }
 
 

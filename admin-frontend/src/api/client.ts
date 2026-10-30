@@ -66,6 +66,15 @@ client.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
+  /**
+   * 显式声明界面语言为中文。
+   *
+   * 后端已支持按 Accept-Language 下发中/英的菜单与权限名（app/core/i18n.py），
+   * 但**页面内的业务文案目前仍是中文**。浏览器默认会带自己的 Accept-Language，
+   * 英文系统上就会出现「侧边栏英文 + 页面中文」的混搭 —— 比全中文更难用。
+   * 等前端文案翻完，这里换成跟随用户设置即可。
+   */
+  config.headers['Accept-Language'] = 'zh-CN'
   return config
 })
 

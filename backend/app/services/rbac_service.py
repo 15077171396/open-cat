@@ -133,9 +133,9 @@ async def get_admin_profile(db: AsyncSession, user: User) -> dict:
 
 # 权限目录（分配界面数据源）
 
-async def list_permission_tree() -> list[dict]:
+async def list_permission_tree(locale: str = "zh") -> list[dict]:
     """权限目录树（按模块分组；目录由代码定义，库中仅存码表映射）"""
-    groups = permissions_grouped_by_module()
+    groups = permissions_grouped_by_module(locale)
     return [
         {
             "module": module,
