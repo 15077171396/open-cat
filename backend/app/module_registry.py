@@ -65,6 +65,7 @@ MODULES: tuple[ModuleDef, ...] = (
             "/api/v1/admin/settings",
             "/api/v1/admin/menu-settings",
             "/api/v1/admin/dicts",
+            "/api/v1/admin/codegen",
             "/api/v1/admin/positions",
             "/api/v1/admin/monitor",
             "/api/v1/admin/backups",
@@ -75,7 +76,7 @@ MODULES: tuple[ModuleDef, ...] = (
         menu_keys=(
             "/users", "/roles", "/departments", "/positions",
             "/monitor/online", "/monitor/server", "/monitor/cache",
-            "/audit-logs", "/recycle-bin", "/backups",
+            "/audit-logs", "/recycle-bin", "/backups", "/codegen",
             "/settings", "/menu-settings", "/dicts", "/login-settings", "/mail-settings", "/legal-documents",
             "/profile",
         ),

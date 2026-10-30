@@ -19,6 +19,8 @@ AUDIT_ACTIONS: dict[str, str] = {
     # 实名认证（直接决定 VIP 权益）
     # 数据外带：导出本身不改数据，但它是「把库里的数据带走」，必须可追溯
     "data_export": "导出数据",
+    # 代码生成包同样是数据外带：包含表结构与字段注释，下载动作必须能回答「谁拿走了什么」
+    "codegen_download": "下载代码生成包",
     "auth_approve": "通过实名认证",
     "auth_reject": "驳回实名认证",
     # 用户（提权 / 权益 / 资金）
@@ -157,6 +159,8 @@ AUDIT_TARGET_TYPES = (
     "point_transaction",
     # 数据库备份：下载全库备份是数据外带，target_id 留空、文件名在 detail 里
     "backup",
+    # 代码生成：下载生成包，target_id 留空（一次可含多个文件），范围在 detail 里
+    "codegen",
 )
 
 # 目标类型 → 中文名。**必须与 AUDIT_TARGET_TYPES 一一对应**（tests/test_audit_taxonomy.py 有守卫）：
@@ -189,6 +193,7 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "legal_doc": "法律文档",
     "image_asset": "图片素材",
     "backup": "数据库备份",
+    "codegen": "代码生成",
 }
 
 # ---- 风险分级 ----
@@ -227,6 +232,8 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     # 数据导出不改数据，但把库里的数据带出了系统：事后唯一能回答
     # 「谁导走了用户名单」的记录点，按高危呈现
     "data_export": AUDIT_RISK_DANGER,
+    # 代码生成包带走整库表结构与字段注释，属数据外带，按高危呈现
+    "codegen_download": AUDIT_RISK_DANGER,
     # 兑换码（积分入金口）
     "redeem_code_create": AUDIT_RISK_MONEY,
     "redeem_code_disable": AUDIT_RISK_MONEY,

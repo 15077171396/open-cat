@@ -89,6 +89,7 @@ already has real content unless you pass `--yes`.
 | **Analytics (demo)** | Standalone analysis page: KPI trends, reading trend, traffic sources, content ranking, content quadrant, new vs returning users, active hours, conversion funnel, quality radar, search terms; rendered with **ECharts** (hover tooltips / emphasis, count-up, line-rise, bar/pie/radar expansion), with animations replaying on range/seed change; **all numbers are browser-local mock data** (no backend calls, no database writes), clearly labelled as demo |
 | **Menu management** | Edit sidebar labels (zh/en), icons, order and visibility; changes apply immediately and are audited. Routes and permission codes stay code-defined, so the page deliberately offers no create/delete to avoid dead 404/403 entries |
 | **Dictionaries** | Two-pane dictionary types + items: code/name/description, label/value/order/default/enabled; one default per type; type deletion requires empty items; ships content/moderation/feedback/user dictionaries |
+| **Code generator** | Introspects existing tables and renders Model / Schema / Service / API skeletons plus an integration guide; preview in-page and download a ZIP. Read-only against the database; downloads require `setting:update` and are audited |
 | **Monitoring** | Online users (all sessions, device/IP/activity, force logout), server metrics (CPU/memory/disk/swap/process), Redis cache (INFO, key-prefix distribution, hit rate); read-only with graceful degradation |
 | **Operations** | Announcements (scheduled publish/unpublish), system notifications, recharge plans and orders (read-only), search-term analytics |
 | **System** | 26 groups / 138 settings, login methods, mandatory admin 2FA, payment channels, mail, AI models and pricing, scheduled jobs, legal documents, **deployment readiness**, list export, **header to-do center**, **unified recycle bin**, **version & upgrade**, **backup manager** |
@@ -103,7 +104,7 @@ already has real content unless you pass `--yes`.
 **Deploy** Docker Compose · nginx · optional Sentry
 
 ```
-backend/         FastAPI app (248 operations, 137 admin; content API at /api/v1/content/docs)
+backend/         FastAPI app (271 operations, 160 admin; content API at /api/v1/content/docs)
 admin-frontend/  Admin SPA (base=/admin/)
 docs/            Documentation (Chinese)
 ```
@@ -116,7 +117,7 @@ The thing worth reviewing in an open-source project is discipline, not feature c
 
 | Capability | This project | Typical open-source admin |
 |------|------|-------------------|
-| Backend tests | **155 files / 1840 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
+| Backend tests | **156 files / 1848 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
 | Architecture guards | Permission coverage / audit coverage / menu consistency / task registry, all covered by tests | Rare |
 | Secret storage | Fernet-encrypted in DB + mask sentinel | Plain text in DB or config |
 | Audit | Mandatory for writes; missing record fails tests | Logs exist, no coverage guarantee |

@@ -42,6 +42,18 @@ export async function apiDelete<T>(url: string, config?: AxiosRequestConfig): Pr
 }
 
 /**
+ * 二进制下载：响应拦截器返回的是 response.data 本身（JSON 信封在这一层已被解开），
+ * 不能像 apiPost 那样再取 `.data`，否则 Blob 会被二次解包成 undefined。
+ */
+export async function apiDownload(
+  url: string,
+  body?: unknown,
+  config?: AxiosRequestConfig,
+): Promise<Blob> {
+  return client.post<unknown, Blob>(url, body, { ...config, responseType: 'blob' })
+}
+
+/**
  * 生成一个幂等键，配合 `idempotentConfig(key)` 用在「重复执行会改变结果」的写操作上
  * （批量删除、调整积分、群发通知…）。
  *

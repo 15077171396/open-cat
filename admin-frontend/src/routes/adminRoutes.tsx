@@ -39,6 +39,7 @@ const CommentsList = lazy(() => import('../pages/Comments/List'))
 const SettingsPage = lazy(() => import('../pages/Settings'))
 const MenuSettingsPage = lazy(() => import('../pages/MenuSettings'))
 const DictionariesPage = lazy(() => import('../pages/Dictionaries'))
+const CodegenPage = lazy(() => import('../pages/Codegen'))
 const PositionsPage = lazy(() => import('../pages/Positions'))
 const MonitorOnlinePage = lazy(() => import('../pages/Monitor/Online'))
 const MonitorServerPage = lazy(() => import('../pages/Monitor/Server'))
@@ -106,6 +107,8 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/menu-settings', element: <MenuSettingsPage />, perm: 'setting:view' },
   // 数据字典：业务枚举的类型与字典项；与菜单管理同属系统配置层
   { path: '/dicts', element: <DictionariesPage />, perm: 'setting:view' },
+  // 代码生成：表结构内省与生成物都属于数据外带，统一要求保存设置权限
+  { path: '/codegen', element: <CodegenPage />, perm: 'setting:update' },
   // 登录管理：从「系统设置 → 登录与短信」抽出的独立模块，权限码独立
   { path: '/login-settings', element: <LoginSettingsPage />, perm: 'login_setting:view' },
   // 法律文档：对外合规文本单独授权

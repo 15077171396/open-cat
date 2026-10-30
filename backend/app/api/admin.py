@@ -12,6 +12,8 @@ from app.api import (  # noqa: F401
     admin_menu_settings,
     # 数据字典（类型 + 字典项）
     admin_dictionaries,
+    # 代码生成（只读表结构 → 预览 / 下载后端 CRUD 骨架）
+    admin_codegen,
     # 岗位目录（组织架构）
     admin_positions,
     # 监控管理（在线用户 / 服务器 / 缓存，只读）

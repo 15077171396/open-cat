@@ -161,6 +161,8 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
             # 部署体检放在定时任务之前：首次部署时先看「还差什么」，再看「任务跑没跑」
             MenuItem("/readiness", "部署体检", "readiness", perm="dashboard:view"),
             MenuItem("/scheduled-jobs", "定时任务", "clock", perm="dashboard:view"),
+            # 代码生成：只读表结构，预览 / 下载后端 CRUD 骨架（接入仍需人工登记路由与权限）
+            MenuItem("/codegen", "代码生成", "code", perm="setting:update"),
             # 备份管理：只读列表 + 下载；真正的备份/恢复在宿主机脚本执行
             MenuItem("/backups", "备份管理", "database", perm="setting:view"),
             # 回收站：教程 / 评论 / 用户三类软删除记录的统一入口（类型由接口按权限裁剪）
@@ -232,6 +234,7 @@ MENU_LABELS_EN: dict[str, str] = {
     "/ai-writing": "AI Writing",
     "/readiness": "Deployment Check",
     "/scheduled-jobs": "Scheduled Jobs",
+    "/codegen": "Code Generator",
     "/backups": "Backups",
     "/recycle-bin": "Recycle Bin",
     "/audit-logs": "Audit Log",

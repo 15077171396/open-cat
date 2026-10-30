@@ -51,6 +51,9 @@
 /* 工作台：pages/Workplace */
 @import './sections/workplace.css';
 
+/* 代码生成：pages/Codegen */
+@import './sections/codegen.css';
+
 /* 监控管理：pages/Monitor/* */
 @import './sections/monitor.css';
 

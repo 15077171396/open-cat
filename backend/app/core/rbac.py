@@ -268,6 +268,10 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("POST", "/api/v1/admin/positions", ["department:edit"]),
     ("PUT", "/api/v1/admin/positions/{position_id}", ["department:edit"]),
     ("DELETE", "/api/v1/admin/positions/{position_id}", ["department:edit"]),
+    # 代码生成：表结构与生成物都是数据外带，列表/预览/下载统一要求保存设置权限并审计下载
+    ("GET", "/api/v1/admin/codegen/tables", ["setting:update"]),
+    ("GET", "/api/v1/admin/codegen/preview", ["setting:update"]),
+    ("POST", "/api/v1/admin/codegen/download", ["setting:update"]),
     # 菜单管理：读取菜单目录用 setting:view，写展示设置用 setting:update。
     # order 必须排在 /{menu_key} 之前，否则会被路径参数通配吞掉（同 category-groups）。
     ("GET", "/api/v1/admin/menu-settings", ["setting:view"]),
