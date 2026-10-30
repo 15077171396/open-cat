@@ -3,7 +3,8 @@
 菜单现在是后端下发、前端渲染，配置写错不会报错，只会「静默少一个入口 / 点进去 404 /
 菜单丢图标」，所以用静态断言兜住三类问题：
 
-1. **路由对不上**：非外链 key 必须在 `admin-frontend/src/App.tsx` 里有对应 `<Route path>`；
+1. **路由对不上**：非外链 key 必须在 `admin-frontend/src/routes/adminRoutes.tsx`
+   的路由表里有对应条目（路径写错 = 点进去被重定向到首页）；
 2. **权限码不存在**：perm/perms 必须是 RBAC 权限目录里的码（拼错 → 该菜单对所有人不可见）；
 3. **图标名未注册**：图标名必须在 `admin-frontend/src/constants/menuIcons.tsx` 里（漏加只会丢图标）。
 
@@ -25,7 +26,8 @@ from app.services.admin_menu import (
 from app.services.rbac_catalog import ALL_PERMISSION_CODES, PERMISSION_CATALOG
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-ADMIN_APP_TSX = REPO_ROOT / "admin-frontend" / "src" / "App.tsx"
+# 路由表是前端路由的唯一数据源（App.tsx 只负责渲染，不再逐条写 <Route>）
+ADMIN_ROUTES_TSX = REPO_ROOT / "admin-frontend" / "src" / "routes" / "adminRoutes.tsx"
 ADMIN_MENU_ICONS = REPO_ROOT / "admin-frontend" / "src" / "constants" / "menuIcons.tsx"
 
 # 刻意不给菜单入口的菜单级权限码（当前没有；有的话在这里登记并写清原因）
@@ -39,8 +41,8 @@ def _read(path: Path) -> str:
 
 
 def _frontend_route_paths() -> set[str]:
-    """App.tsx 里声明的 `<Route path="...">` 取值"""
-    return set(re.findall(r'<Route\s+path="([^"]+)"', _read(ADMIN_APP_TSX)))
+    """路由表里声明的路径（`{ path: '/xxx', ... }`）"""
+    return set(re.findall(r"path:\s*'([^']+)'", _read(ADMIN_ROUTES_TSX)))
 
 
 def _frontend_icon_names() -> set[str]:
@@ -80,13 +82,13 @@ class AdminMenuConfigTests(unittest.TestCase):
     def test_internal_keys_exist_in_frontend_routes(self):
         """非外链菜单必须指向真实存在的后台路由（写错 key = 点进去被重定向到首页）"""
         routes = _frontend_route_paths()
-        self.assertTrue(routes, "App.tsx 里没解析到任何 <Route path>，守卫可能已失效")
+        self.assertTrue(routes, "adminRoutes.tsx 里没解析到任何 path，守卫可能已失效")
         missing = [
             f"{item.label} → {item.key}"
             for item in self.items
             if not item.url and item.key not in routes
         ]
-        self.assertEqual(missing, [], f"菜单 key 在 App.tsx 里找不到对应路由: {missing}")
+        self.assertEqual(missing, [], f"菜单 key 在 adminRoutes.tsx 里找不到对应路由: {missing}")
 
     def test_permission_codes_exist_in_catalog(self):
         unknown = all_menu_perms() - ALL_PERMISSION_CODES

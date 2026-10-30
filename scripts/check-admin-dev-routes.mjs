@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 守卫：admin dev server 实际编译出来的 `App` 是否与磁盘上的 `App.tsx` 一致。
+ * 守卫：admin dev server 实际编译出来的路由，是否与磁盘上的路由声明一致。
  *
  * 为什么需要它（2026-10-27 一天内踩了两次，症状都不像缓存问题）：
  * - 第一次：源码里有 `const XxxPage = lazy(...)`，浏览器却报 `XxxPage is not defined`，整页白屏；
@@ -10,6 +10,11 @@
  * 两次都是 Vite 的增量编译结果陈旧（磁盘对、dev server 返回旧版本），
  * `tsc` / `vitest` / `vite build` 全部通过，只有浏览器出错。
  * 本脚本把「怎么判断」固化成命令，不必再去 curl 手工数关键字。
+ *
+ * 路由声明现在分两处：
+ * - `src/App.tsx`：登录页 / 安装向导 / 兜底（`<Route path="...">`）；
+ * - `src/routes/adminRoutes.tsx`：业务页面路由表（`{ path: '/x', ... }`）。
+ * 两处都要校验 —— 只查 App.tsx 会漏掉全部业务页面，守卫等于失效。
  *
  * 用法：
  *   node scripts/check-admin-dev-routes.mjs            # 默认 http://localhost:5174
@@ -23,33 +28,48 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const ENTRY = join(ROOT, 'admin-frontend', 'src', 'App.tsx')
 const BASE = (process.env.ADMIN_DEV_URL || 'http://localhost:5174').replace(/\/+$/, '')
-const REL = '/admin/src/App.tsx'
 
-/** 磁盘上声明的路由（`<Route path="...">`，含跨行写法） */
-function diskRoutes(source) {
-  return [...source.matchAll(/<Route\s+path="([^"]+)"/g)].map((m) => m[1])
+/** 两处路由声明：磁盘文件、dev server 上的相对路径、磁盘侧提取规则 */
+const SOURCES = [
+  {
+    file: join(ROOT, 'admin-frontend', 'src', 'App.tsx'),
+    rel: '/admin/src/App.tsx',
+    pattern: /<Route\s+path="([^"]+)"/g,
+  },
+  {
+    file: join(ROOT, 'admin-frontend', 'src', 'routes', 'adminRoutes.tsx'),
+    rel: '/admin/src/routes/adminRoutes.tsx',
+    pattern: /path:\s*'([^']+)'/g,
+  },
+]
+
+const disk = []
+for (const source of SOURCES) {
+  for (const match of readFileSync(source.file, 'utf8').matchAll(source.pattern)) {
+    disk.push(match[1])
+  }
 }
 
-const disk = diskRoutes(readFileSync(ENTRY, 'utf8'))
 if (!disk.length) {
-  console.error('❌ 没从 App.tsx 解析出任何 <Route path>，守卫需重写（正则失效）')
+  console.error('❌ 没从路由声明里解析出任何路径，守卫需重写（正则失效）')
   process.exit(1)
 }
 
-let code
-try {
-  const res = await fetch(`${BASE}${REL}`, { headers: { accept: '*/*' } })
-  if (!res.ok) {
-    console.error(`❌ dev server 返回 ${res.status}（${BASE}${REL}）`)
-    process.exit(1)
+let code = ''
+for (const source of SOURCES) {
+  try {
+    const res = await fetch(`${BASE}${source.rel}`, { headers: { accept: '*/*' } })
+    if (!res.ok) {
+      console.error(`❌ dev server 返回 ${res.status}（${BASE}${source.rel}）`)
+      process.exit(1)
+    }
+    code += await res.text()
+  } catch {
+    // 没起 dev server 不算失败：本脚本是「起了才校验」的旁路检查
+    console.log(`⏭  未连上 ${BASE}，跳过（admin dev server 未运行）`)
+    process.exit(0)
   }
-  code = await res.text()
-} catch {
-  // 没起 dev server 不算失败：本脚本是「起了才校验」的旁路检查
-  console.log(`⏭  未连上 ${BASE}，跳过（admin dev server 未运行）`)
-  process.exit(0)
 }
 
 // 编译结果里路由字段是 `path: "/xxx",`；* 是兜底路由，不必存在
