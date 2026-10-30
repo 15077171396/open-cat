@@ -17,12 +17,12 @@
 }
 
 .aud-detail__key {
-  color: #595959;
+  color: var(--app-text-2);
   white-space: nowrap;
 }
 
 .aud-detail__val {
-  color: #1f1f1f;
+  color: var(--app-text);
   word-break: break-all;
 }
 
@@ -30,6 +30,6 @@
   grid-column: 1 / -1;
   margin-top: 6px;
   font-weight: 600;
-  color: #595959;
+  color: var(--app-text-2);
 }
 

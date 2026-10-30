@@ -59,22 +59,22 @@
   flex-wrap: wrap;
   margin-top: 3px;
   font-size: 12px;
-  color: #595959;
+  color: var(--app-text-2);
 }
 
 .adm-header__sub strong {
-  color: #595959;
+  color: var(--app-text-2);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
 
 .adm-header__dot {
-  color: #d9d9d9;
+  color: var(--app-text-4);
 }
 
 /* 行内分隔点（指标行、检查清单脚注等处共用） */
 .adm-sep {
-  color: #d9d9d9;
+  color: var(--app-text-4);
 }
 
 .adm-header__actions {
@@ -90,7 +90,7 @@
 .adm-sidecard.ant-card {
   border-radius: var(--app-radius);
   border-color: var(--app-border-light);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
+  box-shadow: var(--app-shadow);
 }
 
 .adm-toolbar.ant-card {
@@ -116,8 +116,8 @@
   padding: 2px 4px 2px 10px;
   border-radius: 999px;
   font-size: 12px;
-  color: #0958d9;
-  background: #e6f4ff;
+  color: var(--app-link);
+  background: var(--app-info-bg);
 }
 
 .adm-selinfo strong {
@@ -140,19 +140,19 @@
 }
 
 .adm-table .ant-table-thead > tr > th {
-  background: #fafbfc;
-  color: #595959;
+  background: var(--app-subtle);
+  color: var(--app-text-2);
   font-weight: 600;
   font-size: 12px;
-  border-bottom: 1px solid #eef0f4;
+  border-bottom: 1px solid var(--app-border-light);
 }
 
 .adm-table .ant-table-tbody > tr > td {
-  border-bottom: 1px solid #f5f6f8;
+  border-bottom: 1px solid var(--app-border);
 }
 
 .adm-table .ant-table-tbody > tr:hover > td {
-  background: #f7faff;
+  background: var(--app-tint-soft);
 }
 
 .adm-table .ant-table-pagination.ant-pagination {
@@ -178,8 +178,8 @@
   height: 40px;
   border-radius: 8px;
   object-fit: cover;
-  background: #f5f7fa;
-  border: 1px solid #f0f0f0;
+  background: var(--app-subtle);
+  border: 1px solid var(--app-border);
 }
 
 .adm-thumb--icon {
@@ -198,7 +198,7 @@
 
 .adm-cell__name {
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--app-text);
   line-height: 1.4;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -227,7 +227,7 @@
   margin-top: 2px;
   font-size: 12px;
   line-height: 1.5;
-  color: #595959;
+  color: var(--app-text-2);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -246,9 +246,9 @@
   border-radius: 4px;
   font-size: 11px;
   line-height: 18px;
-  color: #595959;
-  background: #f5f5f5;
-  border: 1px solid #f0f0f0;
+  color: var(--app-text-2);
+  background: var(--app-subtle);
+  border: 1px solid var(--app-border);
 }
 
 /* ---- 类型胶囊 ---- */
@@ -269,18 +269,18 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  color: #434343;
+  color: var(--app-text-2);
   font-variant-numeric: tabular-nums;
 }
 
 .adm-metric .anticon {
-  color: #bfbfbf;
+  color: var(--app-text-4);
   font-size: 12px;
 }
 
 /* 等宽数字：ID / UID / 余额等需要数位对齐的列 */
 .adm-num {
-  color: #595959;
+  color: var(--app-text-2);
   font-variant-numeric: tabular-nums;
 }
 

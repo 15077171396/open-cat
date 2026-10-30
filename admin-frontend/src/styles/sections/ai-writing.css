@@ -1,8 +1,8 @@
 .ai-selection-bubble {
   position: fixed;
   z-index: 10000;
-  background: #fff;
-  border: 1px solid #e5e7eb;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
   border-radius: 8px;
   box-shadow: 0 6px 24px rgba(15, 23, 42, 0.14);
   padding: 4px;
@@ -11,7 +11,7 @@
 /* ---- 抽屉骨架：白色 + 浅蓝画布 ---- */
 .ai-writing-drawer .ant-drawer-content,
 .ai-writing-drawer .ant-drawer-body {
-  background: #f6faff;
+  background: var(--app-tint);
 }
 .ai-writing-drawer .ant-drawer-body {
   padding: 14px 16px 24px;
@@ -19,8 +19,8 @@
 }
 .ai-writing-drawer .ant-drawer-header {
   padding: 16px 18px;
-  border-bottom: 1px solid #e6eef8;
-  background: #fff;
+  border-bottom: 1px solid var(--app-tint-border);
+  background: var(--app-card);
 }
 .ai-writing-head {
   display: flex;
@@ -34,19 +34,19 @@
   height: 32px;
   flex: 0 0 32px;
   border-radius: 10px;
-  background: #e8f3ff;
+  background: var(--app-tint);
   color: #2563eb;
   font-size: 15px;
 }
 .ai-writing-head__title {
-  color: #1f2937;
+  color: var(--app-text);
   font-size: 15px;
   font-weight: 650;
   line-height: 1.3;
 }
 .ai-writing-head__sub {
   margin-top: 2px;
-  color: #7c8ea6;
+  color: var(--app-text-2);
   font-size: 11px;
   line-height: 1.4;
 }
@@ -61,9 +61,9 @@
 /* ---- 写作区 ---- */
 .ai-writing-compose {
   padding: 12px;
-  border: 1px solid #e3edf9;
+  border: 1px solid var(--app-tint-border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--app-card);
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 .ai-writing-model-row {
@@ -82,8 +82,8 @@
 .ai-writing-image__model .ant-select-selector,
 .ai-writing-target.ant-input-number {
   border-radius: 9px !important;
-  border-color: #dfeaf7 !important;
-  background: #fbfdff !important;
+  border-color: var(--app-tint-border) !important;
+  background: var(--app-tint-soft) !important;
 }
 .ai-writing-model-row .ant-select-selection-item,
 .ai-writing-image__model .ant-select-selection-item {
@@ -92,8 +92,8 @@
 .ai-writing-instruction {
   margin-top: 8px;
   border-radius: 10px !important;
-  border-color: #dfeaf7 !important;
-  background: #fbfdff !important;
+  border-color: var(--app-tint-border) !important;
+  background: var(--app-tint-soft) !important;
   font-size: 13px;
   resize: none;
 }
@@ -110,7 +110,7 @@
   min-width: 0;
 }
 .ai-writing-group-label {
-  color: #8a9bb0;
+  color: var(--app-text-2);
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -128,30 +128,30 @@
   box-shadow: none;
 }
 .ai-writing-action--primary.ant-btn {
-  border-color: #d6e8ff;
-  background: #eef6ff;
-  color: #1d4ed8;
+  border-color: var(--app-tint-border);
+  background: var(--app-tint);
+  color: var(--app-link);
   font-weight: 600;
 }
 .ai-writing-action--primary.ant-btn:hover {
-  border-color: #bcd8ff !important;
-  background: #e3f0ff !important;
-  color: #1d4ed8 !important;
+  border-color: var(--app-tint-border) !important;
+  background: var(--app-tint) !important;
+  color: var(--app-link) !important;
 }
 .ai-writing-action.ant-btn-text {
-  color: #52647a;
+  color: var(--app-text-2);
 }
 .ai-writing-action.ant-btn-text:hover {
-  background: #eef6ff !important;
-  color: #1d4ed8 !important;
+  background: var(--app-tint) !important;
+  color: var(--app-link) !important;
 }
 
 /* ---- 配图区：可折叠，收起时只占一行 ---- */
 .ai-writing-image {
   overflow: hidden;
-  border: 1px solid #e3edf9;
+  border: 1px solid var(--app-tint-border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--app-card);
 }
 .ai-writing-image__toggle {
   display: flex;
@@ -162,11 +162,11 @@
   padding: 11px 12px;
   border: 0;
   background: transparent;
-  color: #1f2937;
+  color: var(--app-text);
   text-align: left;
   cursor: pointer;
 }
-.ai-writing-image__toggle:hover { background: #f8fbff; }
+.ai-writing-image__toggle:hover { background: var(--app-tint-soft); }
 .ai-writing-image__toggle:focus-visible {
   outline: 2px solid #1677ff;
   outline-offset: -2px;
@@ -179,7 +179,7 @@
   height: 24px;
   flex: 0 0 24px;
   border-radius: 8px;
-  background: #eef6ff;
+  background: var(--app-tint);
   color: #2563eb;
   font-size: 12px;
 }
@@ -192,14 +192,14 @@
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: #8a9bb0;
+  color: var(--app-text-2);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 .ai-writing-image__chevron {
   flex: 0 0 auto;
-  color: #7c8ea6;
+  color: var(--app-text-2);
   font-size: 16px;
   line-height: 1;
 }
@@ -208,21 +208,21 @@
   flex-direction: column;
   gap: 8px;
   padding: 0 12px 12px;
-  border-top: 1px solid #eef4fb;
+  border-top: 1px solid var(--app-tint-border);
 }
 .ai-writing-hint {
   padding: 8px 10px;
   border-radius: 8px;
-  background: #fff8eb;
-  color: #9a6700;
+  background: var(--app-warning-bg);
+  color: var(--app-warning);
   font-size: 11px;
   line-height: 1.5;
 }
 .ai-writing-image__body .ant-input,
 .ai-writing-image__body .ant-input-textarea textarea {
   border-radius: 9px !important;
-  border-color: #dfeaf7 !important;
-  background: #fbfdff !important;
+  border-color: var(--app-tint-border) !important;
+  background: var(--app-tint-soft) !important;
   font-size: 12px;
 }
 .ai-writing-prompt { resize: none; }
@@ -234,7 +234,7 @@
 .ai-writing-seg.ant-segmented {
   padding: 2px;
   border-radius: 8px;
-  background: #f4f8fd;
+  background: var(--app-tint-soft);
 }
 .ai-writing-seg .ant-segmented-item-label {
   min-height: 24px;
@@ -264,7 +264,7 @@
   justify-content: space-between;
   margin-bottom: 8px;
   padding: 0 2px;
-  color: #52647a;
+  color: var(--app-text-2);
   font-size: 12px;
   font-weight: 650;
 }
@@ -272,7 +272,7 @@
   min-width: 20px;
   padding: 0 7px;
   border-radius: 999px;
-  background: #e8f3ff;
+  background: var(--app-tint);
   color: #2563eb;
   font-size: 10px;
   font-weight: 600;
@@ -285,10 +285,10 @@
   align-items: center;
   gap: 4px;
   padding: 26px 18px;
-  border: 1px dashed #d9e8f8;
+  border: 1px dashed var(--app-tint-border);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.6);
-  color: #7c8ea6;
+  background: var(--app-elevated);
+  color: var(--app-text-2);
   text-align: center;
 }
 .ai-writing-empty__mark {
@@ -298,12 +298,12 @@
   height: 30px;
   margin-bottom: 2px;
   border-radius: 10px;
-  background: #eef6ff;
+  background: var(--app-tint);
   color: #2563eb;
   font-size: 14px;
 }
 .ai-writing-empty strong {
-  color: #52647a;
+  color: var(--app-text-2);
   font-size: 12px;
   font-weight: 600;
 }
@@ -321,12 +321,12 @@
 .ai-writing-turn {
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #e3edf9;
+  border: 1px solid var(--app-tint-border);
   border-radius: 14px;
-  background: #fff;
+  background: var(--app-card);
 }
-.ai-writing-turn--running { border-color: #bcd8ff; }
-.ai-writing-turn--error { border-color: #f3d3d3; }
+.ai-writing-turn--running { border-color: var(--app-tint-border); }
+.ai-writing-turn--error { border-color: var(--app-danger-border); }
 .ai-writing-turn__header {
   display: flex;
   align-items: center;
@@ -337,7 +337,7 @@
   cursor: pointer;
   user-select: none;
 }
-.ai-writing-turn__header:hover { background: #f8fbff; }
+.ai-writing-turn__header:hover { background: var(--app-tint-soft); }
 .ai-writing-turn__header:focus-visible {
   outline: 2px solid #1677ff;
   outline-offset: -2px;
@@ -356,14 +356,14 @@
   height: 7px;
   flex: 0 0 7px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: var(--app-text-3);
 }
 .ai-writing-dot.is-success { background: #16a34a; }
 .ai-writing-dot.is-error { background: #dc2626; }
-.ai-writing-dot.is-muted { background: #94a3b8; }
+.ai-writing-dot.is-muted { background: var(--app-text-3); }
 .ai-writing-dot.is-running {
   background: #2563eb;
-  box-shadow: 0 0 0 3px #dbeafe;
+  box-shadow: 0 0 0 3px var(--app-primary-border);
   animation: ai-writing-pulse 1.4s ease-in-out infinite;
 }
 @keyframes ai-writing-pulse {
@@ -372,20 +372,20 @@
 }
 .ai-writing-turn__name {
   flex: 0 0 auto;
-  color: #1f2937;
+  color: var(--app-text);
   font-size: 12px;
   font-weight: 650;
 }
 .ai-writing-turn__state {
   flex: 0 0 auto;
-  color: #8a9bb0;
+  color: var(--app-text-2);
   font-size: 10px;
 }
 .ai-writing-turn__preview {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  color: #7c8ea6;
+  color: var(--app-text-2);
   font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -394,7 +394,7 @@
   flex: 0 0 auto;
   height: 24px;
   padding: 0 6px;
-  color: #52647a;
+  color: var(--app-text-2);
   font-size: 11px;
 }
 .ai-writing-turn__body {
@@ -402,7 +402,7 @@
 }
 .ai-writing-output {
   margin: 4px 0 10px;
-  color: #26364a;
+  color: var(--app-text);
   font-size: 13px;
   line-height: 1.8;
   word-break: break-word;
@@ -414,10 +414,10 @@
   margin: 4px 0 10px;
   padding: 10px;
   overflow: auto;
-  border: 1px solid #e7f0fa;
+  border: 1px solid var(--app-tint-border);
   border-radius: 9px;
-  background: #f8fbff;
-  color: #52647a;
+  background: var(--app-tint-soft);
+  color: var(--app-text-2);
   font-size: 11px;
   line-height: 1.6;
   white-space: pre-wrap;
@@ -428,10 +428,10 @@
   min-height: 28px;
   margin: 0 6px 6px 0;
   padding: 5px 9px;
-  border-color: #e3edf9;
+  border-color: var(--app-tint-border);
   border-radius: 8px;
-  background: #f7fbff;
-  color: #1d4ed8;
+  background: var(--app-tint-soft);
+  color: var(--app-link);
   font-size: 11px;
   text-align: left;
   white-space: normal;
@@ -463,7 +463,7 @@
   aspect-ratio: 4 / 3;
   object-fit: cover;
   border-radius: 10px;
-  background: #f1f6fc;
+  background: var(--app-tint-soft);
 }
 .ai-writing-image__insert.ant-btn {
   width: 100%;
@@ -479,7 +479,7 @@
   gap: 6px;
   margin-top: 10px;
   padding-top: 10px;
-  border-top: 1px solid #eef4fb;
+  border-top: 1px solid var(--app-tint-border);
 }
 .ai-writing-turn__actions .ant-btn {
   height: 28px;
@@ -491,9 +491,9 @@
   font-weight: 600;
 }
 .ai-writing-regenerate.ant-btn {
-  color: #7c8ea6;
+  color: var(--app-text-2);
 }
 .ai-writing-regenerate.ant-btn:hover {
-  color: #1d4ed8 !important;
-  background: #eef6ff !important;
+  color: var(--app-link) !important;
+  background: var(--app-tint) !important;
 }

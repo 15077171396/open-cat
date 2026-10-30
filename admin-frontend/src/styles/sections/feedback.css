@@ -13,16 +13,16 @@
   margin-bottom: 16px;
   max-height: 200px;
   overflow-y: auto;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--app-border);
   border-radius: 8px;
-  background: #f8fafc;
+  background: var(--app-subtle);
   font-size: 14px;
   line-height: 1.8;
   white-space: pre-wrap;
 }
 
 .adm-muted {
-  color: #595959;
+  color: var(--app-text-2);
   font-variant-numeric: tabular-nums;
 }
 

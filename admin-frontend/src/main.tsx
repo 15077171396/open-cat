@@ -3,7 +3,8 @@ import ReactDOM from 'react-dom/client'
 import { App as AntdApp, ConfigProvider } from 'antd'
 import zhCN from 'antd/locale/zh_CN'
 import App from './App'
-import { themeConfig } from './theme'
+import { getThemeConfig } from './theme'
+import { resolveMode, usePrefsStore } from './store/prefsStore'
 import { bindToastInstance } from './utils/toast'
 import { initMonitoring } from './utils/monitoring'
 import 'antd/dist/reset.css'
@@ -11,6 +12,21 @@ import './styles/custom.css'
 
 // 错误监控初始化：未配置 VITE_SENTRY_DSN 时空转、不下载 SDK；与用户端共用同一 DSN（按 URL 区分）
 void initMonitoring()
+
+/**
+ * 首帧同步主题标记：tokens.css 的 `[data-theme='dark']` 必须在**第一次绘制前**就绪。
+ *
+ * antd 的 ConfigProvider.theme 是运行时注入，首帧就能生效；但 `adm-*` 手写样式靠
+ * CSS 变量，若等 ThemeShell 的 useEffect 才写 data-theme，暗色用户刷新会先闪一帧
+ * 亮色卡片，再被切成暗色。persist 同步读 localStorage，这里拿到的就是上次的选择；
+ * `system` 模式也在这里解析一次，随后由 ThemeShell 的 matchMedia 监听接管实时变化。
+ */
+function applyInitialTheme(): void {
+  const resolved = resolveMode(usePrefsStore.getState().mode)
+  document.documentElement.dataset.theme = resolved
+  document.documentElement.style.colorScheme = resolved
+}
+applyInitialTheme()
 
 /**
  * 把 antd `App` 提供的 message 实例接给 `utils/toast`（MNT-07）。
@@ -27,16 +43,56 @@ function ToastBridge() {
   return null
 }
 
+/**
+ * 主题外壳：把「用户选的主题模式」解析成实际亮/暗，同时喂给两套体系 ——
+ *
+ * 1. antd 的 `ConfigProvider.theme`（组件内部颜色）；
+ * 2. `document.documentElement[data-theme]`（`styles/sections/tokens.css` 里的 CSS 变量，
+ *    供 `adm-*` 手写样式与布局内联样式使用）。
+ *
+ * 两套必须同时切：只切 antd 会出现「按钮变暗了、手写卡片还是白的」这种半截暗色。
+ * `system` 模式要监听 `matchMedia`，否则用户改系统主题后页面不会跟。
+ */
+function ThemeShell({ children }: { children: React.ReactNode }) {
+  const mode = usePrefsStore((s) => s.mode)
+  const [systemDark, setSystemDark] = React.useState(
+    () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches,
+  )
+
+  React.useEffect(() => {
+    if (mode !== 'system') return
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches)
+    mq.addEventListener('change', onChange)
+    setSystemDark(mq.matches)
+    return () => mq.removeEventListener('change', onChange)
+  }, [mode])
+
+  const resolved = mode === 'system' ? (systemDark ? 'dark' : 'light') : resolveMode(mode)
+
+  React.useEffect(() => {
+    document.documentElement.dataset.theme = resolved
+    // 原生控件（滚动条、日期选择器弹层）跟随，避免暗色页面里滚出一条亮白色滚动条
+    document.documentElement.style.colorScheme = resolved
+  }, [resolved])
+
+  return (
+    <ConfigProvider locale={zhCN} theme={getThemeConfig(resolved)}>
+      {children}
+    </ConfigProvider>
+  )
+}
+
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     {/* 主题 token：次要文字压深到 WCAG AA（详见 src/theme.ts）；
         顺带显式 zh_CN —— 此前没设 locale，antd 内置文案（分页、空态、Modal
         按钮）走的是英文默认值。 */}
     <AntdApp>
-      <ConfigProvider locale={zhCN} theme={themeConfig}>
+      <ThemeShell>
         <ToastBridge />
         <App />
-      </ConfigProvider>
+      </ThemeShell>
     </AntdApp>
   </React.StrictMode>,
 )

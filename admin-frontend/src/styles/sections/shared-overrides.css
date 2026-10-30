@@ -18,7 +18,7 @@
 .ant-tag.ant-tag-filled.ant-tag-magenta { color: #9e1068 !important; }
 .ant-tag.ant-tag-filled.ant-tag-purple { color: #531dab !important; }
 .ant-tag.ant-tag-filled.ant-tag-geekblue { color: #10239e !important; }
-.ant-tag.ant-tag-filled.ant-tag-blue { color: #0958d9 !important; }
+.ant-tag.ant-tag-filled.ant-tag-blue { color: var(--app-link) !important; }
 .ant-tag.ant-tag-filled.ant-tag-cyan { color: #006d75 !important; }
 
 /* antd 6 还有一套**语义色**标签（`color="warning|success|error|processing"`），
@@ -27,7 +27,7 @@
 .ant-tag.ant-tag-filled.ant-tag-warning { color: #8a5a00 !important; }
 .ant-tag.ant-tag-filled.ant-tag-success { color: #237804 !important; }
 .ant-tag.ant-tag-filled.ant-tag-error { color: #a8071a !important; }
-.ant-tag.ant-tag-filled.ant-tag-processing { color: #0958d9 !important; }
+.ant-tag.ant-tag-filled.ant-tag-processing { color: var(--app-link) !important; }
 
 /* ---------------------------------------------------------------------------
  * 侧边菜单：折叠态下的「当前分组」标记
@@ -38,9 +38,9 @@
  * --------------------------------------------------------------------------- */
 .adm-menu-group-active > .ant-menu-submenu-title,
 .adm-menu-group-active > .ant-menu-submenu-title:hover {
-  color: #1677ff;
+  color: var(--app-link);
 }
 .adm-menu-group-active > .ant-menu-submenu-title .anticon {
-  color: #1677ff;
+  color: var(--app-link);
 }
 

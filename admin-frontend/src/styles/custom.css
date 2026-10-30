@@ -66,3 +66,5 @@
 
 /* 素材库页面 */
 @import './sections/materials.css';
+/* 暗色主题补充覆盖：antd 预设色标签 !important 兜底 + 少量装饰 badge 提亮。放最后以保覆盖优先级 */
+@import './sections/theme-dark.css';

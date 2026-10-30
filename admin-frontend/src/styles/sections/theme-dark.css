@@ -1,0 +1,35 @@
+/* 管理后台样式 · 暗色主题补充覆盖
+ * 仅 [data-theme='dark'] 生效，亮色零影响；加载顺序见 ../custom.css（放最后）。
+ *
+ * 这里只放两类「无法用单一 --app-* 变量表达」的兜底：
+ *   1. shared-overrides.css 里 antd 预设色标签的 !important 深色正文 —— antd 在暗色下
+ *      把标签底也压暗了，原来的深色文字会看不见，这里按色系 !important 提亮；
+ *   2. 数据看板少量装饰图标 / 排名的深色文字，浅底已由 --app-*-bg 压暗，文字同样要提亮。
+ * 其余颜色一律走 tokens.css 的 var(--app-*)，不在本文件写死表面色。
+ */
+
+/* ---- antd 预设色 filled 标签（对应 shared-overrides.css 的 15 条压深规则） ---- */
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-gold,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-warning { color: #e3b341 !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-orange,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-volcano { color: #ff9c6e !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-green,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-success,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-lime { color: #73d13d !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-red,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-error { color: #ff7875 !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-magenta { color: #ff85c0 !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-purple { color: #b37feb !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-geekblue,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-blue,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-processing,
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-cyan { color: #69b1ff !important; }
+
+/* ---- 数据看板装饰：浅底已压暗，深色文字提亮 ---- */
+[data-theme='dark'] .dash-metric__icon--cyan { color: #5ad1e6; }
+[data-theme='dark'] .dash-metric__icon--geekblue { color: #85a5ff; }
+[data-theme='dark'] .dash-metric__icon--green { color: #73d13d; }
+[data-theme='dark'] .dash-metric__icon--orange { color: #ffa940; }
+[data-theme='dark'] .dash-metric__icon--red { color: #ff7875; }
+[data-theme='dark'] .dash-bars__rank--1 { color: #e3b341; }
+[data-theme='dark'] .dash-bars__rank--3 { color: #ff9c6e; }

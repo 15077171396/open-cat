@@ -8,11 +8,15 @@ import {
   LogoutOutlined,
   UserOutlined,
   ReloadOutlined,
+  BulbOutlined,
+  LayoutOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
+import { usePrefsStore } from '../../store/prefsStore'
+import type { LayoutMode, ThemeMode } from '../../store/prefsStore'
 import { apiGet } from '../../api/client'
-import { BRAND, SURFACE } from '../../theme'
+import { BRAND } from '../../theme'
 import RouteErrorBoundary from '../RouteErrorBoundary'
 import { menuIcon } from '../../constants/menuIcons'
 import {
@@ -35,6 +39,10 @@ const { Sider, Header, Content } = Layout
  *
  * 这么拆的好处：调整分组、加页面入口、改顺序/图标，全部只改后端那份配置，
  * 不用发版前端；且菜单口径与 RBAC 权限目录同源，不会出现「菜单有入口但点进去 403」。
+ *
+ * 布局（side / top）与主题模式来自 `store/prefsStore`（localStorage 持久化）：
+ * side 为原来的左侧固定 Sider + 顶栏面包屑；top 则把同一份 Menu 以 horizontal
+ * 模式塞进顶栏，内容区全宽。两种布局共用菜单数据与导航逻辑，避免两套实现走偏。
  */
 
 /** 菜单缓存：接口抖动时侧栏不至于整块空白（导航是后台基础设施，不能依赖单次请求成败） */
@@ -73,9 +81,10 @@ function writeMenuCache(tree: MenuTree): void {
 
 // 提取内联样式为模块级常量，避免每次渲染创建新引用
 // 尺寸与圆角遵循设计规范（docs/07-开源文档/06-UI设计规范.md）：顶栏 56 / 内边距 16 / 卡片圆角 12
+// 颜色一律用 CSS 变量（tokens.css），暗色主题下由 [data-theme='dark'] 覆盖，不写死十六进制
 const siderStyle: CSSProperties = {
-  background: '#fff',
-  borderRight: `1px solid ${SURFACE.border}`,
+  background: 'var(--app-card)',
+  borderRight: '1px solid var(--app-border)',
   position: 'fixed',
   left: 0,
   top: 0,
@@ -90,7 +99,7 @@ const logoStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   justifyContent: 'center',
-  borderBottom: `1px solid ${SURFACE.border}`,
+  borderBottom: '1px solid var(--app-border)',
   flex: 'none',
 }
 
@@ -108,17 +117,22 @@ const menuFallbackStyle: CSSProperties = {
 }
 
 const headerStyle: CSSProperties = {
-  background: '#fff',
+  background: 'var(--app-card)',
   padding: '0 16px',
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  borderBottom: `1px solid ${SURFACE.border}`,
+  borderBottom: '1px solid var(--app-border)',
   flex: 'none',
   position: 'sticky',
   top: 0,
   zIndex: 1,
 }
+
+/** 顶栏布局：logo 与操作区固定，中间的横向菜单吃掉剩余宽度 */
+const topHeaderStyle: CSSProperties = { ...headerStyle, gap: 8 }
+const topLogoStyle: CSSProperties = { ...logoStyle, borderBottom: 'none', paddingRight: 8 }
+const topMenuWrapStyle: CSSProperties = { flex: 1, minWidth: 0, overflow: 'hidden' }
 
 const headerLeftStyle: CSSProperties = {
   display: 'flex',
@@ -131,7 +145,7 @@ const contentStyle: CSSProperties = {
   overflow: 'auto',
   margin: 16,
   padding: 16,
-  background: '#fff',
+  background: 'var(--app-card)',
   // 与卡片圆角一致：内容区本身就是一张大卡片，页面内的卡片叠在其上时靠间距区分
   borderRadius: 12,
 }
@@ -159,6 +173,13 @@ export default function AdminLayout() {
   const isSuper = useAuthStore((s) => s.isSuper)
   const permissions = useAuthStore((s) => s.permissions)
   const [collapsed, setCollapsed] = useState(false)
+
+  // 展示偏好：独立 store + localStorage 持久化，退出登录不丢
+  const mode = usePrefsStore((s) => s.mode)
+  const layout = usePrefsStore((s) => s.layout)
+  const setMode = usePrefsStore((s) => s.setMode)
+  const setLayout = usePrefsStore((s) => s.setLayout)
+  const isTop = layout === 'top'
 
   // 有缓存就先渲染（避免刷新时侧栏闪一下骨架），随后静默校准
   const [menuTree, setMenuTree] = useState<MenuTree | null>(() => readMenuCache())
@@ -262,13 +283,15 @@ export default function AdminLayout() {
       children: group.items.map(toLeaf),
       // 折叠态只剩图标，靠主色标出「当前页面所在分组」，否则用户不知道自己在哪一层
       className:
-        collapsed && groupMenuKey(group.key) === activeGroupKey ? 'adm-menu-group-active' : undefined,
+        collapsed && !isTop && groupMenuKey(group.key) === activeGroupKey
+          ? 'adm-menu-group-active'
+          : undefined,
     }))
     const footer = visibleTree.footer.map(toLeaf)
     return (footer.length > 0
       ? [...groups, { type: 'divider' as const }, ...footer]
       : groups) as MenuProps['items']
-  }, [visibleTree, collapsed, activeGroupKey])
+  }, [visibleTree, collapsed, activeGroupKey, isTop])
 
   // 顶栏当前位置（父级 / 页面）：折叠侧栏后仍能判断自己在哪一层
   const currentCrumb = useMemo(() => {
@@ -297,14 +320,54 @@ export default function AdminLayout() {
     navigate('/login')
   }
 
-  const userMenu = {
+  const userMenu: MenuProps = {
     items: [
       // 个人中心：顶栏账号下拉里的快捷入口（与左侧菜单同一路由）
       { key: 'profile', icon: <UserOutlined />, label: '个人中心', onClick: () => navigate('/profile') },
-      { type: 'divider' as const },
+      { type: 'divider' },
       { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
     ],
   }
+
+  /** 主题：亮 / 暗 / 跟随系统（system 由 main.tsx 的 matchMedia 实时解析） */
+  const themeMenu: MenuProps = {
+    items: [
+      { key: 'light', label: '亮色' },
+      { key: 'dark', label: '暗色' },
+      { key: 'system', label: '跟随系统' },
+    ],
+    selectedKeys: [mode],
+    onClick: ({ key }) => setMode(key as ThemeMode),
+  }
+
+  /** 布局：侧边导航 / 顶部导航，与主题同属展示偏好 */
+  const layoutMenu: MenuProps = {
+    items: [
+      { key: 'side', label: '侧边导航' },
+      { key: 'top', label: '顶部导航' },
+    ],
+    selectedKeys: [layout],
+    onClick: ({ key }) => setLayout(key as LayoutMode),
+  }
+
+  const headerActions = (
+    <Space size={4}>
+      {/* 提示用原生 title 而非 Tooltip：Dropdown 会 cloneElement 给触发元素绑事件，
+          中间再套一层 Tooltip 会吃掉这些事件 */}
+      <Dropdown menu={themeMenu} placement="bottomRight" trigger={['click']}>
+        <Button type="text" icon={<BulbOutlined />} aria-label="主题模式" title="主题模式" />
+      </Dropdown>
+      <Dropdown menu={layoutMenu} placement="bottomRight" trigger={['click']}>
+        <Button type="text" icon={<LayoutOutlined />} aria-label="布局" title="布局" />
+      </Dropdown>
+      <Dropdown menu={userMenu} placement="bottomRight">
+        <Space style={{ cursor: 'pointer' }}>
+          <Avatar icon={<UserOutlined />} src={avatarUrl || undefined} />
+          <Typography.Text>{account || '管理员'}</Typography.Text>
+        </Space>
+      </Dropdown>
+    </Space>
+  )
 
   /** 菜单区三态：加载中（无缓存）/ 加载失败（无缓存）/ 正常 */
   const renderMenu = () => {
@@ -335,69 +398,85 @@ export default function AdminLayout() {
     }
     return (
       <Menu
-        mode="inline"
+        mode={isTop ? 'horizontal' : 'inline'}
         selectedKeys={[selectedKey]}
-        openKeys={openKeys}
+        // 横向菜单由 antd 自行管理 hover 展开，不需要（也不能）传受控 openKeys
+        openKeys={isTop ? undefined : openKeys}
         // 手风琴：同时只展开一个分组（判据见 utils/menu.ts::nextOpenKeys）
-        onOpenChange={(keys) => setOpenKeys((prev) => nextOpenKeys(prev, keys as string[]))}
+        onOpenChange={isTop ? undefined : (keys) => setOpenKeys((prev) => nextOpenKeys(prev, keys as string[]))}
         items={menuItems}
         onClick={({ key }) => {
           // 外链菜单由 <a> 新窗口打开、分组节点由 antd 自行展开，均不改变当前 SPA 路由
           if (externalKeys.has(key) || key.startsWith(GROUP_KEY_PREFIX)) return
           navigate(key)
         }}
-        style={{ borderRight: 0 }}
+        style={
+          isTop
+            ? { background: 'transparent', borderBottom: 0, minWidth: 0 }
+            : { borderRight: 0 }
+        }
       />
     )
   }
 
   return (
     <Layout style={{ height: '100vh', overflow: 'hidden' }}>
-      <Sider trigger={null} collapsible collapsed={collapsed} width={220} style={siderStyle}>
-        <div style={logoStyle}>
-          <Typography.Title level={4} style={{ margin: 0, color: BRAND.primary }}>
-            {collapsed ? '猫' : 'AI猫后台'}
-          </Typography.Title>
-        </div>
-        <div style={menuScrollStyle}>{renderMenu()}</div>
-      </Sider>
+      {!isTop && (
+        <Sider trigger={null} collapsible collapsed={collapsed} width={220} style={siderStyle}>
+          <div style={logoStyle}>
+            <Typography.Title level={4} style={{ margin: 0, color: BRAND.primary }}>
+              {collapsed ? '猫' : 'AI猫后台'}
+            </Typography.Title>
+          </div>
+          <div style={menuScrollStyle}>{renderMenu()}</div>
+        </Sider>
+      )}
       <Layout
         style={{
-          marginLeft: collapsed ? 80 : 220,
+          marginLeft: isTop ? 0 : collapsed ? 80 : 220,
           height: '100vh',
           display: 'flex',
           flexDirection: 'column',
         }}
       >
-        <Header style={headerStyle}>
-          <div style={headerLeftStyle}>
-            <button
-              type="button"
-              onClick={() => setCollapsed(!collapsed)}
-              aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
-              aria-expanded={!collapsed}
-              style={{ ...collapseTriggerStyle, background: 'none', border: 'none', color: 'inherit' }}
-            >
-              {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            </button>
-            {currentCrumb && (
-              <Space size={4}>
-                {currentCrumb.group && (
-                  <>
-                    <Typography.Text type="secondary">{currentCrumb.group}</Typography.Text>
-                    <Typography.Text type="secondary">/</Typography.Text>
-                  </>
+        <Header style={isTop ? topHeaderStyle : headerStyle}>
+          {isTop ? (
+            <>
+              <div style={topLogoStyle}>
+                <Typography.Title level={4} style={{ margin: 0, color: BRAND.primary, whiteSpace: 'nowrap' }}>
+                  AI猫后台
+                </Typography.Title>
+              </div>
+              <div style={topMenuWrapStyle}>{renderMenu()}</div>
+              {headerActions}
+            </>
+          ) : (
+            <>
+              <div style={headerLeftStyle}>
+                <button
+                  type="button"
+                  onClick={() => setCollapsed(!collapsed)}
+                  aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
+                  aria-expanded={!collapsed}
+                  style={{ ...collapseTriggerStyle, background: 'none', border: 'none', color: 'inherit' }}
+                >
+                  {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                </button>
+                {currentCrumb && (
+                  <Space size={4}>
+                    {currentCrumb.group && (
+                      <>
+                        <Typography.Text type="secondary">{currentCrumb.group}</Typography.Text>
+                        <Typography.Text type="secondary">/</Typography.Text>
+                      </>
+                    )}
+                    <Typography.Text strong>{currentCrumb.label}</Typography.Text>
+                  </Space>
                 )}
-                <Typography.Text strong>{currentCrumb.label}</Typography.Text>
-              </Space>
-            )}
-          </div>
-          <Dropdown menu={userMenu} placement="bottomRight">
-            <Space style={{ cursor: 'pointer' }}>
-              <Avatar icon={<UserOutlined />} src={avatarUrl || undefined} />
-              <Typography.Text>{account || '管理员'}</Typography.Text>
-            </Space>
-          </Dropdown>
+              </div>
+              {headerActions}
+            </>
+          )}
         </Header>
         <Content style={isEditPage ? contentStyleZeroVerticalPadding : contentStyle}>
           {/* 页面级错误边界：某一页渲染挂了不该把侧栏一起带走（见组件注释） */}

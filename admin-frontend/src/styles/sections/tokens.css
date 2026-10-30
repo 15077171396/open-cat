@@ -43,4 +43,70 @@
   --app-radius-xs: 6px;
   --app-gap: 16px;
   --app-header-h: 56px;
+  /* 浮层 / 弹层：暗色下比 --app-card 略亮一档 */
+  --app-elevated: #ffffff;
+  /* 文字第四级：分隔点、占位图标等最浅的装饰性文字 */
+  --app-text-4: #bfbfbf;
+  /* 描边：强调型（上传虚线框）/ 危险型 */
+  --app-border-strong: #d9d9d9;
+  --app-danger-border: #ffccc7;
+  /* 语义浅底：信息蓝 / 紫字 / 紫底 / 金底 / 链接 */
+  --app-info-bg: #e6f4ff;
+  --app-purple: #722ed1;
+  --app-purple-bg: #f4f0ff;
+  --app-gold-bg: #fff8e6;
+  --app-link: #0958d9;
+  /* 蓝系装饰底色（AI 写作 / 素材库 / 图片搜索大量使用）：三档层次 */
+  --app-tint: #eef4fb;
+  --app-tint-soft: #f8fbff;
+  --app-tint-border: #dbe8f7;
+  /* 卡片投影：亮色靠极淡阴影分层，暗色靠深色阴影 */
+  --app-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+}
+
+/* ============================================================
+ * 暗色主题变量覆盖（与 src/theme.ts 的 SURFACE_DARK / darkThemeConfig 一一对应）
+ * 由 <html data-theme="dark"> 激活（见 main.tsx ThemeShell）。
+ * 只覆盖「随底色反向变化」的颜色；形状类变量（--app-radius / --app-gap /
+ * --app-header-h）亮暗共用，不在此重复。
+ * 页面手写样式一律用 var(--app-*)，换肤时不会漏掉硬编码色值。
+ * ============================================================ */
+[data-theme='dark'] {
+  --app-primary: #6d83f3;
+  --app-primary-weak: #1e2a54;
+  --app-primary-border: #2d3a6b;
+
+  --app-canvas: #0f1115;
+  --app-card: #161a21;
+  --app-elevated: #1b2029;
+  --app-subtle: #1b2029;
+  --app-border: #262b35;
+  --app-border-light: #20252e;
+  --app-border-strong: #3a4250;
+  --app-danger-border: #5c2b2b;
+
+  --app-text: #e6e9ef;
+  --app-text-2: #a6adbb;
+  --app-text-3: #8b93a1;
+  --app-text-4: #5f6672;
+
+  --app-success: #3fb950;
+  --app-success-bg: #14291b;
+  --app-warning: #d29922;
+  --app-warning-bg: #2b2313;
+  --app-danger: #f85149;
+  --app-danger-bg: #2c1a1c;
+  --app-neutral: #a6adbb;
+  --app-neutral-bg: #21262f;
+
+  --app-info-bg: #14243b;
+  --app-purple: #b37feb;
+  --app-purple-bg: #221c35;
+  --app-gold-bg: #2b2515;
+  --app-link: #6ea8fe;
+
+  --app-tint: #1a2532;
+  --app-tint-soft: #1e2937;
+  --app-tint-border: #2a3a4f;
+  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
 }

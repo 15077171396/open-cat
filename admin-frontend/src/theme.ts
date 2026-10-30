@@ -1,3 +1,4 @@
+import { theme as antdTheme } from 'antd'
 import type { ThemeConfig } from 'antd'
 
 /**
@@ -96,4 +97,74 @@ export const themeConfig: ThemeConfig = {
     Button: { primaryShadow: 'none', defaultShadow: 'none' },
     Modal: { borderRadiusLG: 12 },
   },
+}
+
+
+/** 暗色表面：与 tokens.css 的 [data-theme='dark'] 一一对应 */
+export const SURFACE_DARK = {
+  canvas: '#0F1115',
+  card: '#161A21',
+  border: '#262B35',
+  subtle: '#1B2029',
+  selected: '#1E2A54',
+} as const
+
+/**
+ * 暗色 theme config：只覆盖「会随底色反向变化」的 token。
+ * 其余（圆角、控件高度、间距）亮暗共用，避免两套配置慢慢走偏。
+ */
+const darkThemeConfig: ThemeConfig = {
+  algorithm: antdTheme.darkAlgorithm,
+  token: {
+    colorPrimary: BRAND.primary,
+    colorInfo: BRAND.primary,
+    colorSuccess: '#3FB950',
+    colorWarning: '#D29922',
+    colorError: '#F85149',
+    colorLink: '#6EA8FE',
+
+    colorText: '#E6E9EF',
+    colorTextSecondary: '#A6ADBB',
+    colorTextTertiary: '#8B93A1',
+    colorTextDescription: '#8B93A1',
+
+    colorBgLayout: SURFACE_DARK.canvas,
+    colorBgContainer: SURFACE_DARK.card,
+    colorBgElevated: '#1B2029',
+    colorBorderSecondary: SURFACE_DARK.border,
+  },
+  components: {
+    Layout: {
+      headerHeight: 56,
+      headerPadding: '0 16px',
+      bodyBg: SURFACE_DARK.canvas,
+      headerBg: SURFACE_DARK.card,
+      siderBg: SURFACE_DARK.card,
+    },
+    Menu: {
+      itemSelectedColor: '#9DB4FF',
+      itemSelectedBg: SURFACE_DARK.selected,
+      itemBorderRadius: 8,
+      itemHeight: 40,
+      itemMarginInline: 8,
+    },
+    Table: {
+      headerBg: SURFACE_DARK.subtle,
+      headerSplitColor: 'transparent',
+      rowHoverBg: '#1C2230',
+      cellPaddingBlock: 10,
+      borderColor: SURFACE_DARK.border,
+    },
+    Card: { paddingLG: 16, borderRadiusLG: 12 },
+    Button: { primaryShadow: 'none', defaultShadow: 'none' },
+    Modal: { borderRadiusLG: 12 },
+  },
+}
+
+/**
+ * 按模式取主题：亮色沿用原配置（**不改动**，避免视觉回归），暗色只覆盖必要 token。
+ * 调用方传入 `resolveMode()` 的结果（'light' | 'dark'）。
+ */
+export function getThemeConfig(mode: 'light' | 'dark'): ThemeConfig {
+  return mode === 'dark' ? darkThemeConfig : themeConfig
 }

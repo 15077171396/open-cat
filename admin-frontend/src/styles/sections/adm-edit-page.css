@@ -22,27 +22,27 @@
   height: 26px;
   border-radius: 8px;
   font-size: 14px;
-  color: #1677ff;
-  background: #e6f4ff;
+  color: var(--app-link);
+  background: var(--app-info-bg);
 }
 
 .adm-section__title {
   font-size: 15px;
   font-weight: 600;
-  color: #1f1f1f;
+  color: var(--app-text);
 }
 
 .adm-section__hint {
   margin: 0 0 16px 34px;
   font-size: 12px;
   line-height: 1.6;
-  color: #595959;
+  color: var(--app-text-2);
 }
 
 .adm-divider {
   height: 1px;
   margin: 24px 0;
-  background: #f0f0f0;
+  background: var(--app-subtle);
 }
 
 /* ---- 编辑页：封面图（左侧预览块 + 右侧操作） ---- */
@@ -90,13 +90,13 @@
 .adm-checklist__foot {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px dashed #eceef2;
+  border-top: 1px dashed var(--app-border);
   font-size: 12px;
-  color: #595959;
+  color: var(--app-text-2);
 }
 
 .adm-checklist__foot strong {
-  color: #595959;
+  color: var(--app-text-2);
   font-weight: 500;
 }
 
@@ -105,11 +105,11 @@
   align-items: center;
   gap: 8px;
   font-size: 12px;
-  color: #595959;
+  color: var(--app-text-2);
 }
 
 .adm-checklist__item--done {
-  color: #434343;
+  color: var(--app-text-2);
 }
 
 .adm-checklist__dot {
@@ -121,9 +121,9 @@
   height: 16px;
   border-radius: 50%;
   font-size: 10px;
-  color: #bfbfbf;
-  border: 1px solid #e0e0e0;
-  background: #fff;
+  color: var(--app-text-4);
+  border: 1px solid var(--app-border);
+  background: var(--app-card);
 }
 
 .adm-checklist__item--done .adm-checklist__dot {
@@ -143,8 +143,8 @@
   height: 132px;
   padding: 16px 20px;
   border-radius: 10px;
-  border: 1px dashed #d9d9d9;
-  background: #fafbfc;
+  border: 1px dashed var(--app-border-strong);
+  background: var(--app-subtle);
   cursor: pointer;
   text-align: center;
   transition: border-color 0.2s ease, background 0.2s ease;
@@ -152,26 +152,26 @@
 
 .adm-drop:hover {
   border-color: #1677ff;
-  background: #f5f9ff;
+  background: var(--app-tint);
 }
 
 .adm-drop__icon {
   font-size: 26px;
-  color: #bfbfbf;
+  color: var(--app-text-4);
 }
 
 .adm-drop:hover .adm-drop__icon {
-  color: #1677ff;
+  color: var(--app-link);
 }
 
 .adm-drop__title {
   font-size: 13px;
-  color: #595959;
+  color: var(--app-text-2);
 }
 
 .adm-drop__hint {
   font-size: 12px;
-  color: #bfbfbf;
+  color: var(--app-text-4);
 }
 
 /* ---- 编辑页：封面预览 ---- */
@@ -181,8 +181,8 @@
   aspect-ratio: 16 / 9;
   border-radius: 10px;
   overflow: hidden;
-  border: 1px dashed #d9d9d9;
-  background: #fafbfc;
+  border: 1px dashed var(--app-border-strong);
+  background: var(--app-subtle);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -190,7 +190,7 @@
 
 .adm-cover--filled {
   border-style: solid;
-  border-color: #eef0f4;
+  border-color: var(--app-border-light);
 }
 
 .adm-cover img {
@@ -205,7 +205,7 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
-  color: #bfbfbf;
+  color: var(--app-text-4);
   cursor: pointer;
   font-size: 12px;
 }
@@ -214,14 +214,14 @@
   margin-top: 8px;
   font-size: 12px;
   line-height: 1.6;
-  color: #595959;
+  color: var(--app-text-2);
 }
 
 .adm-warn {
   margin-top: 8px;
   font-size: 12px;
   line-height: 1.6;
-  color: #d46b08;
+  color: var(--app-warning);
 }
 
 /* ---- 编辑页：章节管理（左章节树 + 右单章编辑器） ----
@@ -233,9 +233,9 @@
   gap: 20px;
   flex-wrap: wrap;
   padding: 16px;
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--app-border);
   border-radius: 10px;
-  background: #fafbfc;
+  background: var(--app-subtle);
 }
 
 .adm-nodes__tree {
@@ -260,7 +260,7 @@
   align-items: center;
   justify-content: center;
   min-height: 320px;
-  color: #999;
+  color: var(--app-text-3);
 }
 
 .adm-node-row {
@@ -271,22 +271,22 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 13px;
-  color: #475569;
+  color: var(--app-text-2);
   transition: background 0.15s ease;
 }
 
 .adm-node-row:hover {
-  background: #f1f5f9;
+  background: var(--app-subtle);
 }
 
 .adm-node-row--active {
-  background: #eef2ff;
-  color: #4f46e5;
+  background: var(--app-purple-bg);
+  color: var(--app-primary);
   font-weight: 500;
 }
 
 .adm-node-row--active:hover {
-  background: #eef2ff;
+  background: var(--app-purple-bg);
 }
 
 .adm-node-row__caret {
@@ -294,7 +294,7 @@
   display: flex;
   justify-content: center;
   width: 16px;
-  color: #94a3b8;
+  color: var(--app-text-3);
 }
 
 .adm-node-row__title {
