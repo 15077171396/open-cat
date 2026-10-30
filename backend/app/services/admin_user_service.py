@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
+from app.core.data_scope import DataScope, apply_scope
 from app.core.security import bump_token_version
 from app.models.user import User
 from app.models.auth_request import AuthRequest
@@ -75,6 +76,7 @@ async def list_users(
     role: str = None,
     keyword: str = None,
     account_status: str = "active",
+    scope: DataScope | None = None,
 ) -> dict:
     """用户列表（含星球认证状态，批量查 AuthRequest 避免 N+1）
 
@@ -100,6 +102,8 @@ async def list_users(
         conditions.append(
             User.account.contains(escape_like(keyword), escape="\\")
         )
+    # 数据范围：运营只看本部门、客服只看自己（super_admin 与 all 范围不加条件）
+    apply_scope(conditions, scope, owner_col=User.id, dept_col=User.department_id)
 
     # PERF-012: 直接 count，无 subquery
     total = (
@@ -178,15 +182,18 @@ async def list_users(
     return {"items": items, "total": total, "page": page, "page_size": page_size}
 
 
-async def get_user(db: AsyncSession, user_id: int) -> dict:
+async def get_user(db: AsyncSession, user_id: int, scope: DataScope | None = None) -> dict:
     """用户详情（含认证历史）
 
     ARCH-012: 排除已软删除用户
+
+    `scope` 非全量时，范围外的用户一律按「不存在」返回 —— 列表已过滤、详情不拦，
+    等于给了个可以逐个猜 id 的后门。
     """
+    conditions = [User.id == user_id, User.deleted_at.is_(None)]
+    apply_scope(conditions, scope, owner_col=User.id, dept_col=User.department_id)
     user = (
-        await db.execute(
-            select(User).where(User.id == user_id, User.deleted_at.is_(None))
-        )
+        await db.execute(select(User).where(*conditions))
     ).scalar_one_or_none()
     if not user:
         raise AppException(code=404, message="用户不存在")

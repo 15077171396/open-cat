@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Drawer, Form, Input, Modal, Segmented, Space, Spin, Tag, Tooltip, Tree, Typography } from 'antd'
+import { Alert, Button, Drawer, Form, Input, Modal, Segmented, Select, Space, Spin, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import type { TableProps } from 'antd'
 import { DeleteOutlined, EditOutlined, KeyOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
@@ -108,13 +108,18 @@ export default function RolesList() {
 
   const openCreate = () => {
     setEditingRole(null)
-    setFormValues({})
+    // 新建默认「全部数据」：与后端缺省一致，也和改造前所有角色的可见范围一致
+    setFormValues({ data_scope: 'all' })
     setModalOpen(true)
   }
 
   const openEdit = (role: RbacRole) => {
     setEditingRole(role)
-    setFormValues({ name: role.name, description: role.description ?? '' })
+    setFormValues({
+      name: role.name,
+      description: role.description ?? '',
+      data_scope: role.data_scope ?? 'all',
+    })
     setModalOpen(true)
   }
 
@@ -124,6 +129,7 @@ export default function RolesList() {
         await apiPut(`/admin/rbac/roles/${editingRole.id}`, {
           name: values.name,
           description: values.description || null,
+          data_scope: values.data_scope ?? 'all',
         })
         toast.success('角色已更新')
       } else {
@@ -132,6 +138,7 @@ export default function RolesList() {
           name: values.name,
           description: values.description || null,
           permission_codes: [],
+          data_scope: values.data_scope ?? 'all',
         })
         toast.success('角色创建成功，可在「分配权限」中配置')
       }
@@ -279,6 +286,17 @@ export default function RolesList() {
         ) : (
           <span className="adm-muted">—</span>
         ),
+    },
+    {
+      title: '数据范围',
+      dataIndex: 'data_scope',
+      key: 'data_scope',
+      width: 110,
+      // 只读展示：改范围要进编辑弹窗（和权限一样，属于「能看见谁」的边界，不该在列表上顺手改）
+      render: (v?: string) => {
+        const label = v === 'dept' ? '本部门' : v === 'self' ? '仅本人' : '全部'
+        return <Tag color={!v || v === 'all' ? undefined : 'blue'}>{label}</Tag>
+      },
     },
     {
       title: '类型',
@@ -455,6 +473,19 @@ export default function RolesList() {
           </Form.Item>
           <Form.Item name="description" label="角色说明">
             <Input.TextArea placeholder="该角色可管理的内容与边界" maxLength={200} rows={2} />
+          </Form.Item>
+          <Form.Item
+            name="data_scope"
+            label="数据范围"
+            extra="管「能看见谁的数据」：权限码管能不能点，这里管点进去看到哪些行。多角色时取最宽的一个。"
+          >
+            <Select
+              options={[
+                { value: 'all', label: '全部数据' },
+                { value: 'dept', label: '本部门数据' },
+                { value: 'self', label: '仅本人数据' },
+              ]}
+            />
           </Form.Item>
       </ModalForm>
 

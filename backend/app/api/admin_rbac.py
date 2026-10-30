@@ -6,6 +6,8 @@ include_router 继承，漏挂时这组端点只剩 require_admin（仅角色门
 tests/test_admin_route_guards.py 有「每条 /admin 路由都必须挂守卫」的静态守卫。
 """
 
+from typing import Literal
+
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,11 +33,15 @@ class RoleCreateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     description: str | None = Field(None, max_length=200)
     permission_codes: list[str] = Field(default_factory=list, max_length=100)
+    # 数据范围：all=全部 / dept=本部门 / self=仅本人；缺省 all，保持改造前的可见范围
+    data_scope: Literal["all", "dept", "self"] = "all"
 
 
 class RoleUpdateRequest(BaseModel):
     name: str = Field(..., min_length=1, max_length=50)
     description: str | None = Field(None, max_length=200)
+    # 不传则保持原值（前端老版本不会带这个字段，不能因此把范围重置成 all）
+    data_scope: Literal["all", "dept", "self"] | None = None
 
 
 class RolePermissionsRequest(BaseModel):
@@ -106,6 +112,7 @@ async def create_rbac_role(
         code=req.code, name=req.name,
         description=req.description,
         permission_codes=req.permission_codes,
+        data_scope=req.data_scope,
     )
     # 审计：建/改/删角色是提权面的起点，无留痕等于绕开审计造全权角色
     record_admin_action(
@@ -136,7 +143,9 @@ async def update_rbac_role(
     admin: User = Depends(require_admin),
 ):
     """更新角色基本信息（编码不可改）"""
-    result = await rbac_service.update_role(db, role_id, name=req.name, description=req.description)
+    result = await rbac_service.update_role(
+        db, role_id, name=req.name, description=req.description, data_scope=req.data_scope
+    )
     record_admin_action(
         db, admin, "role_update",
         target_type="role", target_id=role_id,

@@ -14,6 +14,7 @@ import json
 from sqlalchemy import select, func, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.data_scope import SCOPE_ALL, SCOPE_LABELS
 from app.models.rbac import Department, Role, Permission, RolePermission, UserRole
 from app.models.user import User
 from app.core.exceptions import AppException, NotFoundError
@@ -148,6 +149,13 @@ async def list_permission_tree() -> list[dict]:
 
 # 角色 CRUD
 
+def _validate_scope(data_scope: str) -> None:
+    """数据范围白名单校验：非法值直接 400，不落库（落库后会被当成「最窄」处理，
+    管理员会以为设成功了，实际全员只能看自己）"""
+    if data_scope not in SCOPE_LABELS:
+        raise AppException(code=400, message=f"未知数据范围: {data_scope}")
+
+
 def role_to_dict(role: Role, *, permission_codes: list[str] | None = None, user_count: int | None = None) -> dict:
     data = {
         "id": role.id,
@@ -155,6 +163,8 @@ def role_to_dict(role: Role, *, permission_codes: list[str] | None = None, user_
         "name": role.name,
         "description": role.description,
         "is_system": role.is_system,
+        # 数据范围随角色一起下发：管理页要能看出「这个角色能看到谁的数据」
+        "data_scope": getattr(role, "data_scope", SCOPE_ALL) or SCOPE_ALL,
     }
     if permission_codes is not None:
         data["permissions"] = permission_codes
@@ -201,7 +211,15 @@ async def list_roles(db: AsyncSession) -> dict:
     }
 
 
-async def create_role(db: AsyncSession, *, code: str, name: str, description: str | None, permission_codes: list[str]) -> dict:
+async def create_role(
+    db: AsyncSession,
+    *,
+    code: str,
+    name: str,
+    description: str | None,
+    permission_codes: list[str],
+    data_scope: str = SCOPE_ALL,
+) -> dict:
     """创建角色并绑定权限"""
     existed = (
         await db.execute(select(Role.id).where(Role.code == code))
@@ -212,7 +230,14 @@ async def create_role(db: AsyncSession, *, code: str, name: str, description: st
     if invalid:
         raise AppException(code=400, message=f"未知权限码: {', '.join(invalid[:5])}")
 
-    role = Role(code=code, name=name, description=description or None, is_system=False)
+    _validate_scope(data_scope)
+    role = Role(
+        code=code,
+        name=name,
+        description=description or None,
+        is_system=False,
+        data_scope=data_scope,
+    )
     db.add(role)
     await db.flush()
     for pcode in set(permission_codes):
@@ -225,11 +250,21 @@ async def create_role(db: AsyncSession, *, code: str, name: str, description: st
     return role_to_dict(role, permission_codes=sorted(set(permission_codes)), user_count=0)
 
 
-async def update_role(db: AsyncSession, role_id: int, *, name: str, description: str | None) -> dict:
-    """更新角色基本信息（code 不可改：作为缓存/审计的外部标识）"""
+async def update_role(
+    db: AsyncSession,
+    role_id: int,
+    *,
+    name: str,
+    description: str | None,
+    data_scope: str | None = None,
+) -> dict:
+    """更新角色基本信息与数据范围（code 不可改：作为缓存/审计的外部标识）"""
     role = await _get_role(db, role_id)
     role.name = name
     role.description = description or None
+    if data_scope is not None:
+        _validate_scope(data_scope)
+        role.data_scope = data_scope
     await db.commit()
     await db.refresh(role)
     return role_to_dict(role)

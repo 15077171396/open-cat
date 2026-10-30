@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, field_validator
 from typing import Literal, Optional
 
 from app.database import get_db
+from app.core.data_scope import resolve_data_scope
 from app.core.permissions import require_admin
 from app.utils.time import parse_iso_to_naive_utc
 from app.utils.verification import ACCOUNT_FORMAT_ERROR, is_email_or_phone
@@ -52,7 +53,9 @@ async def admin_list_users(
     默认只看正常账号（与历史行为一致）；`account_status=deleted` 查已注销账号，
     列表项的 `deleted_at` 非空，可在该视图里恢复。
     """
-    result = await list_users(db, page, page_size, role, keyword, account_status)
+    # 数据范围在路由层解析（service 不该知道 RBAC 的存在），super_admin 恒为 all
+    scope = await resolve_data_scope(db, admin)
+    result = await list_users(db, page, page_size, role, keyword, account_status, scope=scope)
     return success_response(result)
 
 
@@ -147,7 +150,7 @@ async def admin_get_user(
     admin: User = Depends(require_admin),
 ):
     """用户详情（含认证历史）"""
-    result = await get_user(db, user_id)
+    result = await get_user(db, user_id, scope=await resolve_data_scope(db, admin))
     return success_response(result)
 
 

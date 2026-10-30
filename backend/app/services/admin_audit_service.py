@@ -20,6 +20,7 @@ from app.models.admin_audit_log import (
     AUDIT_TARGET_TYPE_LABELS,
     AdminAuditLog,
 )
+from app.core.data_scope import DataScope, apply_scope
 from app.models.user import User
 from app.utils.sanitize import escape_like
 
@@ -173,6 +174,7 @@ async def list_audit_logs(
     risk: Optional[str] = None,
     start_at: Optional[datetime] = None,
     end_at: Optional[datetime] = None,
+    scope: DataScope | None = None,
 ) -> dict:
     """审计日志列表（按时间倒序）
 
@@ -211,6 +213,9 @@ async def list_audit_logs(
                 AdminAuditLog.admin_account.contains(kw, escape="\\"),
             )
         )
+    # 数据范围：审计表没有部门列，dept 范围在这里退化为「仅本人」——
+    # 宁可少看，也不能因为「查不到部门」就把全量日志放出去。
+    apply_scope(conditions, scope, owner_col=AdminAuditLog.admin_id)
 
     total = (
         await db.execute(select(func.count(AdminAuditLog.id)).where(*conditions))

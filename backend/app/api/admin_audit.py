@@ -7,6 +7,7 @@
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.data_scope import resolve_data_scope
 from app.core.exceptions import AppException, success_response
 from app.core.permissions import require_admin
 from app.core.rbac import check_route_permission
@@ -64,6 +65,8 @@ async def list_admin_audit_logs(
         risk=risk,
         start_at=start_dt,
         end_at=end_dt,
+        # 数据范围：只给了「审计查看」权限的角色，不该能翻别人的操作记录
+        scope=await resolve_data_scope(db, admin),
     )
     data["action_options"] = [{"value": k, "label": v} for k, v in AUDIT_ACTIONS.items()]
     # 带 label：前端不必再维护一份「类型代码 → 中文名」，避免新增类型时显示成裸代码

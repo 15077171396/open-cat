@@ -831,6 +831,8 @@ export interface RbacRole {
   permissions?: string[]
   /** 使用该角色的用户数（列表接口返回） */
   user_count?: number
+  /** 数据范围：all=全部 / dept=本部门 / self=仅本人 */
+  data_scope?: 'all' | 'dept' | 'self'
 }
 
 /** 权限点 */

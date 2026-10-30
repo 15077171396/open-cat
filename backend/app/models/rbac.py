@@ -36,6 +36,12 @@ class Role(Base):
     name: Mapped[str] = mapped_column(String(50), comment="角色名称")
     description: Mapped[str | None] = mapped_column(String(200), nullable=True, comment="角色说明")
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0", comment="内置角色(不可删除)")
+    data_scope: Mapped[str] = mapped_column(
+        String(20),
+        default="all",
+        server_default="all",
+        comment="数据范围：all=全部 / dept=本部门 / self=仅本人（见 core/data_scope.py）",
+    )
     created_at: Mapped[datetime] = mapped_column(DateTime, server_default=func.now(), comment="创建时间")
 
 
