@@ -70,6 +70,11 @@ logs/*
 # 保留目录本身：compose 把 ./logs 挂进容器，缺目录时 Docker 会以 root 建一个，
 # 非 root 运行的后端可能写不进去（表现为日志静默丢失）
 !logs/.gitkeep
+# 后端运行期日志（含轮转产物）。
+# ⚠️ `*.log` 挡不住轮转出来的 `*.log.zip` —— 曾因此把一个 737KB 的日志包提交进仓库
+# （内含 43 个手机号形态、224 个邮箱），并且会污染部署包（scripts/pack-deploy.sh 自检报错）。
+# 整个目录忽略，目录由运行时创建（logging.py 会 mkdir）。
+backend/logs/
 
 # Database
 *.db
