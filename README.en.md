@@ -110,7 +110,7 @@ The thing worth reviewing in an open-source project is discipline, not feature c
 
 | Capability | This project | Typical open-source admin |
 |------|------|-------------------|
-| Backend tests | **144 files / 1768 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
+| Backend tests | **145 files / 1774 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
 | Architecture guards | Permission coverage / audit coverage / menu consistency / task registry, all covered by tests | Rare |
 | Secret storage | Fernet-encrypted in DB + mask sentinel | Plain text in DB or config |
 | Audit | Mandatory for writes; missing record fails tests | Logs exist, no coverage guarantee |

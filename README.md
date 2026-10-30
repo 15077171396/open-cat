@@ -93,8 +93,11 @@ curl -s http://localhost/api/v1/content/tutorials/4675248031/nodes | jq '.data'
 curl -s http://localhost/api/v1/content/tutorials/4675248031/nodes/123 | jq '.data.content'
 ```
 
-除浏览埋点（`POST /tutorials/{id}/track`）外全部只读、匿名可访问；
+**匿名可读**：首页聚合、教程列表、试读（`.../intro`，已含章节树）、分类、公告。
+**需要用户 token**：教程详情与章节正文——免费教程登录即读，会员教程需 VIP 或已购买。
 付费解锁与分类增删改**不在**这个命名空间里——它们分别是交易与后台操作。
+
+一个能直接跑的样板（含匿名与登录两种视角）：[`examples/frontend-minimal`](examples/frontend-minimal/)。
 
 > 旧的 `/api/v1/{tutorials,categories,home,announcements}` 仍然可用（OpenAPI 里标了 `deprecated`），
 > 保留是为了不打断已有的用户端；新项目请直接用 `/api/v1/content/*`。
@@ -140,7 +143,7 @@ docs/            文档
 
 | 能力 | 本项目 | 同类开源后台常见情况 |
 |------|--------|-------------------|
-| 后端测试 | **144 个文件 / 1768 个用例**，全程离线可跑（不需 MySQL/Redis） | 0 ～ 数十 |
+| 后端测试 | **145 个文件 / 1774 个用例**，全程离线可跑（不需 MySQL/Redis） | 0 ～ 数十 |
 | 架构守卫 | 权限覆盖 / 审计覆盖 / 菜单一致性 / 任务注册表，均有用例守着 | 少见 |
 | 密钥存储 | Fernet 加密落库 + 掩码哨兵 | 明文存表或存配置文件 |
 | 审计 | 写操作强制留痕，缺失即测试失败 | 有日志但无覆盖保障 |
@@ -200,7 +203,7 @@ docs/            文档
 - [x] 登录设备（会话列表 / 单台下线 / 退出其他设备）+ 管理员强制下线
 - [x] 写操作幂等键（`Idempotency-Key` 中间件）
 - [x] 内容 API 独立命名空间（`/api/v1/content/*`）+ 独立 OpenAPI 文档
-- [ ] 内容 API 的最小示例前台（`examples/frontend-minimal`）
+- [x] 内容 API 的最小示例前台（`examples/frontend-minimal`，零依赖单文件）
 - [x] 数据权限（本人 / 本部门 / 全部），已接入用户列表 / 详情与操作审计
 - [x] 后端 i18n 骨架（菜单与权限名按 `Accept-Language` 下发，默认中文）
 - [ ] 页面内文案英文化 + 前端语言切换
