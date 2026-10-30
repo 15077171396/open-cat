@@ -3,25 +3,31 @@
 **一个自带按钮级 RBAC、全量操作审计、UGC 审核与 AI 写作的内容中台。**
 用它管内容与用户，用它的 API 渲染你自己的站点。
 
-> 中文文档（英文版 `README.en.md` 待补）
+> 中文文档（[English](README.en.md)）
 
 > **定位说明**：这不是又一个 CRUD 脚手架，也不是低代码平台。
 > 它解决的是一个具体问题——**多人协作运营一个内容站时，权限要细、动作要留痕、内容要好写**。
 
 <p align="center">
-  <img src="docs/assets/screenshot-dashboard.png" width="880" alt="数据看板">
+  <img src="docs/assets/screenshot-dashboard.png" width="880" alt="数据看板：今日指标、7 天趋势、注册来源与内容资产">
+  <br>
+  <sub>数据看板 —— 今日指标 / 7 天趋势 / 注册来源 / 内容资产</sub>
 </p>
 
 <p align="center">
-  <img src="docs/assets/screenshot-editor.png" width="430" alt="富文本编辑器">
-  <img src="docs/assets/screenshot-audit.png" width="430" alt="操作审计">
+  <img src="docs/assets/screenshot-editor.png" width="880" alt="富文本编辑器：Quill 2 工具栏、正文与多级章节树">
+  <br>
+  <sub>编辑 —— Quill 2 富文本（表格 / 代码块 / 图注）+ 多级章节树</sub>
+</p>
+
+<p align="center">
+  <img src="docs/assets/screenshot-audit.png" width="880" alt="操作审计：按模块、操作人、时间与结果检索">
+  <br>
+  <sub>审计 —— 写操作强制留痕，可按模块 / 操作人 / 时间 / 结果检索</sub>
 </p>
 
 <!--
-README 截图位（发布前替换）：
-1. dashboard   数据看板（卡片 + 趋势 + 系统状态）
-2. editor      富文本编辑器 + AI 写作抽屉
-3. audit       操作审计（筛选 + 详情）
+README 截图位（后续补充，现有三张已由 docs/assets 提供）：
 4. list        列表页（筛选 + 批量操作）
 5. settings    系统设置（左分类 + 右表单）
 6. rbac        角色权限树
@@ -63,10 +69,35 @@ docker compose up -d
 docker compose exec app python seed_demo.py
 ```
 
-会灌入 5 篇教程（含 15 个章节）、8 条百科、示例资源/工具/扩展、评论、反馈、公告与积分流水，
+会灌入 5 篇教程（含 15 个章节）、示例分类、用户、评论、反馈、公告与积分流水，
 并**现场生成封面图与头像**写入存储——所以图片是真能显示的，不是 404 占位。
 
 脚本是幂等的（标题带 `【示例】` 前缀），重复执行会跳过；库里已有真实内容时必须加 `--yes` 才继续。
+
+### 用内容 API 渲染你自己的站点
+
+后台管内容，前台自己写。内容接口有独立的命名空间与独立文档：
+
+- 接口文档：`http://localhost/api/v1/content/docs`
+- 机器可读：`http://localhost/api/v1/content/openapi.json`
+
+```bash
+# 首页聚合：一屏所需的教程、分类、公告一次拿齐
+curl -s http://localhost/api/v1/content | jq '.data.tutorials[:3]'
+
+# 教程列表（分页）
+curl -s 'http://localhost/api/v1/content/tutorials?page=1&page_size=10' | jq '.data.items'
+
+# 章节树 → 正文
+curl -s http://localhost/api/v1/content/tutorials/4675248031/nodes | jq '.data'
+curl -s http://localhost/api/v1/content/tutorials/4675248031/nodes/123 | jq '.data.content'
+```
+
+除浏览埋点（`POST /tutorials/{id}/track`）外全部只读、匿名可访问；
+付费解锁与分类增删改**不在**这个命名空间里——它们分别是交易与后台操作。
+
+> 旧的 `/api/v1/{tutorials,categories,home,announcements}` 仍然可用（OpenAPI 里标了 `deprecated`），
+> 保留是为了不打断已有的用户端；新项目请直接用 `/api/v1/content/*`。
 
 ---
 
@@ -95,7 +126,7 @@ docker compose exec app python seed_demo.py
 **部署** Docker Compose · nginx · 可选 Sentry
 
 ```
-backend/         FastAPI 应用（222 端点，122 管理端）
+backend/         FastAPI 应用（237 个操作，122 管理端；内容 API 见 /api/v1/content/docs）
 admin-frontend/  管理后台 SPA（base=/admin/）
 deploy/          compose + nginx
 docs/            文档
@@ -109,7 +140,7 @@ docs/            文档
 
 | 能力 | 本项目 | 同类开源后台常见情况 |
 |------|--------|-------------------|
-| 后端测试 | **138 个文件 / 1699 个用例**，全程离线可跑（不需 MySQL/Redis） | 0 ～ 数十 |
+| 后端测试 | **143 个文件 / 1751 个用例**，全程离线可跑（不需 MySQL/Redis） | 0 ～ 数十 |
 | 架构守卫 | 权限覆盖 / 审计覆盖 / 菜单一致性 / 任务注册表，均有用例守着 | 少见 |
 | 密钥存储 | Fernet 加密落库 + 掩码哨兵 | 明文存表或存配置文件 |
 | 审计 | 写操作强制留痕，缺失即测试失败 | 有日志但无覆盖保障 |
@@ -166,22 +197,25 @@ docs/            文档
 - [x] 演示数据（`seed_demo.py`，图片真实落盘）
 - [x] 部署体检（存储 / 站点地址 / 邮件 / 短信 / AI / 支付六项可用性）
 - [x] 列表导出（CSV：用户 / 教程 / 资源 / 积分流水，带筛选与审计）
-- [ ] 在线会话与强制下线 · 写操作幂等
-- [ ] 内容 API 独立命名空间 + OpenAPI 文档
-- [ ] 数据权限（本人 / 本部门 / 全部）
+- [x] 登录设备（会话列表 / 单台下线 / 退出其他设备）+ 管理员强制下线
+- [x] 写操作幂等键（`Idempotency-Key` 中间件）
+- [x] 内容 API 独立命名空间（`/api/v1/content/*`）+ 独立 OpenAPI 文档
+- [ ] 内容 API 的最小示例前台（`examples/frontend-minimal`）
+- [x] 数据权限（本人 / 本部门 / 全部），已接入用户列表 / 详情与操作审计
 - [ ] 英文界面与 i18n 骨架
 
 ---
 
 ## 贡献
 
-欢迎 Issue 与 PR。开始前请读[开发文档](docs/07-开源文档/05-开发文档.md)，特别注意三条硬约定：
+欢迎 Issue 与 PR。开始前请读 [CONTRIBUTING.md](CONTRIBUTING.md)，特别注意三条硬约定：
 
 1. 新增写操作**必须**写审计，否则 CI 红；
 2. 新增管理端接口**必须**在路由规则表登记，否则 403；
 3. 新增权限码**必须**同步菜单项，否则测试失败。
 
 `good first issue` 标签下是适合入门的任务。
+安全问题请走 [SECURITY.md](SECURITY.md) 的私密通道，不要开公开 Issue；版本变更见 [CHANGELOG.md](CHANGELOG.md)。
 
 ---
 
