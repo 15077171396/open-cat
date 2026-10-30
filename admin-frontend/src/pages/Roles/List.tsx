@@ -5,12 +5,12 @@ import type { TableProps } from 'antd'
 import { DeleteOutlined, EditOutlined, KeyOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { apiDelete, apiGet, apiPost, apiPut } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
-import { getErrorMessage, isFormValidationError } from '../../utils/error'
+import { getErrorMessage } from '../../utils/error'
 import type { RbacPermissionGroup, RbacRole } from '../../types'
 
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
-import { DataTable, ListToolbar } from '../../components/ui'
+import { DataTable, ListToolbar, ModalForm } from '../../components/ui'
 /**
  * 角色管理：角色决定管理后台的菜单可见性与按钮级操作权限。
  *
@@ -42,8 +42,8 @@ export default function RolesList() {
   // 新建/编辑弹窗
   const [modalOpen, setModalOpen] = useState(false)
   const [editingRole, setEditingRole] = useState<RbacRole | null>(null)
-  const [form] = Form.useForm()
-  const [submitting, setSubmitting] = useState(false)
+  /** 弹窗回填值：ModalForm 打开时写入表单 */
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
   // 权限分配抽屉
   const [permDrawerRole, setPermDrawerRole] = useState<RbacRole | null>(null)
@@ -108,27 +108,17 @@ export default function RolesList() {
 
   const openCreate = () => {
     setEditingRole(null)
-    form.resetFields()
+    setFormValues({})
     setModalOpen(true)
   }
 
   const openEdit = (role: RbacRole) => {
     setEditingRole(role)
-    form.setFieldsValue({ name: role.name, description: role.description ?? '' })
+    setFormValues({ name: role.name, description: role.description ?? '' })
     setModalOpen(true)
   }
 
-  const handleSubmit = async () => {
-    // ⚠️ validateFields 必须包在 try 里：它校验失败时返回 rejected promise，
-    // 直接 await 会让 Modal 的 onOk 抛未处理拒绝（控制台一条 pageerror，Sentry 会收）
-    let values
-    try {
-      values = await form.validateFields()
-    } catch (err) {
-      if (isFormValidationError(err)) return
-      throw err
-    }
-    setSubmitting(true)
+  const handleSubmit = async (values: Record<string, unknown>) => {
     try {
       if (editingRole) {
         await apiPut(`/admin/rbac/roles/${editingRole.id}`, {
@@ -149,8 +139,6 @@ export default function RolesList() {
       loadRoles()
     } catch (err) {
       toast.error(getErrorMessage(err, '操作失败'))
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -442,18 +430,15 @@ export default function RolesList() {
         超级管理员拥有全部权限且不可删除、权限不可修改（它是权限校验的逃逸通道）。
       </Typography.Text>
 
-      <Modal
-        title={editingRole ? '编辑角色' : '新建角色'}
+      <ModalForm
         open={modalOpen}
-        onOk={handleSubmit}
+        title={editingRole ? '编辑角色' : '新建角色'}
         onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
+        onSubmit={handleSubmit}
         okText="保存"
-        cancelText="取消"
-        destroyOnHidden
-        forceRender
+        initialValues={formValues}
+        formStyle={{ marginTop: 16 }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="code"
             label="角色编码"
@@ -471,8 +456,7 @@ export default function RolesList() {
           <Form.Item name="description" label="角色说明">
             <Input.TextArea placeholder="该角色可管理的内容与边界" maxLength={200} rows={2} />
           </Form.Item>
-        </Form>
-      </Modal>
+      </ModalForm>
 
       <Drawer
         title={`分配权限 - ${permDrawerRole?.name ?? ''}`}

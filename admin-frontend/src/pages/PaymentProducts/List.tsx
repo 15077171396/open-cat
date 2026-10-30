@@ -5,7 +5,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Popconfirm,
   Select,
   Space,
@@ -20,8 +19,9 @@ import { apiDelete, apiGet, apiPost, apiPut } from '../../api/client'
 import ListPageHeader from '../../components/ListPageHeader'
 import { PermGuard } from '../../components/PermGuard'
 import { TableEmpty } from '../../components/TableEmpty'
-import { getErrorMessage, isFormValidationError } from '../../utils/error'
+import { getErrorMessage } from '../../utils/error'
 import { toast } from '../../utils/toast'
+import ModalForm from '../../components/ui/ModalForm'
 
 interface PaymentProduct {
   id: number
@@ -56,9 +56,11 @@ export default function PaymentProductsList() {
   const [rows, setRows] = useState<PaymentProduct[]>([])
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<PaymentProduct | null>(null)
-  const [saving, setSaving] = useState(false)
+
   const [busyId, setBusyId] = useState<number | null>(null)
   const [form] = Form.useForm<ProductFormValues>()
+  /** 弹窗回填值：ModalForm 打开时写入表单（弹窗内 kind 切换要读 form，故传外部实例） */
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
   const kind = Form.useWatch('kind', form)
 
   const load = useCallback(async () => {
@@ -79,8 +81,7 @@ export default function PaymentProductsList() {
 
   const openCreate = () => {
     setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({
+    setFormValues({
       kind: 'points',
       amount: 10,
       points: 100,
@@ -93,7 +94,7 @@ export default function PaymentProductsList() {
 
   const openEdit = (row: PaymentProduct) => {
     setEditing(row)
-    form.setFieldsValue({
+    setFormValues({
       code: row.code,
       name: row.name,
       description: row.description,
@@ -108,10 +109,10 @@ export default function PaymentProductsList() {
     setModalOpen(true)
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (raw: Record<string, unknown>) => {
+    // ModalForm 给的是宽类型的表单值；字段定义在 ProductFormValues 里，这里收敛回具体类型
+    const values = raw as unknown as ProductFormValues
     try {
-      const values = await form.validateFields()
-      setSaving(true)
       const payload = {
         ...values,
         code: values.code.trim(),
@@ -130,10 +131,7 @@ export default function PaymentProductsList() {
       setModalOpen(false)
       await load()
     } catch (err) {
-      if (isFormValidationError(err)) return
       toast.error(getErrorMessage(err, '保存失败'))
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -283,18 +281,17 @@ export default function PaymentProductsList() {
         />
       </Card>
 
-      <Modal
+      <ModalForm
         open={modalOpen}
         title={editing ? '编辑套餐' : '新增套餐'}
         okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
         onCancel={() => setModalOpen(false)}
-        onOk={handleSubmit}
+        onSubmit={handleSubmit}
         width={620}
-        destroyOnHidden
+        form={form}
+        initialValues={formValues}
+        formStyle={{ marginTop: 16 }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Space size={16} style={{ display: 'flex' }} align="start">
             <Form.Item
               label="套餐标识（code）"
@@ -355,8 +352,7 @@ export default function PaymentProductsList() {
               <Switch />
             </Form.Item>
           </Space>
-        </Form>
-      </Modal>
+      </ModalForm>
     </div>
   )
 }

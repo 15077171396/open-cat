@@ -7,13 +7,13 @@ import { CloudDownloadOutlined, CloudUploadOutlined, DeleteOutlined, EditOutline
 import { apiPost, apiPut } from '../../api/client'
 import { useCrudList } from '../../hooks/useCrudList'
 import { PermGuard } from '../../components/PermGuard'
-import { getErrorMessage, isFormValidationError } from '../../utils/error'
+import { getErrorMessage } from '../../utils/error'
 import { shouldRetreatOnePage } from '../../utils/pagination'
 import { formatTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
-import { DataTable, ListToolbar } from '../../components/ui'
+import { DataTable, ListToolbar, ModalForm } from '../../components/ui'
 interface Announcement {
   id: number
   title: string
@@ -71,6 +71,8 @@ export default function AnnouncementsList() {
   const [editing, setEditing] = useState<Announcement | null>(null)
   const [togglingId, setTogglingId] = useState<number | null>(null)
   const [form] = Form.useForm()
+  /** 弹窗回填值：ModalForm 打开时写入表单（弹窗内还有实时预览要读 form，故仍传外部实例） */
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
   const listParams: Record<string, string | boolean> = {}
   if (keyword.trim()) listParams.keyword = keyword.trim()
@@ -93,14 +95,13 @@ export default function AnnouncementsList() {
 
   const openCreate = () => {
     setEditing(null)
-    form.resetFields()
-    form.setFieldsValue({ tag: '公告', color: DEFAULT_COLOR, is_published: true })
+    setFormValues({ tag: '公告', color: DEFAULT_COLOR, is_published: true })
     setModalOpen(true)
   }
 
   const openEdit = (record: Announcement) => {
     setEditing(record)
-    form.setFieldsValue({
+    setFormValues({
       title: record.title,
       content: record.content,
       tag: record.tag,
@@ -111,19 +112,18 @@ export default function AnnouncementsList() {
     setModalOpen(true)
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (values: Record<string, unknown>) => {
+    const payload = {
+      title: (values.title as string).trim(),
+      content: values.content,
+      tag: values.tag,
+      color: typeof values.color === 'string' ? values.color : (values.color as { toHexString(): string }).toHexString(),
+      is_published: values.is_published,
+      // 定时发布：DatePicker 给的是本地时区的 dayjs，统一转成 ISO（UTC）再交给后端，
+      // 避免「本地 20:00 被当成 UTC 20:00」整体偏 8 小时
+      publish_at: values.publish_at ? (values.publish_at as Dayjs).toISOString() : null,
+    }
     try {
-      const values = await form.validateFields()
-      const payload = {
-        title: values.title.trim(),
-        content: values.content,
-        tag: values.tag,
-        color: typeof values.color === 'string' ? values.color : values.color.toHexString(),
-        is_published: values.is_published,
-        // 定时发布：DatePicker 给的是本地时区的 dayjs，统一转成 ISO（UTC）再交给后端，
-        // 避免「本地 20:00 被当成 UTC 20:00」整体偏 8 小时
-        publish_at: values.publish_at ? (values.publish_at as Dayjs).toISOString() : null,
-      }
       if (editing === null) {
         await apiPost('/admin/announcements', payload)
         toast.success('公告创建成功')
@@ -134,7 +134,6 @@ export default function AnnouncementsList() {
       setModalOpen(false)
       refresh()
     } catch (err) {
-      if (isFormValidationError(err)) return
       toast.error(getErrorMessage(err, '操作失败'))
     }
   }
@@ -453,18 +452,17 @@ export default function AnnouncementsList() {
         <strong>不会刷新发布时间</strong>，需要让一条旧公告回到最前时请新建一条。
       </Typography.Text>
 
-      <Modal
-        title={editing === null ? '新增公告' : '编辑公告'}
+      <ModalForm
         open={modalOpen}
-        onOk={handleSubmit}
+        title={editing === null ? '新增公告' : '编辑公告'}
         onCancel={() => setModalOpen(false)}
+        onSubmit={handleSubmit}
         okText="保存"
-        cancelText="取消"
         width={680}
-        destroyOnHidden
-        forceRender
+        form={form}
+        initialValues={formValues}
+        formStyle={{ marginTop: 16 }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             name="title"
             label="标题"
@@ -557,8 +555,7 @@ export default function AnnouncementsList() {
               首页仍按它排序。
             </Typography.Text>
           )}
-        </Form>
-      </Modal>
+      </ModalForm>
     </div>
   )
 }

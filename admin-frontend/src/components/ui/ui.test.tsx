@@ -170,4 +170,53 @@ describe('ModalForm', () => {
     await userEvent.click(screen.getByRole('button', { name: /确\s*定/ }))
     expect(onSubmit).toHaveBeenCalledWith({ name: '图片压缩' })
   })
+
+  it('打开时写入 initialValues；关闭后再打开不残留上次输入', async () => {
+    // 回归背景：手写弹窗最常见的两个 bug —— 编辑后新增还留着上一条的值、
+    // 换成 ModalForm 后又在 setOpen(true) 之前调 setFieldsValue（被 reset 清掉）。
+    const { rerender } = render(
+      <ModalForm
+        open={false}
+        title="编辑"
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+        initialValues={{ name: '第一次' }}
+      >
+        <Form.Item name="name" label="名称">
+          <Input />
+        </Form.Item>
+      </ModalForm>,
+    )
+    rerender(
+      <ModalForm
+        open
+        title="编辑"
+        onCancel={vi.fn()}
+        onSubmit={vi.fn()}
+        initialValues={{ name: '第一次' }}
+      >
+        <Form.Item name="name" label="名称">
+          <Input />
+        </Form.Item>
+      </ModalForm>,
+    )
+    expect(screen.getByLabelText('名称')).toHaveValue('第一次')
+
+    // 关闭（清空）→ 再打开且不给回填值：不能还显示「第一次」
+    rerender(
+      <ModalForm open={false} title="新建" onCancel={vi.fn()} onSubmit={vi.fn()}>
+        <Form.Item name="name" label="名称">
+          <Input />
+        </Form.Item>
+      </ModalForm>,
+    )
+    rerender(
+      <ModalForm open title="新建" onCancel={vi.fn()} onSubmit={vi.fn()}>
+        <Form.Item name="name" label="名称">
+          <Input />
+        </Form.Item>
+      </ModalForm>,
+    )
+    expect(screen.getByLabelText('名称')).toHaveValue('')
+  })
 })

@@ -5,12 +5,12 @@ import type { TableProps } from 'antd'
 import { ApartmentOutlined, DeleteOutlined, EditOutlined, PlusOutlined, ReloadOutlined } from '@ant-design/icons'
 import { apiDelete, apiGet, apiPost, apiPut } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
-import { getErrorMessage, isFormValidationError } from '../../utils/error'
+import { getErrorMessage } from '../../utils/error'
 import type { Department } from '../../types'
 
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
-import { DataTable } from '../../components/ui'
+import { DataTable, ModalForm } from '../../components/ui'
 /**
  * 部门管理：部门是用户的**组织归属**（在用户管理中分配），用于后台分组与筛选展示，
  * **不参与权限判定** —— 权限只看角色（角色管理）。
@@ -45,8 +45,8 @@ export default function DepartmentsList() {
 
   const [modalOpen, setModalOpen] = useState(false)
   const [editingDept, setEditingDept] = useState<Department | null>(null)
-  const [form] = Form.useForm()
-  const [submitting, setSubmitting] = useState(false)
+  /** 弹窗回填值：ModalForm 在打开时写入表单（不再用 form.setFieldsValue） */
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
 
   const loadDepartments = useCallback(async () => {
     setLoading(true)
@@ -159,15 +159,13 @@ export default function DepartmentsList() {
 
   const openCreate = (presetParentId?: number) => {
     setEditingDept(null)
-    form.resetFields()
-    form.setFieldsValue({ sort_order: 0 })
-    if (presetParentId) form.setFieldsValue({ parent_id: presetParentId })
+    setFormValues({ sort_order: 0, ...(presetParentId ? { parent_id: presetParentId } : {}) })
     setModalOpen(true)
   }
 
   const openEdit = (dept: Department) => {
     setEditingDept(dept)
-    form.setFieldsValue({
+    setFormValues({
       name: dept.name,
       parent_id: dept.parent_id ?? undefined,
       sort_order: dept.sort_order,
@@ -175,23 +173,13 @@ export default function DepartmentsList() {
     setModalOpen(true)
   }
 
-  const handleSubmit = async () => {
-    // ⚠️ validateFields 必须包在 try 里：校验失败它返回 rejected promise，
-    // 直接 await 会让 Modal 的 onOk 抛未处理拒绝（控制台一条 pageerror，Sentry 会收）
-    let values
-    try {
-      values = await form.validateFields()
-    } catch (err) {
-      if (isFormValidationError(err)) return
-      throw err
+  const handleSubmit = async (values: Record<string, unknown>) => {
+    const payload = {
+      name: values.name,
+      parent_id: values.parent_id ?? null,
+      sort_order: values.sort_order ?? 0,
     }
-    setSubmitting(true)
     try {
-      const payload = {
-        name: values.name,
-        parent_id: values.parent_id ?? null,
-        sort_order: values.sort_order ?? 0,
-      }
       if (editingDept) {
         await apiPut(`/admin/rbac/departments/${editingDept.id}`, payload)
         toast.success('部门已更新')
@@ -203,8 +191,6 @@ export default function DepartmentsList() {
       loadDepartments()
     } catch (err) {
       toast.error(getErrorMessage(err, '操作失败'))
-    } finally {
-      setSubmitting(false)
     }
   }
 
@@ -365,18 +351,15 @@ export default function DepartmentsList() {
         <b>不参与权限判定</b> —— 能做什么只取决于角色。排序值小的排在前面，同父级下名称不可重复。
       </Typography.Text>
 
-      <Modal
-        title={editingDept ? '编辑部门' : '新建部门'}
+      <ModalForm
         open={modalOpen}
-        onOk={handleSubmit}
+        title={editingDept ? '编辑部门' : '新建部门'}
         onCancel={() => setModalOpen(false)}
-        confirmLoading={submitting}
+        onSubmit={handleSubmit}
         okText="保存"
-        cancelText="取消"
-        destroyOnHidden
-        forceRender
+        initialValues={formValues}
+        formStyle={{ marginTop: 16 }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item name="name" label="部门名称" rules={[{ required: true, message: '请输入部门名称' }]}>
             <Input placeholder="运营部" maxLength={50} />
           </Form.Item>
@@ -395,8 +378,7 @@ export default function DepartmentsList() {
           <Form.Item name="sort_order" label="排序值" initialValue={0} extra="数值小的排在前面">
             <InputNumber min={0} max={10000} style={{ width: '100%' }} />
           </Form.Item>
-        </Form>
-      </Modal>
+      </ModalForm>
     </div>
   )
 }

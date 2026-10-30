@@ -5,7 +5,6 @@ import {
   Card,
   Form,
   InputNumber,
-  Modal,
   Popconfirm,
   Segmented,
   Skeleton,
@@ -34,6 +33,7 @@ import { toast } from '../../utils/toast'
 import { useAuthStore } from '../../store/authStore'
 import type { NormalizedScheduledJob, ScheduledJobsData } from '../../types'
 import { formatAge, formatCst, normalizeScheduledJobs } from '../../components/dashboard/dashboardUtils'
+import ModalForm from '../../components/ui/ModalForm'
 
 /**
  * 定时任务（系统 → 定时任务）。
@@ -85,8 +85,9 @@ export default function ScheduledJobsPage() {
   /** 正在提交的任务 id（按钮 loading，防连点） */
   const [busyId, setBusyId] = useState<string | null>(null)
   const [editing, setEditing] = useState<NormalizedScheduledJob | null>(null)
-  const [saving, setSaving] = useState(false)
   const [form] = Form.useForm<ScheduleFormValues>()
+  /** 弹窗回填值：ModalForm 打开时写入表单（表单里有 useWatch 读 kind，故传外部实例） */
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
   const scheduleKind = Form.useWatch('schedule_kind', form)
 
   const load = useCallback(async () => {
@@ -155,17 +156,17 @@ export default function ScheduledJobsPage() {
 
   const openEditor = (job: NormalizedScheduledJob) => {
     setEditing(job)
-    form.setFieldsValue({
+    setFormValues({
       schedule_kind: job.config.scheduleKind === 'interval' ? 'interval' : 'daily',
       time: dayjs().hour(job.config.hour).minute(job.config.minute).second(0),
       interval_minutes: job.config.intervalMinutes,
     })
   }
 
-  const saveSchedule = async () => {
+  const saveSchedule = async (raw: Record<string, unknown>) => {
     if (!editing) return
-    const values = await form.validateFields()
-    setSaving(true)
+    // ModalForm 传宽类型；字段定义在 ScheduleFormValues，收敛回具体类型
+    const values = raw as unknown as ScheduleFormValues
     try {
       const payload =
         values.schedule_kind === 'interval'
@@ -182,8 +183,6 @@ export default function ScheduledJobsPage() {
       reloadSoon()
     } catch (err) {
       toast.error(getErrorMessage(err, '保存失败'))
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -439,17 +438,16 @@ export default function ScheduledJobsPage() {
       </Card>
 
       {/* 周期编辑：只改周期，不动启停（启停用行内开关，一键完成） */}
-      <Modal
+      <ModalForm
         open={editing !== null}
         title={`调整执行周期${editing ? `：${editing.label}` : ''}`}
         onCancel={() => setEditing(null)}
-        onOk={saveSchedule}
+        onSubmit={saveSchedule}
         okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
-        destroyOnHidden
+        form={form}
+        initialValues={formValues}
+        formStyle={{ marginTop: 12 }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 12 }}>
           <Form.Item name="schedule_kind" label="调度方式">
             <Segmented
               options={[
@@ -483,8 +481,7 @@ export default function ScheduledJobsPage() {
               {editing.customized ? `（代码默认 ${editing.defaultSchedule}）` : '（代码默认值）'}
             </Typography.Text>
           ) : null}
-        </Form>
-      </Modal>
+      </ModalForm>
     </div>
   )
 }

@@ -4,7 +4,6 @@ import {
   Form,
   Input,
   InputNumber,
-  Modal,
   Popconfirm,
   Segmented,
   Select,
@@ -37,10 +36,11 @@ import { PermGuard } from '../../components/PermGuard'
 import { TableEmpty } from '../../components/TableEmpty'
 import { SettingField } from '../../components/settings/SettingField'
 import type { SettingDef } from '../../components/settings/types'
-import { getErrorMessage, isFormValidationError } from '../../utils/error'
+import { getErrorMessage } from '../../utils/error'
 import { toast } from '../../utils/toast'
 import { modelsForModality, type ModelModality } from './modelModality'
 import './index.css'
+import ModalForm from '../../components/ui/ModalForm'
 
 /** 后端 AI 模型列表项（GET /admin/ai-models） */
 interface AiModelRow {
@@ -230,11 +230,12 @@ export default function AiModelsPage() {
   const [costSaving, setCostSaving] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [editing, setEditing] = useState<AiModelRow | null>(null)
-  const [saving, setSaving] = useState(false)
   const [busyId, setBusyId] = useState<number | null>(null)
   const [clearKey, setClearKey] = useState(false)
   const [revealKey, setRevealKey] = useState(false)
   const [form] = Form.useForm<ModelFormValues>()
+  /** 弹窗回填值：ModalForm 打开时写入表单（弹窗内联动要改字段，故传外部实例） */
+  const [formValues, setFormValues] = useState<Record<string, unknown>>({})
   const enabled = Form.useWatch('is_enabled', form)
   const providerValue = Form.useWatch('provider', form)
   const formModalityValue = Form.useWatch('modality', form)
@@ -359,8 +360,7 @@ export default function AiModelsPage() {
     setEditing(null)
     setClearKey(false)
     setRevealKey(false)
-    form.resetFields()
-    form.setFieldsValue({
+    setFormValues({
       display_name: '',
       code: undefined,
       modality,
@@ -384,8 +384,7 @@ export default function AiModelsPage() {
     setEditing(row)
     setClearKey(false)
     setRevealKey(false)
-    form.resetFields()
-    form.setFieldsValue({
+    setFormValues({
       display_name: row.display_name,
       code: row.code,
       modality: row.modality === 'image' ? 'image' : 'text',
@@ -404,10 +403,10 @@ export default function AiModelsPage() {
     setModalOpen(true)
   }
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (raw: Record<string, unknown>) => {
+    // ModalForm 传宽类型；字段定义在 ModelFormValues，收敛回具体类型
+    const values = raw as unknown as ModelFormValues
     try {
-      const values = await form.validateFields()
-      setSaving(true)
       const targetModality: ModelModality = values.modality === 'image' ? 'image' : 'text'
       const basePayload: Record<string, unknown> = {
         display_name: values.display_name.trim(),
@@ -448,10 +447,7 @@ export default function AiModelsPage() {
       setModalOpen(false)
       await load()
     } catch (err) {
-      if (isFormValidationError(err)) return
       toast.error(getErrorMessage(err, '保存失败'))
-    } finally {
-      setSaving(false)
     }
   }
 
@@ -986,18 +982,17 @@ export default function AiModelsPage() {
         </section>
       </div>
 
-      <Modal
+      <ModalForm
         open={modalOpen}
         title={editing ? '编辑模型' : '新增模型'}
         okText="保存"
-        cancelText="取消"
-        confirmLoading={saving}
         onCancel={() => setModalOpen(false)}
-        onOk={handleSubmit}
+        onSubmit={handleSubmit}
         width={680}
-        destroyOnHidden
+        form={form}
+        initialValues={formValues}
+        formStyle={{ marginTop: 16 }}
       >
-        <Form form={form} layout="vertical" style={{ marginTop: 16 }}>
           <Form.Item
             label="展示名"
             name="display_name"
@@ -1224,8 +1219,7 @@ export default function AiModelsPage() {
               <Switch disabled={!enabled} />
             </Form.Item>
           </Space>
-        </Form>
-      </Modal>
+      </ModalForm>
     </div>
   )
 }

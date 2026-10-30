@@ -3,7 +3,6 @@ import {
   Button,
   Form,
   Input,
-  Modal,
   Radio,
   Select,
   Space,
@@ -15,12 +14,12 @@ import type { TableProps } from 'antd'
 import { NotificationOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
 import { apiGet, apiPost } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
-import { getErrorMessage, isFormValidationError } from '../../utils/error'
+import { getErrorMessage } from '../../utils/error'
 import { formatTime } from '../../utils/datetime'
 import { toast } from '../../utils/toast'
 import type { PaginatedResponse, AdminUser } from '../../types'
 import PageHeader from '../../components/ui/PageHeader'
-import { DataTable } from '../../components/ui'
+import { DataTable, ModalForm } from '../../components/ui'
 
 /**
  * 站内消息通知：给用户发系统通知（全站 / 指定用户）。
@@ -56,7 +55,6 @@ export default function MessageList() {
   const [page, setPage] = useState(1)
   const [total, setTotal] = useState(0)
   const [sendOpen, setSendOpen] = useState(false)
-  const [sending, setSending] = useState(false)
   const [userOptions, setUserOptions] = useState<{ label: string; value: number }[]>([])
   const [form] = Form.useForm<SendFormValues>()
   const target = Form.useWatch('target', form)
@@ -98,10 +96,10 @@ export default function MessageList() {
     }
   }
 
-  const handleSend = async () => {
+  const handleSend = async (raw: Record<string, unknown>) => {
+    // ModalForm 传宽类型；字段定义在 SendFormValues，收敛回具体类型
+    const values = raw as unknown as SendFormValues
     try {
-      const values = await form.validateFields()
-      setSending(true)
       const result = await apiPost<{ batch_id: string; sent_count: number }>('/admin/messages', {
         title: values.title.trim(),
         content: values.content.trim(),
@@ -111,14 +109,10 @@ export default function MessageList() {
       })
       toast.success(`已发送给 ${result.sent_count} 位用户`)
       setSendOpen(false)
-      form.resetFields()
       setPage(1)
       await load()
     } catch (err) {
-      if (isFormValidationError(err)) return
       toast.error(getErrorMessage(err, '发送失败，请稍后重试'))
-    } finally {
-      setSending(false)
     }
   }
 
@@ -193,7 +187,6 @@ export default function MessageList() {
                 type="primary"
                 icon={<SendOutlined />}
                 onClick={() => {
-                  form.resetFields()
                   setSendOpen(true)
                 }}
               >
@@ -220,18 +213,15 @@ export default function MessageList() {
         发送操作会写入操作审计。
       </Typography.Text>
 
-      <Modal
-        title="发送系统通知"
+      <ModalForm
         open={sendOpen}
-        onOk={handleSend}
+        title="发送系统通知"
         onCancel={() => setSendOpen(false)}
+        onSubmit={handleSend}
         okText="发送"
-        cancelText="取消"
-        confirmLoading={sending}
         width={560}
-        destroyOnHidden={false}
+        initialValues={{ target: 'all' }}
       >
-        <Form form={form} layout="vertical" initialValues={{ target: 'all' }}>
           <Form.Item
             name="title"
             label="通知标题"
@@ -306,8 +296,7 @@ export default function MessageList() {
               />
             </Form.Item>
           ) : null}
-        </Form>
-      </Modal>
+      </ModalForm>
     </div>
   )
 }

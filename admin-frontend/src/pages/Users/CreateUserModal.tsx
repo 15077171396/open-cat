@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Form, Input, Modal, Select, TreeSelect } from 'antd'
+import ModalForm from '../../components/ui/ModalForm'
 import { apiGet, apiPost } from '../../api/client'
 import { getErrorData, getErrorMessage } from '../../utils/error'
 import { buildDeptTree } from '../../utils/dept'
@@ -35,7 +36,6 @@ export default function CreateUserModal({
   onAccountDeleted,
 }: CreateUserModalProps) {
   const [form] = Form.useForm<CreateFormValues>()
-  const [creating, setCreating] = useState(false)
   const [roles, setRoles] = useState<RbacRole[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
 
@@ -50,14 +50,9 @@ export default function CreateUserModal({
       .catch(() => setDepartments([]))
   }, [open])
 
-  const handleCreateSubmit = async () => {
-    let values: CreateFormValues
-    try {
-      values = await form.validateFields()
-    } catch {
-      return
-    }
-    setCreating(true)
+  const handleCreateSubmit = async (raw: Record<string, unknown>) => {
+    // ModalForm 传宽类型；字段定义在 CreateFormValues，收敛回具体类型
+    const values = raw as unknown as CreateFormValues
     try {
       await apiPost('/admin/users', {
         account: values.account.trim(),
@@ -95,8 +90,6 @@ export default function CreateUserModal({
         return
       }
       toast.error(getErrorMessage(err, '创建失败'))
-    } finally {
-      setCreating(false)
     }
   }
 
@@ -105,19 +98,18 @@ export default function CreateUserModal({
   const deptTreeData = buildDeptTree(departments)
 
   return (
-    <Modal
-      title="新增用户"
+    <ModalForm
       open={open}
-      onOk={handleCreateSubmit}
+      title="新增用户"
       onCancel={onCancel}
-      confirmLoading={creating}
+      onSubmit={handleCreateSubmit}
       okText="创建"
-      cancelText="取消"
+      form={form}
+      initialValues={{ role: 'user' }}
+      formStyle={{ marginTop: 16 }}
+      // 弹窗内还会弹「账号已注销」确认框，必须比本弹窗高一層
       zIndex={2000}
-      destroyOnHidden
-      forceRender
     >
-      <Form form={form} layout="vertical" preserve={false} initialValues={{ role: 'user' }} style={{ marginTop: 16 }}>
         <Form.Item
           name="account"
           label="账号"
@@ -193,7 +185,6 @@ export default function CreateUserModal({
             )
           }}
         </Form.Item>
-      </Form>
-    </Modal>
+    </ModalForm>
   )
 }

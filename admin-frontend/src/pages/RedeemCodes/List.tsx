@@ -14,7 +14,7 @@ import { formatDate, formatDateTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
-import { DataTable, ListToolbar } from '../../components/ui'
+import { DataTable, ListToolbar, ModalForm } from '../../components/ui'
 /** 展示状态 → 标签（与后端 eff_status 口径一致：作废 > 过期 > 兑完 > 进行中） */
 const EFF_STATUS_MAP: Record<string, { color: string; text: string }> = {
   active: { color: 'green', text: '进行中' },
@@ -122,13 +122,9 @@ export default function RedeemCodesList() {
   }
 
   /** 提交生成：单人码 max_uses 固定 1，多人码用表单输入的人数 */
-  const handleCreate = async () => {
-    let values: CreateFormValues
-    try {
-      values = await form.validateFields()
-    } catch {
-      return
-    }
+  const handleCreate = async (raw: Record<string, unknown>) => {
+    // ModalForm 传宽类型；字段定义在 CreateFormValues，收敛回具体类型
+    const values = raw as unknown as CreateFormValues
     setCreating(true)
     try {
       const payload: Record<string, unknown> = {
@@ -143,7 +139,6 @@ export default function RedeemCodesList() {
         payload,
       )
       setCreateOpen(false)
-      form.resetFields()
       setCreatedCodes(data.items || [])
       setResultOpen(true)
       resetFiltersAndReload()
@@ -455,7 +450,7 @@ export default function RedeemCodesList() {
       </Typography.Text>
 
       {/* 生成兑换码弹窗 */}
-      <Modal
+      <ModalForm
         title={
           <Space size={8}>
             <GiftOutlined />
@@ -463,22 +458,17 @@ export default function RedeemCodesList() {
           </Space>
         }
         open={createOpen}
+        // 生成中不允许关闭：关掉会丢掉「生成结果」弹窗里那批码
         onCancel={() => {
           if (!creating) setCreateOpen(false)
         }}
-        onOk={handleCreate}
+        onSubmit={handleCreate}
         okText="生成"
-        cancelText="取消"
-        confirmLoading={creating}
-        destroyOnHidden
         width={480}
+        form={form}
+        initialValues={{ code_type: 'single', max_uses: 10, count: 1, points: 100 }}
+        formStyle={{ marginTop: 8 }}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          initialValues={{ code_type: 'single', max_uses: 10, count: 1, points: 100 }}
-          style={{ marginTop: 8 }}
-        >
           <Form.Item
             name="points"
             label="兑换积分（每人兑换可获得）"
@@ -513,8 +503,7 @@ export default function RedeemCodesList() {
           <Form.Item name="note" label="备注">
             <Input maxLength={200} placeholder="选填，如：活动发放（仅管理端可见）" />
           </Form.Item>
-        </Form>
-      </Modal>
+      </ModalForm>
 
       {/* 生成结果弹窗 */}
       <Modal
