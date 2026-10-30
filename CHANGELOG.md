@@ -38,7 +38,7 @@
 - **部署**：安装向导 `/admin/setup`（空库时自动引导建号）、六服务 compose（nginx / migrate / app / scheduler / mysql / redis）、`seed_demo.py` 演示数据（图片真实落盘）
 - **模块开关**：`module_registry`，支付 / 积分 / 实名审核默认关闭
 - **工程守卫**：权限覆盖、审计覆盖、菜单一致性、任务注册表、迁移单头与可逆、文档清单数字，均有用例守着
-- **CI**：后端测试（1774 用例，全程离线）、真实 MySQL 迁移往返、前端 lint + 类型检查 + 构建 + vitest、镜像构建
+- **CI**：后端测试（1777 用例，全程离线）、真实 MySQL 迁移往返、前端 lint + 类型检查 + 构建 + vitest、镜像构建
 
 ### 变更
 
