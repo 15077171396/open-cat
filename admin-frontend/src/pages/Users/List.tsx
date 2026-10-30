@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Avatar, Button, Input, Modal, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
-import { DeleteOutlined, EyeOutlined, MinusCircleOutlined, PlusOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EyeOutlined, LogoutOutlined, MinusCircleOutlined, PlusOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
 import { apiDelete, apiGet, apiPost, idempotentConfig, newIdempotencyKey } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
 import UserDetailDrawer, { AUTH_STATUS_MAP, formatDuration } from './UserDetailDrawer'
@@ -151,6 +151,24 @@ export default function UsersList() {
 
   const isDeletedView = accountStatus === 'deleted'
   const hasFilter = !!keyword.trim() || !!role || accountStatus !== 'active'
+
+  const handleForceLogout = (u: User) => {
+    Modal.confirm({
+      title: '强制下线',
+      content: `确认让 ${u.account} 的所有设备立即退出登录？该用户需要重新登录。`,
+      okText: '下线',
+      okType: 'danger',
+      cancelText: '取消',
+      onOk: async () => {
+        try {
+          await apiPost(`/admin/users/${u.id}/force-logout`)
+          toast.success('已强制下线')
+        } catch (err: unknown) {
+          toast.error(getErrorMessage(err, '强制下线失败'))
+        }
+      },
+    })
+  }
 
   const handleDelete = (u: User) => {
     Modal.confirm({
@@ -423,7 +441,7 @@ export default function UsersList() {
     {
       title: '操作',
       key: 'action',
-      width: 210,
+      width: 260,
       fixed: 'right',
       render: (_: unknown, u: User) => {
         // 已注销账号只剩「恢复」一个动作：详情接口对它们返回 404，
@@ -453,6 +471,16 @@ export default function UsersList() {
                 }}
               >
                 权限
+              </Button>
+            </PermGuard>
+            <PermGuard perm="user:edit">
+              <Button
+                type="link"
+                size="small"
+                icon={<LogoutOutlined />}
+                onClick={() => handleForceLogout(u)}
+              >
+                下线
               </Button>
             </PermGuard>
             <PermGuard perm="user:delete">

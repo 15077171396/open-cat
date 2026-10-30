@@ -214,8 +214,13 @@ async def user_login(
     db: AsyncSession = Depends(get_db),
 ):
     """登录"""
-    # client_ip 决定失败计数/锁定的作用域
-    result = await login(req, db, client_ip=get_client_ip(request))
+    # client_ip 决定失败计数/锁定的作用域；user_agent 只用于「登录设备」列表展示
+    result = await login(
+        req,
+        db,
+        client_ip=get_client_ip(request),
+        user_agent=request.headers.get("user-agent"),
+    )
     set_auth_cookies(response, result["access_token"], result["refresh_token"])
     return success_response(result, "登录成功")
 
@@ -255,7 +260,7 @@ async def _user_id_from_refresh_token(refresh_token: str) -> int | None:
     except (TypeError, ValueError):
         return None
     try:
-        stored = await load_refresh_token(user_id)
+        stored = await load_refresh_token(user_id, payload.get("sid"))
     except Exception:  # noqa: BLE001 Redis 不可用 → 无法确认，按无效处理
         log_redis_degraded("auth.logout_by_refresh", "Redis 不可用，无法校验 refresh_token")
         return None

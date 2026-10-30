@@ -3,9 +3,10 @@ import { Alert, Button, Descriptions, Divider, Input, Modal, Space, Tag, Typogra
 import { apiGet, apiPost } from '../../api/client'
 import { getErrorMessage } from '../../utils/error'
 import { toast } from '../../utils/toast'
+import DeviceList from './DeviceList'
 
 /**
- * 安全设置：二次验证（TOTP）+ 退出全部设备。
+ * 安全设置：二次验证（TOTP）+ 登录设备管理。
  *
  * 为什么后台需要第二道门：这里能改全站内容、看全量手机号邮箱、改积分、批删账号，
  * 而此前**只凭一个密码**。密码泄露（撞库/复用/钓鱼）没有任何兜底。
@@ -285,14 +286,16 @@ export default function SecurityTab() {
 
       <Divider />
 
-      <Typography.Title level={5}>会话</Typography.Title>
+      <Typography.Title level={5}>登录设备</Typography.Title>
       <Typography.Paragraph type="secondary" style={{ fontSize: 13 }}>
-        本站每个账号只保留一个登录凭据（多设备共享同一条），因此这里提供的是
-        「一键把所有设备踢下线」，而不是逐台管理。
+        当前仍在登录状态的设备。发现陌生设备时，先下线它，再改密码。
       </Typography.Paragraph>
-      <Button danger onClick={handleLogoutAll}>
-        退出全部设备
-      </Button>
+      <DeviceList />
+      <div style={{ marginTop: 12 }}>
+        <Button danger onClick={handleLogoutAll}>
+          退出全部设备（含本机）
+        </Button>
+      </div>
 
       <Modal
         title="关闭二次验证"

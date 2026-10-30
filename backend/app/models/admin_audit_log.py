@@ -30,6 +30,11 @@ AUDIT_ACTIONS: dict[str, str] = {
     "user_batch_delete": "批量删除用户",
     # 恢复已注销账号 = 把访问权还给一个已被处置的账号，敏感度与删除同级
     "user_restore": "恢复用户",
+    # 强制下线 = 让一个正在使用中的账号立刻失去访问权（改密 / 疑似盗号 / 离职交接）
+    "user_force_logout": "强制用户下线",
+    # 下线登录设备（管理员操作自己的会话）：动作本身轻，但「谁在什么时候踢了哪台」
+    # 是排查「账号是不是被别人用过」时的关键线索
+    "session_revoke": "下线登录设备",
     # 积分兑换码（积分入金口）
     "redeem_code_create": "生成兑换码",
     "redeem_code_disable": "作废兑换码",
@@ -190,6 +195,10 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "user_delete": AUDIT_RISK_DANGER,
     "user_batch_delete": AUDIT_RISK_DANGER,
     "user_restore": AUDIT_RISK_DANGER,
+    # 强制下线是「让别人立刻失去访问权」，与删除/改角色同属高危操作
+    "user_force_logout": AUDIT_RISK_DANGER,
+    # 下线自己的某台设备：正常安全操作，按普通级记录（否则高危列表会被日常操作刷满）
+    "session_revoke": AUDIT_RISK_NORMAL,
     # 数据导出不改数据，但把库里的数据带出了系统：事后唯一能回答
     # 「谁导走了用户名单」的记录点，按高危呈现
     "data_export": AUDIT_RISK_DANGER,

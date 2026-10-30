@@ -17,6 +17,13 @@ from app.core.security import (
     store_refresh_token,
     load_refresh_token,
 )
+from app.core.session_store import (
+    create_session,
+    new_session_id,
+    revoke_all_sessions,
+    revoke_session,
+    touch_session,
+)
 from app.core.exceptions import AppException, AuthenticationError
 from app.models.user import User
 from app.schemas.auth import RegisterRequest, LoginRequest
@@ -337,16 +344,35 @@ async def enforce_totp_if_enabled(
     await _clear_totp_failures(account, client_ip)
 
 
-async def issue_login_tokens(db: AsyncSession, user: User) -> dict:
-    """签发登录 Token 对；Web / 手机号 / 微信 / 小程序共用同一口径。"""
+async def issue_login_tokens(
+    db: AsyncSession,
+    user: User,
+    client_ip: str | None = None,
+    user_agent: str | None = None,
+) -> dict:
+    """签发登录 Token 对；Web / 手机号 / 微信 / 小程序共用同一口径。
+
+    每次登录分配一个新的会话 id（sid）并登记到会话簿：
+    refresh 按 sid 隔离，多设备互不覆盖；用户才能在「登录设备」里看到并单独踢掉某一台。
+    """
     if await check_vip_expiry(user):
         await db.commit()
-    tokens = create_token_pair(user.id, user.role, ver=await get_token_version(user.id))
-    await store_refresh_token(user.id, tokens["refresh_token"])
+    sid = new_session_id()
+    tokens = create_token_pair(user.id, user.role, ver=await get_token_version(user.id), sid=sid)
+    await store_refresh_token(user.id, tokens["refresh_token"], sid=sid)
+    access_payload = decode_token(tokens["access_token"]) or {}
+    await create_session(
+        user.id, sid, access_payload.get("jti", ""), user_agent=user_agent, client_ip=client_ip
+    )
     return {**tokens, "user": build_user_profile(user)}
 
 
-async def login(req: LoginRequest, db: AsyncSession, client_ip: str | None = None) -> dict:
+async def login(
+    req: LoginRequest,
+    db: AsyncSession,
+    client_ip: str | None = None,
+    user_agent: str | None = None,
+) -> dict:
     """用户登录（密码 + 可选的 TOTP 二次验证）
 
     二次验证是**第二道门**，不是替代品：密码仍然要正确，且验证码错误会计入
@@ -358,7 +384,7 @@ async def login(req: LoginRequest, db: AsyncSession, client_ip: str | None = Non
         db, user, account=req.account, totp_code=req.totp_code, client_ip=client_ip
     )
     logger.info(f"用户登录: {mask_account(req.account)} (id={user.id})")
-    return await issue_login_tokens(db, user)
+    return await issue_login_tokens(db, user, client_ip=client_ip, user_agent=user_agent)
 
 
 async def refresh_token(refresh_token_str: str, db: AsyncSession) -> dict:
@@ -373,7 +399,9 @@ async def refresh_token(refresh_token_str: str, db: AsyncSession) -> dict:
 
     # 检查 Redis 中的 refresh_token 是否匹配
     # （读路径 fail-closed：Redis 故障时抛 503 而非放行，避免撤销机制失效）
-    stored_token = await load_refresh_token(user_id)
+    # sid 存在时只认该会话的那一枚：会话被踢掉后 key 已删除，这里自然返回 None → 401
+    sid = payload.get("sid")
+    stored_token = await load_refresh_token(user_id, sid)
     if not stored_token or stored_token != refresh_token_str:
         raise AuthenticationError("refresh_token 已失效，请重新登录")
 
@@ -394,22 +422,46 @@ async def refresh_token(refresh_token_str: str, db: AsyncSession) -> dict:
     if await check_vip_expiry(user):
         await db.commit()
 
-    # 生成新 Token 对（嵌入当前令牌版本号）
-    tokens = create_token_pair(user.id, user.role, ver=await get_token_version(user.id))
+    # 生成新 Token 对（嵌入当前令牌版本号；沿用同一 sid，会话不变只是换了令牌）
+    tokens = create_token_pair(user.id, user.role, ver=await get_token_version(user.id), sid=sid)
     # 轮换写入（Redis 故障时仅记降级日志）
-    await store_refresh_token(user.id, tokens["refresh_token"])
+    await store_refresh_token(user.id, tokens["refresh_token"], sid=sid)
+    if sid:
+        # 续期会话并更新 access jti：单会话吊销时要靠它把当前这枚 access token 拉黑
+        access_payload = decode_token(tokens["access_token"]) or {}
+        await touch_session(user.id, sid, access_payload.get("jti"))
 
     return tokens
 
 
-async def logout(user_id: int, access_token: str | None = None):
-    """登出 - 吊销当前 access_token（黑名单）并删除 Redis 中的 refresh_token。
+def _session_id_from_token(token: str | None) -> str | None:
+    """从 access_token 里取会话 id（本次改造前的旧 token 没有 sid，返回 None）"""
+    if not token:
+        return None
+    payload = decode_token(token)
+    if not payload or payload.get("type") != "access":
+        return None
+    return payload.get("sid")
 
-    黑名单使该 token 在剩余有效期内立即失效（否则默认 120 分钟内仍可调用接口）；
+
+async def logout(user_id: int, access_token: str | None = None):
+    """登出 - 吊销当前会话。
+
+    做了三件事：把当前 access_token 拉黑（否则剩余有效期内仍可调接口）、
+    删掉该会话的 refresh_token（否则 7 天内还能续期）、从会话簿里移除这条记录。
     内部均已做 Redis 故障降级（仅记日志，不阻断登出）。
     """
     if access_token:
         await blacklist_access_token(access_token)
+
+    sid = _session_id_from_token(access_token)
+    if sid:
+        # 只踢当前这一台：其他设备的 refresh 键各自独立，不受影响
+        await revoke_session(user_id, sid)
+        logger.info(f"用户登出: id={user_id} sid={sid[:8]}…")
+        return
+
+    # 兼容旧 token（无 sid）：退回删除「每用户一枚」的老键
     try:
         await redis_client.delete(f"refresh_token:{user_id}")
     except Exception:
@@ -418,20 +470,24 @@ async def logout(user_id: int, access_token: str | None = None):
 
 
 async def logout_all(user_id: int, access_token: str | None = None) -> None:
-    """退出全部设备：提升令牌版本号（所有已签发 access/refresh 立即失效）+ 删除 refresh_token。
+    """退出全部设备：清空会话簿 + 提升令牌版本号（所有已签发 access/refresh 立即失效）。
 
-    本项目**每个用户只存一个 refresh_token**（`refresh_token:{user_id}`），
-    因此「多设备会话列表 + 单独踢某个设备」需要额外的 sessions 表 —— 暂不做，
-    当前提供的语义是「一键把所有设备踢下线」，这是更保守也更安全的那一档。
+    两件事都要做，缺一不可：
+    - 清会话簿 / 删各会话 refresh 键 → 各设备的 refresh 立刻失效；
+    - 提升令牌版本号 → 手上还没过期的 access_token 也一并作废。
     """
     if access_token:
         await blacklist_access_token(access_token)
+    revoked = await revoke_all_sessions(user_id)
     await bump_token_version(user_id)
     try:
+        # 兼容旧 token：本次改造前的老键也一并清掉
         await redis_client.delete(f"refresh_token:{user_id}")
     except Exception:
         log_redis_degraded("auth.logout_all", f"退出全部设备时清理 refresh_token 失败: id={user_id}")
-    logger.bind(event="logout_all", user_id=user_id).info(f"用户 {user_id} 退出全部设备")
+    logger.bind(event="logout_all", user_id=user_id, sessions=len(revoked)).info(
+        f"用户 {user_id} 退出全部设备（{len(revoked)} 个会话）"
+    )
 
 
 async def check_vip_expiry(user: User) -> bool:

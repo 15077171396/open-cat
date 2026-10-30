@@ -99,9 +99,16 @@ def decode_token(token: str) -> Optional[dict]:
         return None
 
 
-def create_token_pair(user_id: int, role: str, ver: int = 0) -> dict:
-    """生成 access + refresh token 对（ver 为当前用户令牌版本号）"""
+def create_token_pair(user_id: int, role: str, ver: int = 0, sid: str | None = None) -> dict:
+    """生成 access + refresh token 对（ver 为当前用户令牌版本号，sid 为会话 id）。
+
+    sid 写进两种 token：access 用它标记「这是哪次登录」，refresh 用它找到自己的
+    那一枚 refresh_token（`refresh_token:{uid}:{sid}`）—— 多设备并存靠的就是它。
+    sid 缺省时行为与旧版完全一致（单 refresh 键），用于兼容未升级的调用方与旧 token。
+    """
     data = {"sub": str(user_id), "role": role}
+    if sid:
+        data["sid"] = sid
     return {
         "access_token": create_access_token(data, ver=ver),
         "refresh_token": create_refresh_token(data),
@@ -130,6 +137,22 @@ async def bump_token_version(user_id: int) -> None:
         log_redis_degraded("security.bump_token_version", f"递增令牌版本号失败（Redis 不可用），旧 token 在有效期内仍可用: id={user_id}")
 
 
+async def blacklist_jti(jti: str, ttl_seconds: int | None = None) -> None:
+    """按 jti 吊销一枚 access_token。
+
+    两个调用方：登出（`blacklist_access_token` 解析出 jti 与剩余寿命后转调本函数），
+    以及「踢掉某个会话」—— 会话记录里存着它当前的 jti，踢的时候直接把那枚拉黑。
+    TTL 缺省取 access token 的最长寿命：过了这个时间它本来也过期了。
+    """
+    if not jti:
+        return
+    ttl = ttl_seconds if ttl_seconds and ttl_seconds > 0 else settings.JWT_ACCESS_EXPIRE_MINUTES * 60
+    try:
+        await redis_client.set(f"{_BLACKLIST_PREFIX}{jti}", "1", ex=ttl)
+    except Exception:
+        log_redis_degraded("security.blacklist_jti", "写入令牌黑名单失败（Redis 不可用）")
+
+
 async def blacklist_access_token(token: str) -> None:
     """将 access_token 加入黑名单（登出用；token 无效/为 refresh token 时静默跳过）"""
     payload = decode_token(token)
@@ -143,10 +166,7 @@ async def blacklist_access_token(token: str) -> None:
     remaining = int(exp - time.time()) if exp else settings.JWT_ACCESS_EXPIRE_MINUTES * 60
     if remaining <= 0:
         return
-    try:
-        await redis_client.set(f"{_BLACKLIST_PREFIX}{jti}", "1", ex=remaining)
-    except Exception:
-        log_redis_degraded("security.blacklist_access_token", "写入令牌黑名单失败（Redis 不可用）")
+    await blacklist_jti(jti, remaining)
 
 
 async def is_access_token_revoked(payload: dict) -> bool:
@@ -174,18 +194,28 @@ async def is_access_token_revoked(payload: dict) -> bool:
 # 读（load）fail-closed：读不到就无法判断 token 是否已被登出/轮换吊销，放行等于撤销失效，
 # 降级为 503 让用户重新登录（access_token 在其有效期内不受影响）。
 
-async def store_refresh_token(user_id: int, token: str) -> None:
-    """写入 refresh_token（注册/登录/刷新/小程序登录共用，Redis 故障仅降级不阻断）"""
+async def store_refresh_token(user_id: int, token: str, sid: str | None = None) -> None:
+    """写入 refresh_token（注册/登录/刷新/小程序登录共用，Redis 故障仅降级不阻断）
+
+    有 sid 时按会话隔离（`refresh_token:{uid}:{sid}`），多设备互不覆盖；
+    无 sid 时退回旧键（`refresh_token:{uid}`），仅供未带会话的调用方与旧 token 使用。
+    """
+    key = f"{_REFRESH_PREFIX}{user_id}:{sid}" if sid else f"{_REFRESH_PREFIX}{user_id}"
     try:
-        await redis_client.set(f"{_REFRESH_PREFIX}{user_id}", token, ex=settings.JWT_REFRESH_EXPIRE_DAYS * 24 * 3600)
+        await redis_client.set(key, token, ex=settings.JWT_REFRESH_EXPIRE_DAYS * 24 * 3600)
     except Exception as exc:
         log_redis_degraded("security.store_refresh_token", exc)
 
 
-async def load_refresh_token(user_id: int) -> str | None:
-    """读取 refresh_token 供校验（Redis 故障时 fail-closed，抛 503 而非放行）"""
+async def load_refresh_token(user_id: int, sid: str | None = None) -> str | None:
+    """读取 refresh_token 供校验（Redis 故障时 fail-closed，抛 503 而非放行）
+
+    有 sid 时只认该会话的那一枚；会话被踢掉后 key 已删除，这里自然返回 None。
+    无 sid 时读旧键，兼容本次改造前签发的 token。
+    """
+    key = f"{_REFRESH_PREFIX}{user_id}:{sid}" if sid else f"{_REFRESH_PREFIX}{user_id}"
     try:
-        return await redis_client.get(f"{_REFRESH_PREFIX}{user_id}")
+        return await redis_client.get(key)
     except Exception as exc:
         log_redis_degraded("security.load_refresh_token", exc)
         raise AppException(code=503, message="服务暂时不可用，请重新登录") from exc

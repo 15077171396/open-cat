@@ -109,6 +109,15 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("POST", "/api/v1/admin/users/{user_id}/restore", ["user:restore"]),
     # 用户 RBAC 角色与部门分配
     ("PUT", "/api/v1/admin/users/{user_id}/rbac", ["user:edit"]),
+    # 强制下线：让别人立刻失去访问权，敏感度与「改角色」同级，复用 user:edit
+    # （新码必须配套「补种给已有内置角色」的迁移，这里没有额外信息量值得新开一码）
+    ("POST", "/api/v1/admin/users/{user_id}/force-logout", ["user:edit"]),
+
+    # 登录设备：都是「操作自己名下的会话」，空权限列表 = 仅需 admin 门槛。
+    # ⚠️ 必须登记：规则表 fail-closed，漏登记会让这三个端点对所有人 403
+    ("GET", "/api/v1/admin/sessions", []),
+    ("DELETE", "/api/v1/admin/sessions", []),
+    ("DELETE", "/api/v1/admin/sessions/{sid}", []),
 
     # 积分流水
     ("GET", "/api/v1/admin/points/transactions", ["points:view"]),

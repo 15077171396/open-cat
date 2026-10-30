@@ -15,6 +15,8 @@ from app.api import (  # noqa: F401
     # 分类分组：分类页左栏（组）与右栏（分类）的组织结构
     admin_category_groups,
     admin_users,
+    # 登录设备：查看/下线自己的会话 + 强制下线某个用户（改密、疑似盗号时用）
+    admin_sessions,
     admin_redeem_codes,
     admin_announcements,
     admin_feedbacks,

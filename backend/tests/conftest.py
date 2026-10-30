@@ -203,6 +203,19 @@ class FakeRedis:
             return set()
         return set(entry[0])
 
+    async def srem(self, key: str, *members) -> int:
+        """SREM：从集合移除成员，返回实际移除数（登录设备索引清理过期会话时使用）。"""
+        if self._expired(key):
+            return 0
+        entry = self._store.get(key)
+        if entry is None or not isinstance(entry[0], set):
+            return 0
+        current: set = set(entry[0])
+        before = len(current)
+        current.difference_update(str(m) for m in members)
+        self._store[key] = (current, entry[1])
+        return before - len(current)
+
     async def expire(self, key: str, ttl: int) -> bool:
         if self._expired(key):
             return False

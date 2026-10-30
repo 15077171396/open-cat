@@ -103,7 +103,7 @@ const PANELS: { key: string; label: string; title: string; description: string; 
     key: 'security',
     label: '安全设置',
     title: '安全设置',
-    description: '二次验证（TOTP）与「退出全部设备」——密码之外的第二道门。',
+    description: '二次验证（TOTP）与登录设备管理——密码之外的第二道门，以及「现在有谁在登着我的号」。',
     render: () => <SecurityTab />,
   },
   {
