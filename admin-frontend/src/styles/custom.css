@@ -48,6 +48,9 @@
 /* 字典管理：pages/Dictionaries */
 @import './sections/dictionary.css';
 
+/* 工作台：pages/Workplace */
+@import './sections/workplace.css';
+
 /* 监控管理：pages/Monitor/* */
 @import './sections/monitor.css';
 

@@ -68,6 +68,8 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
         icon="home",
         items=(
             MenuItem("/", "数据看板", "dashboard", perm="dashboard:view"),
+            # 工作台：快捷入口 + 待办 + 最近动态，复用现有接口
+            MenuItem("/workplace", "工作台", "workplace", perm="dashboard:view"),
             # 数据分析：前端本地假数据演示页，不新增接口；权限与数据看板同层级
             MenuItem("/analysis", "数据分析", "chart", perm="dashboard:view"),
         ),
@@ -191,6 +193,7 @@ MENU_LABELS_EN: dict[str, str] = {
     "system": "System",
     # 概览
     "/": "Dashboard",
+    "/workplace": "Workplace",
     "/analysis": "Analytics",
     # 内容
     "/tutorials": "Tutorials",

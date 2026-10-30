@@ -1,0 +1,410 @@
+/* 管理后台样式 · 工作台
+ * pages/Workplace：欢迎带、待办、快捷入口、最近动态与教程。
+ */
+
+.wp-page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.wp-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  overflow: hidden;
+  padding: 24px 26px;
+  border: 1px solid var(--app-border-light);
+  border-radius: 16px;
+  background:
+    radial-gradient(700px 220px at 100% -30%, rgba(66, 99, 235, 0.16), transparent 60%),
+    linear-gradient(120deg, var(--app-primary-weak), var(--app-card) 58%, var(--app-tint));
+}
+
+.wp-hero::after {
+  content: '';
+  position: absolute;
+  right: -40px;
+  bottom: -80px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  border: 28px solid rgba(66, 99, 235, 0.08);
+  pointer-events: none;
+}
+
+.wp-hero__main {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+}
+
+.wp-eyebrow {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  color: var(--app-primary);
+}
+
+.wp-title.ant-typography {
+  margin: 8px 0 0;
+  font-size: 26px;
+  line-height: 1.25;
+  font-weight: 650;
+  color: var(--app-text);
+}
+
+.wp-date {
+  margin-top: 6px;
+  font-size: 13px;
+  color: var(--app-text-2);
+}
+
+.wp-hero__stats {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(90px, auto));
+  gap: 10px;
+}
+
+.wp-stat {
+  min-width: 92px;
+  padding: 10px 14px;
+  border: 1px solid var(--app-border-light);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--app-card) 76%, transparent);
+}
+
+.wp-stat.is-alert {
+  border-color: var(--app-danger-border);
+  background: var(--app-danger-bg);
+}
+
+.wp-stat__label {
+  display: block;
+  font-size: 11px;
+  color: var(--app-text-3);
+  white-space: nowrap;
+}
+
+.wp-stat__value {
+  display: block;
+  margin-top: 5px;
+  font-size: 24px;
+  font-weight: 650;
+  line-height: 1;
+  color: var(--app-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.wp-stat.is-alert .wp-stat__value {
+  color: var(--app-danger);
+}
+
+.wp-grid {
+  display: grid;
+  gap: 16px;
+}
+
+.wp-grid--main {
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+}
+
+.wp-grid--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.wp-card.ant-card {
+  border-radius: 14px;
+  border-color: var(--app-border-light);
+  box-shadow: var(--app-shadow);
+}
+
+.wp-card .ant-card-head {
+  min-height: 48px;
+  padding-inline: 18px;
+  border-bottom-color: var(--app-border-light);
+}
+
+.wp-card .ant-card-head-title {
+  padding-block: 12px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.wp-card .ant-card-body {
+  padding: 12px 18px 16px;
+}
+
+.wp-muted {
+  font-size: 12px;
+  color: var(--app-text-3);
+}
+
+/* ---- 待办 ---- */
+.wp-todo-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.wp-todo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 2px;
+  border: 0;
+  border-top: 1px solid var(--app-border-light);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.wp-todo:first-child {
+  border-top: 0;
+}
+
+.wp-todo:hover .wp-todo__title {
+  color: var(--app-primary);
+}
+
+.wp-todo__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--app-neutral);
+}
+
+.wp-todo__dot--error { background: var(--app-danger); }
+.wp-todo__dot--warning { background: var(--app-warning); }
+.wp-todo__dot--info { background: var(--app-primary); }
+
+.wp-todo__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.wp-todo__title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--app-text);
+  transition: color 0.15s ease;
+}
+
+.wp-todo__detail {
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--app-text-3);
+}
+
+.wp-todo__count {
+  flex: none;
+  min-width: 26px;
+  text-align: right;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.wp-todo__arrow {
+  flex: none;
+  font-size: 10px;
+  color: var(--app-text-4);
+}
+
+/* ---- 快捷入口 ---- */
+.wp-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.wp-action {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--app-border-light);
+  border-radius: 12px;
+  background: var(--app-card);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.wp-action:hover {
+  border-color: var(--app-primary-border);
+  background: var(--app-primary-weak);
+}
+
+.wp-action__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--app-primary-weak);
+  color: var(--app-primary);
+  font-size: 16px;
+}
+
+.wp-action__body {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wp-action__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.wp-action__desc {
+  margin-top: 2px;
+  font-size: 11px;
+  color: var(--app-text-3);
+}
+
+/* ---- 最近动态 / 教程 ---- */
+.wp-audit-list,
+.wp-tutorial-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.wp-audit,
+.wp-tutorial {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 2px;
+  border: 0;
+  border-top: 1px solid var(--app-border-light);
+  background: transparent;
+  text-align: left;
+}
+
+.wp-audit:first-child,
+.wp-tutorial:first-child {
+  border-top: 0;
+}
+
+.wp-tutorial {
+  cursor: pointer;
+}
+
+.wp-tutorial:hover .wp-tutorial__title {
+  color: var(--app-primary);
+}
+
+.wp-audit__icon,
+.wp-tutorial__icon {
+  flex: none;
+  margin-top: 2px;
+  color: var(--app-text-3);
+}
+
+.wp-audit__body,
+.wp-tutorial__body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.wp-audit__title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: var(--app-text);
+}
+
+.wp-audit__title .ant-tag {
+  margin-inline-end: 0;
+  font-size: 10px;
+  line-height: 16px;
+  padding-inline: 5px;
+}
+
+.wp-audit__meta,
+.wp-tutorial__meta {
+  margin-top: 3px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 11px;
+  color: var(--app-text-3);
+}
+
+.wp-tutorial__title {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  color: var(--app-text);
+  transition: color 0.15s ease;
+}
+
+.wp-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 0 2px;
+  font-size: 11px;
+  color: var(--app-text-3);
+}
+
+@media (max-width: 1100px) {
+  .wp-hero__stats {
+    grid-template-columns: repeat(2, minmax(90px, auto));
+  }
+}
+
+@media (max-width: 900px) {
+  .wp-grid--main,
+  .wp-grid--two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .wp-hero {
+    padding: 18px;
+    border-radius: 14px;
+  }
+
+  .wp-title.ant-typography {
+    font-size: 22px;
+  }
+
+  .wp-hero__stats {
+    width: 100%;
+  }
+
+  .wp-stat {
+    min-width: 0;
+  }
+
+  .wp-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

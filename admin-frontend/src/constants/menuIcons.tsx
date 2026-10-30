@@ -13,6 +13,7 @@ import {
   CloudServerOutlined,
   DashboardOutlined,
   DatabaseOutlined,
+  DesktopOutlined,
   DeleteOutlined,
   FileSearchOutlined,
   FileProtectOutlined,
@@ -58,6 +59,7 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
 
   // 叶子图标
   dashboard: <DashboardOutlined />,
+  workplace: <DesktopOutlined />,
   chart: <AreaChartOutlined />,
   dict: <BookOutlined />,
   monitor: <FundProjectionScreenOutlined />,
