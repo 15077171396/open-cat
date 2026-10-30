@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Form, Input, Button, Typography, Alert, Space, Tag } from 'antd'
+import { Card, Form, Input, Button, Typography, Alert, Space, Tag, Segmented } from 'antd'
 import { LockOutlined, UserOutlined, SafetyOutlined } from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
 import { getErrorMessage, getErrorData } from '../utils/error'
 import { apiGet } from '../api/client'
+import { LOCALE_LABELS, SUPPORTED_LOCALES, useI18n } from '../i18n'
+import type { Locale } from '../i18n'
 
 interface LoginFormValues {
   account: string
@@ -12,9 +14,26 @@ interface LoginFormValues {
   totpCode?: string
 }
 
+/**
+ * 本地开发预填账号密码，省去每次手输。
+ *
+ * **只在 `MODE=development` 生效**：生产构建时 `import.meta.env.MODE` 被静态替换成
+ * `'production'`，整个开发分支（含默认凭据）会被压缩器摇掉，不会进入公开产物；
+ * 测试环境（MODE=test）同样为空。要换开发账号，在 gitignore 的
+ * `admin-frontend/.env.local` 配 `VITE_LOGIN_PREFILL_ACCOUNT` / `VITE_LOGIN_PREFILL_PASSWORD`。
+ */
+const LOGIN_PREFILL =
+  import.meta.env.MODE === 'development'
+    ? {
+        account: import.meta.env.VITE_LOGIN_PREFILL_ACCOUNT ?? 'admin@example.com',
+        password: import.meta.env.VITE_LOGIN_PREFILL_PASSWORD ?? 'Admin@123456',
+      }
+    : { account: '', password: '' }
+
 export default function Login() {
   const navigate = useNavigate()
   const { login } = useAuthStore()
+  const { locale, setLocale, t } = useI18n()
   const [form] = Form.useForm<LoginFormValues>()
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -41,8 +60,8 @@ export default function Login() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     const { account, password, totpCode } = values
-    if (!account || !password) { setError('请填写账号和密码'); return }
-    if (totpRequired && !totpCode) { setError('请输入验证器 App 中的 6 位验证码'); return }
+    if (!account || !password) { setError(t('login.missing')); return }
+    if (totpRequired && !totpCode) { setError(t('login.totpMissing')); return }
     setLoading(true)
     setError('')
     try {
@@ -51,7 +70,7 @@ export default function Login() {
     } catch (err) {
       const data = getErrorData<{ totp_required?: boolean }>(err)
       if (data?.totp_required) setTotpRequired(true)
-      setError(getErrorMessage(err, '登录失败'))
+      setError(getErrorMessage(err, t('login.failed')))
     } finally {
       setLoading(false)
     }
@@ -72,39 +91,53 @@ export default function Login() {
         borderRadius: 16,
         boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
       }}>
+        {/* 登录页在后台外壳之外，语言入口要单独给：选中结果同样持久化，进后台后沿用 */}
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+          <Segmented
+            size="small"
+            value={locale}
+            onChange={(value) => setLocale(value as Locale)}
+            options={SUPPORTED_LOCALES.map((item) => ({ label: LOCALE_LABELS[item], value: item }))}
+          />
+        </div>
+
         <Space orientation="vertical" align="center" style={{ width: '100%', marginBottom: 24 }}>
-          <Tag color="geekblue" icon={<SafetyOutlined />}>管理员入口</Tag>
-          <Typography.Title level={3} style={{ margin: 0 }}>AI学习猫 管理后台</Typography.Title>
-          <Typography.Text type="secondary">仅限管理员账号登录</Typography.Text>
+          <Tag color="geekblue" icon={<SafetyOutlined />}>{t('login.tag')}</Tag>
+          <Typography.Title level={3} style={{ margin: 0 }}>{t('login.title')}</Typography.Title>
+          <Typography.Text type="secondary">{t('login.subtitle')}</Typography.Text>
         </Space>
 
-        <Form form={form} layout="vertical" onFinish={handleSubmit} size="large">
+        <Form form={form} layout="vertical" onFinish={handleSubmit} size="large" initialValues={LOGIN_PREFILL}>
           <Form.Item
-            label="账号"
+            label={t('login.account')}
             name="account"
-            rules={[{ required: true, message: '请输入手机号或邮箱' }]}
+            rules={[{ required: true, message: t('login.accountRequired') }]}
           >
-            <Input prefix={<UserOutlined />} placeholder="手机号 / 邮箱" autoComplete="username" />
+            <Input prefix={<UserOutlined />} placeholder={t('login.accountPlaceholder')} autoComplete="username" />
           </Form.Item>
 
           <Form.Item
-            label="密码"
+            label={t('login.password')}
             name="password"
-            rules={[{ required: true, message: '请输入密码' }]}
+            rules={[{ required: true, message: t('login.passwordRequired') }]}
           >
-            <Input.Password prefix={<LockOutlined />} placeholder="请输入密码" autoComplete="current-password" />
+            <Input.Password
+              prefix={<LockOutlined />}
+              placeholder={t('login.passwordPlaceholder')}
+              autoComplete="current-password"
+            />
           </Form.Item>
 
           {totpRequired && (
             <Form.Item
-              label="二次验证码"
+              label={t('login.totp')}
               name="totpCode"
-              rules={[{ required: true, message: '请输入验证器 App 中的验证码' }]}
-              extra="也可输入一次性的恢复码（形如 ABCDE-FGHJK）"
+              rules={[{ required: true, message: t('login.totpRequired') }]}
+              extra={t('login.totpHint')}
             >
               <Input
                 prefix={<SafetyOutlined />}
-                placeholder="6 位验证码 / 恢复码"
+                placeholder={t('login.totpPlaceholder')}
                 autoComplete="one-time-code"
                 maxLength={12}
               />
@@ -119,7 +152,7 @@ export default function Login() {
 
           <Form.Item>
             <Button type="primary" htmlType="submit" loading={loading} block>
-              {loading ? '登录中...' : '登录'}
+              {loading ? t('login.submitting') : t('login.submit')}
             </Button>
           </Form.Item>
         </Form>

@@ -1,0 +1,123 @@
+/* 管理后台样式 · 字典管理
+ * pages/Dictionaries：左侧类型列表 + 右侧字典项表格。
+ */
+
+.dict-type-card .ant-card-body {
+  padding: 0;
+}
+
+.dict-type-search {
+  padding: 10px 12px 8px;
+}
+
+.dict-type-item.ant-list-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px 9px 14px;
+  border-inline-start: 3px solid transparent;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.dict-type-item.ant-list-item:hover {
+  background: var(--app-subtle);
+}
+
+.dict-type-item.ant-list-item.is-active {
+  background: var(--app-primary-weak);
+  border-inline-start-color: var(--app-primary);
+}
+
+.dict-type-item__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.dict-type-item__name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--app-text);
+}
+
+.dict-type-item__name .ant-tag {
+  margin-inline-end: 0;
+  padding-inline: 4px;
+  font-size: 10px;
+  line-height: 16px;
+}
+
+.dict-type-item__code {
+  margin-top: 2px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  color: var(--app-text-3);
+}
+
+.dict-type-item__count {
+  margin-top: 1px;
+  font-size: 11px;
+  color: var(--app-text-3);
+}
+
+.dict-type-item .ant-list-item-action {
+  margin-inline-start: 4px;
+}
+
+.dict-type-item .ant-list-item-extra {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-inline-start: 4px;
+}
+
+.dict-panel-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.dict-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.dict-value {
+  padding: 1px 5px;
+  border: 1px solid var(--app-border-light);
+  border-radius: 4px;
+  background: var(--app-subtle);
+  font-size: 12px;
+  color: var(--app-text-2);
+}
+
+.dict-muted {
+  color: var(--app-text-3);
+}
+
+.dict-empty-card .ant-card-body {
+  padding: 56px 24px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .dict-panel-head {
+    align-items: stretch;
+  }
+
+  .dict-panel-head .ant-input-search {
+    width: 100%;
+  }
+}

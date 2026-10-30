@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { Space } from 'antd'
+import { useI18n } from '../../i18n'
 
 export interface SelectionBarProps {
   /** 已选条数 */
@@ -20,11 +21,14 @@ export interface SelectionBarProps {
  * 建议在筛选变更处统一调用 `setSelectedIds([])`。
  */
 export default function SelectionBar({ count, children }: SelectionBarProps) {
+  const { t } = useI18n()
   if (count <= 0) return null
   return (
     <Space size={8} wrap>
       <span className="adm-selinfo">
-        已选 <strong>{count}</strong> 项
+        {t('common.selectedPrefix')}
+        <strong>{count}</strong>
+        {t('common.selectedSuffix')}
       </span>
       {children}
     </Space>

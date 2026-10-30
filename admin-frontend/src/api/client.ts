@@ -1,6 +1,7 @@
 import axios from 'axios'
 import type { AxiosError, AxiosRequestConfig, InternalAxiosRequestConfig } from 'axios'
 import { useAuthStore } from '../store/authStore'
+import { usePrefsStore } from '../store/prefsStore'
 
 const client = axios.create({
   baseURL: '/api/v1',
@@ -67,14 +68,13 @@ client.interceptors.request.use((config) => {
     config.headers.Authorization = `Bearer ${token}`
   }
   /**
-   * 显式声明界面语言为中文。
+   * 跟随用户在顶栏选择的界面语言（`prefsStore.locale`），**不跟随浏览器**。
    *
-   * 后端已支持按 Accept-Language 下发中/英的菜单与权限名（app/core/i18n.py），
-   * 但**页面内的业务文案目前仍是中文**。浏览器默认会带自己的 Accept-Language，
-   * 英文系统上就会出现「侧边栏英文 + 页面中文」的混搭 —— 比全中文更难用。
-   * 等前端文案翻完，这里换成跟随用户设置即可。
+   * 后端按 Accept-Language 下发中/英的菜单与权限名（app/core/i18n.py）；
+   * 用浏览器默认值会让「没选过语言的英文系统」直接落到英文菜单 + 中文页面，
+   * 比全中文更难用。只有用户显式切换过语言，才让两边一起变。
    */
-  config.headers['Accept-Language'] = 'zh-CN'
+  config.headers['Accept-Language'] = usePrefsStore.getState().locale
   return config
 })
 

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DatePicker, Image, Input, Select, Space, Switch, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Grid, Image, Input, Select, Space, Switch, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { DeleteOutlined, MessageOutlined, ReloadOutlined, RollbackOutlined } from '@ant-design/icons'
@@ -58,6 +58,9 @@ function describeComment(record: CommentItem): string {
 }
 
 export default function CommentsList() {
+  const screens = Grid.useBreakpoint()
+  // md 以下：内容优先，次要列隐藏；操作列不再 fixed，避免浮在正文上
+  const isMobile = screens.md === false
   // 搜索：keywordInput 仅受控输入，回车/点击后才提交进查询参数
   const [keywordInput, setKeywordInput] = useState('')
   const [keyword, setKeyword] = useState('')
@@ -119,6 +122,7 @@ export default function CommentsList() {
       dataIndex: 'target_title',
       key: 'target_title',
       width: 220,
+      responsive: ['md'],
       render: (title: string | null, row: CommentItem) =>
         title ? (
           <Typography.Text ellipsis={{ tooltip: title }} style={{ maxWidth: 200 }}>
@@ -136,6 +140,7 @@ export default function CommentsList() {
       dataIndex: 'target_type',
       key: 'target_type',
       width: 90,
+      responsive: ['md'],
       render: (v: string) => (
         <Tag color={TARGET_TYPE_META[v]?.color ?? 'default'} style={{ margin: 0 }}>
           {targetTypeLabel(v)}
@@ -147,6 +152,7 @@ export default function CommentsList() {
       dataIndex: 'author_nickname',
       key: 'author_nickname',
       width: 140,
+      responsive: ['md'],
       render: (v: string) => <span className="adm-cell__name">{v || '—'}</span>,
     },
     {
@@ -154,6 +160,7 @@ export default function CommentsList() {
       dataIndex: 'author_account',
       key: 'author_account',
       width: 150,
+      responsive: ['md'],
       render: (v: string | null) =>
         v ? (
           <Typography.Text ellipsis={{ tooltip: v }} style={{ maxWidth: 130 }}>
@@ -168,6 +175,7 @@ export default function CommentsList() {
       dataIndex: 'parent_id',
       key: 'parent_id',
       width: 90,
+      responsive: ['lg'],
       render: (parentId: number | null) =>
         parentId === null ? (
           <Tag color="blue" style={{ margin: 0 }}>
@@ -222,6 +230,7 @@ export default function CommentsList() {
       dataIndex: 'is_deleted',
       key: 'is_deleted',
       width: 80,
+      responsive: ['sm'],
       render: (deleted: boolean, row: CommentItem) =>
         deleted ? (
           <Tooltip title={row.deleted_at ? `删除于 ${formatTime(row.deleted_at)}` : undefined}>
@@ -240,13 +249,14 @@ export default function CommentsList() {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 130,
+      responsive: ['md'],
       render: (v: string | null) => <span className="adm-muted">{formatTime(v)}</span>,
     },
     {
       title: '操作',
       key: 'action',
       width: 110,
-      fixed: 'right',
+      fixed: isMobile ? undefined : 'right',
       render: (_: unknown, record: CommentItem) =>
         record.is_deleted ? (
           <PermGuard perm="comment:delete">
@@ -278,7 +288,7 @@ export default function CommentsList() {
   ]
 
   return (
-    <div className="adm-page">
+    <div className="adm-page adm-page--responsive">
       <PageHeader
         icon={<MessageOutlined />}
         title="内容评论"
@@ -368,7 +378,7 @@ export default function CommentsList() {
         columns={columns}
         rowKey="id"
         loading={loading}
-        scrollX={1270}
+        scrollX={isMobile ? 380 : 1270}
         pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
         empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的评论", emptyText: "暂无评论", onReset: handleResetFilters }}
       />

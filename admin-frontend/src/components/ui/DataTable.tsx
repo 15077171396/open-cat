@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { TableProps } from 'antd'
 import { Card, Table } from 'antd'
 import { TableEmpty } from '../TableEmpty'
+import { useI18n } from '../../i18n'
 
 export interface DataTableEmptyConfig {
   /** 当前是否「筛选后无结果」（决定文案与是否给「清空筛选」） */
@@ -85,6 +86,7 @@ export default function DataTable<T extends object>({
   className,
   ...rest
 }: DataTableProps<T>) {
+  const { t } = useI18n()
   const emptyNode = (
     <TableEmpty
       hasFilter={empty.hasFilter}
@@ -116,7 +118,7 @@ export default function DataTable<T extends object>({
                 pageSize: pagination.pageSize,
                 total: pagination.total,
                 onChange: pagination.onPageChange,
-                showTotal: (t) => `共 ${t} 条`,
+                showTotal: (total) => t('common.total', { total }),
                 showSizeChanger: false,
               }
         }

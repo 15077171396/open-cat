@@ -236,10 +236,9 @@ async def adjust_points(
         target_id=user.id,
         summary=f"调整用户 {user.id} 积分（{action} {value}）：{current} → {new_balance}",
         detail={
+            "changes": {"points": [current, new_balance]},
             "action": action,
             "value": value,
-            "before": current,
-            "after": new_balance,
             "delta": delta,
             "note": (note or "")[:200],
         },

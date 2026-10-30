@@ -1,0 +1,24 @@
+/* 统一回收站（pages/RecycleBin） */
+.rb-cell {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rb-cell__title {
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.rb-cell__sub {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--app-text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rb-tabs {
+  margin-bottom: 4px;
+}

@@ -1,0 +1,101 @@
+/* 顶栏待办铃铛（components/Layout/TodoBell.tsx）
+ *
+ * 只影响浮层内部；触发按钮本身复用 antd Button type="text"。
+ * 颜色一律走 tokens.css 的变量，暗色主题无需额外覆盖。
+ */
+
+.todo-pop {
+  width: 320px;
+}
+
+.todo-pop__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--app-border-light);
+}
+
+.todo-pop__error {
+  margin-top: 8px;
+  padding: 6px 8px;
+  border-radius: var(--app-radius-xs);
+  font-size: 12px;
+  color: var(--app-danger);
+  background: var(--app-danger-bg);
+}
+
+.todo-pop__list {
+  display: flex;
+  flex-direction: column;
+  max-height: 360px;
+  overflow-y: auto;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 4px;
+  border: 0;
+  border-bottom: 1px solid var(--app-border-light);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.todo-item:last-child {
+  border-bottom: 0;
+}
+
+.todo-item:hover {
+  background: var(--app-subtle);
+}
+
+.todo-item__dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--app-warning);
+}
+
+.todo-item__dot--error {
+  background: var(--app-danger);
+}
+
+.todo-item__body {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.todo-item__title {
+  font-size: 13px;
+  color: var(--app-text);
+}
+
+.todo-item__detail {
+  overflow: hidden;
+  font-size: 12px;
+  color: var(--app-text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.todo-item__count {
+  min-width: 24px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--app-danger);
+  text-align: center;
+}
+
+.todo-item__arrow {
+  font-size: 10px;
+  color: var(--app-text-4);
+}

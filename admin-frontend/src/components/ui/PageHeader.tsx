@@ -1,5 +1,6 @@
 import { Fragment } from 'react'
 import type { ReactNode } from 'react'
+import { useI18n } from '../../i18n'
 
 export interface PageHeaderProps {
   /** 标题前的图标节点（antd icon） */
@@ -44,6 +45,7 @@ export interface PageHeaderProps {
  * 权限只包住各自的按钮。
  */
 export default function PageHeader({ icon, title, subtitle, actions, count }: PageHeaderProps) {
+  const { t } = useI18n()
   // 数组 = 多段统计；过滤掉空值，避免渲染出「· ·」这种连续分隔符
   const parts = (Array.isArray(subtitle) ? subtitle : subtitle ? [subtitle] : []).filter(Boolean)
 
@@ -64,7 +66,8 @@ export default function PageHeader({ icon, title, subtitle, actions, count }: Pa
               {parts.length > 0 && count && <span className="adm-sep">·</span>}
               {count && (
                 <span>
-                  共 <strong>{count.total}</strong> {count.unit ?? '条'}
+                  {t('common.totalPrefix')}
+                  <strong>{count.total}</strong> {count.unit ?? t('common.items')}
                 </span>
               )}
             </div>

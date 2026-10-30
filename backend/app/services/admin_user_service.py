@@ -17,6 +17,7 @@ from app.models.rbac import Department, Role, UserRole
 from app.core.exceptions import AppException
 from app.services.timer_service import get_free_time_status
 from app.services.point_service import adjust_points
+from app.services import setting_service
 from app.services.admin_audit_service import record_admin_action, summarize_ids
 from app.services.rbac_service import invalidate_user_rbac_cache
 from app.utils.sanitize import escape_like
@@ -267,6 +268,15 @@ async def update_user(db: AsyncSession, admin: User, user_id: int, updates: dict
         if role not in ("user", "vip", "admin"):
             raise AppException(code=400, message="角色无效")
         if role != user.role:
+            if (
+                role == "admin"
+                and not user.totp_enabled
+                and await setting_service.get_bool_setting(db, "admin_require_2fa")
+            ):
+                raise AppException(
+                    code=400,
+                    message="管理员强制二次验证已开启：请先让该用户绑定 TOTP，再提升为管理员",
+                )
             # 敏感操作审计：角色提权/降级必须留痕（日志易失且不可检索，admin_audit_logs 兜底）
             logger.bind(
                 event="admin_role_change", admin_id=admin.id,
@@ -279,7 +289,7 @@ async def update_user(db: AsyncSession, admin: User, user_id: int, updates: dict
                 target_type="user",
                 target_id=user.id,
                 summary=f"变更用户 {user.id} 角色: {user.role} -> {role}",
-                detail={"old_role": user.role, "new_role": role},
+                detail={"changes": {"role": [user.role, role]}},
             )
             role_changed = True
             # 降级必须连带收回 RBAC 角色绑定：users.role 与 user_roles 是两套并存的授权来源，
@@ -320,10 +330,12 @@ async def update_user(db: AsyncSession, admin: User, user_id: int, updates: dict
                 else f"设置用户 {user.id} 会员到期时间: {user.vip_expire_time.isoformat()}"
             ),
             detail={
-                "old_vip_expire_time": _old_vip.isoformat() if _old_vip else None,
-                "new_vip_expire_time": (
-                    user.vip_expire_time.isoformat() if user.vip_expire_time else None
-                ),
+                "changes": {
+                    "vip_expire_time": [
+                        _old_vip.isoformat() if _old_vip else None,
+                        user.vip_expire_time.isoformat() if user.vip_expire_time else None,
+                    ]
+                }
             },
         )
 
@@ -489,6 +501,11 @@ async def create_user(
     from app.core.security import hash_password_async
 
     role = data.get("role") or "user"
+    if role == "admin" and await setting_service.get_bool_setting(db, "admin_require_2fa"):
+        raise AppException(
+            code=400,
+            message="管理员强制二次验证已开启：请先创建普通账号并完成 TOTP 绑定，再提升为管理员",
+        )
     if role == "admin":
         # ⚠️ 创建 admin 角色账号 = 授予整个后台的访问权，语义上等价于「把某个已有用户的角色改成
         # admin」，因此除了路由层的 `user:create`，还必须持有 `user:edit`（与 PUT /admin/users/{id}

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button, Card, Space, Tooltip } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
+import { useI18n } from '../../i18n'
 
 export interface ListToolbarProps {
   /** 筛选项（Select / Segmented / RangePicker …），内部已 `Space wrap` */
@@ -33,15 +34,16 @@ export interface ListToolbarProps {
  * - 换筛选要 `setPage(1)`，否则可能停留在越界页码上显示空表。
  */
 export default function ListToolbar({ children, hasFilter, onReset, extra }: ListToolbarProps) {
+  const { t } = useI18n()
   return (
     <Card className="adm-toolbar" variant="outlined">
       <div className="adm-toolbar__row">
         <Space wrap size={12}>
           {children}
           {hasFilter && onReset && (
-            <Tooltip title="清空搜索与筛选条件">
+            <Tooltip title={t('common.resetHint')}>
               <Button type="text" size="small" icon={<ReloadOutlined />} onClick={onReset}>
-                重置
+                {t('common.reset')}
               </Button>
             </Tooltip>
           )}

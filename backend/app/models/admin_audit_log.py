@@ -81,6 +81,20 @@ AUDIT_ACTIONS: dict[str, str] = {
     "category_group_update": "编辑分类分组",
     "category_group_delete": "删除分类分组",
     "category_move": "移动分类分组",
+    # 菜单展示设置（名称/图标/顺序/可见性）：不改变路由与权限，但会改变所有管理员看到的导航
+    "menu_setting_update": "修改菜单设置",
+    "menu_setting_reset": "恢复菜单默认设置",
+    # 数据字典：类型与字典项是业务枚举的展示来源，改动会影响表单/筛选的文案
+    "dict_type_create": "新建字典类型",
+    "dict_type_update": "编辑字典类型",
+    "dict_type_delete": "删除字典类型",
+    "dict_item_create": "新建字典项",
+    "dict_item_update": "编辑字典项",
+    "dict_item_delete": "删除字典项",
+    # 岗位目录（组织架构）
+    "position_create": "新建岗位",
+    "position_update": "编辑岗位",
+    "position_delete": "删除岗位",
     # 从回收站恢复（把已下架内容放回管理视野，敏感度与删除同级）
     "content_restore": "恢复内容",
     # 系统设置（可改 AI 供应商密钥与 base_url、邀请奖励额度、对外公示的法律文档 HTML）
@@ -127,6 +141,10 @@ AUDIT_TARGET_TYPES = (
     "announcement", "feedback", "setting", "comment", "report", "moderation_log", "ai_model",
     # 分类分组：分类页左栏的「组」（只影响后台归类，不影响前台筛选）
     "category_group",
+    "menu_setting",
+    "dict_type",
+    "dict_item",
+    "position",
     "ai_writing_prompt",
     "payment_product",
     # 定时任务：target_id 为空（job_id 是字符串，不是整型主键），任务名写在 summary 里
@@ -137,6 +155,8 @@ AUDIT_TARGET_TYPES = (
     "image_asset",
     # 积分流水：仅用于「导出流水」这类按类型整体的审计，target_id 留空
     "point_transaction",
+    # 数据库备份：下载全库备份是数据外带，target_id 留空、文件名在 detail 里
+    "backup",
 )
 
 # 目标类型 → 中文名。**必须与 AUDIT_TARGET_TYPES 一一对应**（tests/test_audit_taxonomy.py 有守卫）：
@@ -157,6 +177,10 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "ai_writing_prompt": "AI 写作提示词",
     "comment": "评论",
     "category_group": "分类分组",
+    "menu_setting": "菜单设置",
+    "dict_type": "字典类型",
+    "dict_item": "字典项",
+    "position": "岗位",
     "report": "举报",
     "moderation_log": "机审留痕",
     "scheduled_job": "定时任务",
@@ -164,6 +188,7 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "point_transaction": "积分流水",
     "legal_doc": "法律文档",
     "image_asset": "图片素材",
+    "backup": "数据库备份",
 }
 
 # ---- 风险分级 ----
@@ -242,6 +267,19 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "category_group_update": AUDIT_RISK_NORMAL,
     "category_group_delete": AUDIT_RISK_DANGER,
     "category_move": AUDIT_RISK_NORMAL,
+    # 菜单展示设置：影响全站管理员的导航，但不动路由/权限；重置会一次性抹掉所有自定义
+    "menu_setting_update": AUDIT_RISK_NORMAL,
+    "menu_setting_reset": AUDIT_RISK_DANGER,
+    # 字典：改文案影响表单/筛选展示；删除类型或字典项可能让业务引用落空
+    "dict_type_create": AUDIT_RISK_NORMAL,
+    "dict_type_update": AUDIT_RISK_NORMAL,
+    "dict_type_delete": AUDIT_RISK_DANGER,
+    "dict_item_create": AUDIT_RISK_NORMAL,
+    "dict_item_update": AUDIT_RISK_NORMAL,
+    "dict_item_delete": AUDIT_RISK_DANGER,
+    "position_create": AUDIT_RISK_NORMAL,
+    "position_update": AUDIT_RISK_NORMAL,
+    "position_delete": AUDIT_RISK_DANGER,
     # 恢复 = 把已下架内容放回可见面，与删除同级敏感（同样直接决定全站可见内容）
     "content_restore": AUDIT_RISK_DANGER,
     # 系统设置：可改 AI 供应商密钥与 base_url、邀请奖励额度、对外公示的法律文档 HTML

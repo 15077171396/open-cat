@@ -19,14 +19,19 @@ import re
 import unittest
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from unittest import mock
 
 from app.core.rbac import match_route_permission
 from app.models.admin_audit_log import AUDIT_ACTIONS, AdminAuditLog
+from app.models.payment import PaymentProduct
+from app.models.rbac import Role, UserRole
 from app.models.tutorial import Tutorial
 from app.models.user import User
 from app.services import admin_audit_service as aas
 from app.services import admin_tutorial_service as ats
+from app.services import payment_service, rbac_service
 from app.services.rbac_catalog import ALL_PERMISSION_CODES, PERMISSION_CATALOG, SYSTEM_ROLES
+from tests.conftest import FakeRedis
 from tests.fake_db import MemorySession
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -450,8 +455,8 @@ class TestSourceFieldWiring(unittest.TestCase):
             # ⚠️ 每次新增迁移都要同步改这里：这里刻意写死而非「断言 head 唯一」，
             # 因为只判唯一会漏掉「新迁移插错了位置、链仍能收敛成一个 head」的情况。
             # 代价是加迁移要改一处测试 —— 换来的是 head 漂移一定会被发现。
-            # 2026-10-30 新增 roles.data_scope（数据权限），接在 drop_legacy_content_tables 之后。
-            ["8c014540ffa7"],
+            # 2026-10-31 新增岗位表，接在 add_dictionaries 之后。
+            ["add_positions"],
             f"alembic head 不是最新迁移（当前 heads={heads}）—— 迁移链可能断开或挂错位置",
         )
 
@@ -528,6 +533,111 @@ class TestAuditFieldChanges(unittest.TestCase):
                 if '"fields": sorted(updates.keys())' in line and '"changes"' not in line:
                     offenders.append(f"{path.name}:{n}")
         self.assertEqual(offenders, [], "以下写操作仍只记字段名，没记新旧值: " + "; ".join(offenders))
+
+
+class TestDiffValues(unittest.TestCase):
+    """显式前后快照的 diff helper：只记变化、敏感字段脱敏、超长截断。"""
+
+    def test_only_changed_fields_are_kept(self):
+        changes = aas.diff_values(
+            {"name": "旧名", "price": 10, "enabled": True},
+            {"name": "旧名", "price": 12, "enabled": False},
+        )
+        self.assertEqual(changes, {"price": [10, 12], "enabled": [True, False]})
+
+    def test_sensitive_fields_are_redacted(self):
+        changes = aas.diff_values(
+            {"api_key": "sk-old", "name": "旧名"},
+            {"api_key": "sk-new", "name": "新名"},
+        )
+        self.assertEqual(changes["api_key"], ["***", "***"])
+        self.assertEqual(changes["name"], ["旧名", "新名"])
+
+    def test_none_transitions_are_recorded(self):
+        changes = aas.diff_values(
+            {"vip_expire_time": None, "department_id": 3},
+            {"vip_expire_time": "2026-12-31T00:00:00", "department_id": None},
+        )
+        self.assertEqual(changes["vip_expire_time"], [None, "2026-12-31T00:00:00"])
+        self.assertEqual(changes["department_id"], [3, None])
+
+    def test_long_values_are_truncated(self):
+        changes = aas.diff_values({"content": "旧"}, {"content": "x" * 5000})
+        self.assertLessEqual(len(changes["content"][1]), aas.AUDIT_VALUE_MAX + 1)
+
+
+class TestHighRiskAuditDiff(unittest.IsolatedAsyncioTestCase):
+    """高危操作的 diff 落点：角色与 RBAC 分配是提权面，必须回答「改前是什么」。"""
+
+    async def test_update_role_records_field_changes(self):
+        db = MemorySession()
+        db.seed(
+            Role(
+                id=10, code="editor", name="旧名", description="旧说明",
+                data_scope="all", is_system=False,
+            )
+        )
+        await rbac_service.update_role(
+            db, 10, name="新名", description="新说明", data_scope="self",
+            admin=User(id=1, account="admin@test"),
+        )
+        rows = db.all_rows(AdminAuditLog)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["action"], "role_update")
+        self.assertEqual(
+            rows[0]["detail"]["changes"],
+            {
+                "name": ["旧名", "新名"],
+                "description": ["旧说明", "新说明"],
+                "data_scope": ["all", "self"],
+            },
+        )
+
+    async def test_assign_user_rbac_records_before_after_role_ids(self):
+        db = MemorySession()
+        admin = User(id=1, account="admin@test", role="admin")
+        db.seed(
+            admin,
+            User(id=2, account="target@test", role="user"),
+            Role(id=10, code="editor", name="编辑", is_system=False),
+            Role(id=20, code="auditor", name="审核", is_system=False),
+            UserRole(user_id=2, role_id=10),
+        )
+
+        async def _fake_rbac(_db, _user_id):
+            return {"roles": [], "perms": []}
+
+        with (
+            mock.patch.object(rbac_service, "get_user_rbac", _fake_rbac),
+            mock.patch.object(rbac_service, "redis_client", FakeRedis()),
+        ):
+            await rbac_service.assign_user_rbac(db, 2, admin, role_ids=[20])
+
+        rows = [
+            row for row in db.all_rows(AdminAuditLog)
+            if row["action"] == "user_rbac_assign"
+        ]
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["detail"]["changes"]["role_ids"], [[10], [20]])
+
+    async def test_payment_product_update_records_price_diff(self):
+        db = MemorySession()
+        db.seed(
+            PaymentProduct(
+                id=1, code="points_100", name="100 积分", kind="points",
+                amount_cents=100, points=100, vip_days=0, is_enabled=True, sort_order=0,
+            )
+        )
+        await payment_service.update_product(
+            db, 1, {"amount_cents": 200, "is_enabled": False},
+            User(id=1, account="admin@test"),
+        )
+        row = db.all_rows(AdminAuditLog)[0]
+        self.assertEqual(row["action"], "payment_product_update")
+        self.assertEqual(
+            row["detail"]["changes"],
+            {"amount_cents": [100, 200], "is_enabled": [True, False]},
+        )
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Layout, Menu, Avatar, Dropdown, Typography, Space, Skeleton, Button, Tooltip } from 'antd'
+import { Drawer, Grid, Layout, Menu, Avatar, Dropdown, Typography, Space, Skeleton, Button, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import type { CSSProperties } from 'react'
 import {
@@ -8,8 +8,10 @@ import {
   LogoutOutlined,
   UserOutlined,
   ReloadOutlined,
+  SearchOutlined,
   BulbOutlined,
   LayoutOutlined,
+  TranslationOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation, Outlet } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
@@ -18,7 +20,11 @@ import type { LayoutMode, ThemeMode } from '../../store/prefsStore'
 import { apiGet } from '../../api/client'
 import { BRAND } from '../../theme'
 import RouteErrorBoundary from '../RouteErrorBoundary'
+import TodoBell from './TodoBell'
+import CommandPalette from './CommandPalette'
 import { menuIcon } from '../../constants/menuIcons'
+import { LOCALE_LABELS, useI18n } from '../../i18n'
+import type { Locale } from '../../i18n'
 import {
   GROUP_KEY_PREFIX,
   externalLeafKeys,
@@ -57,12 +63,18 @@ const EMPTY_TREE: MenuTree = { groups: [], footer: [] }
 // 窗口聚焦时重取会话内权限的最小间隔
 const FOCUS_REFRESH_INTERVAL_MS = 30_000
 
-function readMenuCache(): MenuTree | null {
+function readMenuCache(locale: Locale): MenuTree | null {
   try {
     const raw = sessionStorage.getItem(MENU_CACHE_KEY)
     if (!raw) return null
-    const parsed = JSON.parse(raw) as { v?: number; tree?: MenuTree }
-    if (parsed?.v !== MENU_CACHE_VERSION || !parsed.tree || !Array.isArray(parsed.tree.groups)) {
+    // 缓存按语言隔离：切换语言后先用旧语言的菜单顶一会儿，比侧栏整块变空更糟
+    const parsed = JSON.parse(raw) as { v?: number; locale?: string; tree?: MenuTree }
+    if (
+      parsed?.v !== MENU_CACHE_VERSION ||
+      parsed.locale !== locale ||
+      !parsed.tree ||
+      !Array.isArray(parsed.tree.groups)
+    ) {
       return null
     }
     return parsed.tree
@@ -71,9 +83,9 @@ function readMenuCache(): MenuTree | null {
   }
 }
 
-function writeMenuCache(tree: MenuTree): void {
+function writeMenuCache(tree: MenuTree, locale: Locale): void {
   try {
-    sessionStorage.setItem(MENU_CACHE_KEY, JSON.stringify({ v: MENU_CACHE_VERSION, tree }))
+    sessionStorage.setItem(MENU_CACHE_KEY, JSON.stringify({ v: MENU_CACHE_VERSION, locale, tree }))
   } catch {
     // 隐私模式/配额满：缓存只是可选优化，写不进去不影响主流程
   }
@@ -173,20 +185,33 @@ export default function AdminLayout() {
   const isSuper = useAuthStore((s) => s.isSuper)
   const permissions = useAuthStore((s) => s.permissions)
   const [collapsed, setCollapsed] = useState(false)
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [paletteOpen, setPaletteOpen] = useState(false)
 
   // 展示偏好：独立 store + localStorage 持久化，退出登录不丢
   const mode = usePrefsStore((s) => s.mode)
   const layout = usePrefsStore((s) => s.layout)
   const setMode = usePrefsStore((s) => s.setMode)
   const setLayout = usePrefsStore((s) => s.setLayout)
-  const isTop = layout === 'top'
+  const { locale, setLocale, t } = useI18n()
+  const screens = Grid.useBreakpoint()
+  // md=768：手机/小平板改用抽屉菜单；首帧 screens 为空时按桌面处理，避免桌面闪一下移动布局
+  const isMobile = screens.md === false
+  const isTop = layout === 'top' && !isMobile
 
   // 有缓存就先渲染（避免刷新时侧栏闪一下骨架），随后静默校准
-  const [menuTree, setMenuTree] = useState<MenuTree | null>(() => readMenuCache())
+  const [menuTree, setMenuTree] = useState<MenuTree | null>(() => readMenuCache(locale))
   const [menuLoading, setMenuLoading] = useState(false)
   const [menuError, setMenuError] = useState(false)
   const [reloadToken, setReloadToken] = useState(0)
   const [openKeys, setOpenKeys] = useState<string[]>([])
+
+  // 菜单管理保存后通知这里重拉菜单：侧栏名称/排序/可见性立即生效
+  useEffect(() => {
+    const handler = () => setReloadToken((token) => token + 1)
+    window.addEventListener('admin-menu-updated', handler)
+    return () => window.removeEventListener('admin-menu-updated', handler)
+  }, [])
 
   // 会话期内窗口重新聚焦时重取 /auth/me 与 RBAC 档案：服务端撤销的权限能即时生效，
   // 瞬时故障被清空的权限也能恢复；focus 在 alt-tab 下极频繁，30 秒节流
@@ -202,17 +227,20 @@ export default function AdminLayout() {
     return () => window.removeEventListener('focus', onFocus)
   }, [])
 
-  // 拉取菜单结构（失败自动重试一次，仍失败则交给用户手动重试）
+  // 拉取菜单结构（失败自动重试一次，仍失败则交给用户手动重试）。
+  // 语言变化要重取：菜单文案由后端按 Accept-Language 下发，前端兜不了。
   useEffect(() => {
     let alive = true
     let retryTimer: ReturnType<typeof setTimeout> | undefined
+    // 切到该语言时有缓存就先用缓存，别让侧栏停在上一门语言上
+    setMenuTree((current) => readMenuCache(locale) ?? current)
     const load = async (attempt: number) => {
       setMenuLoading(true)
       try {
         const tree = await apiGet<MenuTree>('/admin/menus')
         if (!alive) return
         setMenuTree(tree)
-        writeMenuCache(tree)
+        writeMenuCache(tree, locale)
         setMenuError(false)
         setMenuLoading(false)
       } catch {
@@ -232,7 +260,7 @@ export default function AdminLayout() {
       alive = false
       if (retryTimer) clearTimeout(retryTimer)
     }
-  }, [reloadToken])
+  }, [reloadToken, locale])
 
   // 按 RBAC 权限裁剪（super_admin 全量可见）；权限变化即时反映，无需重拉菜单
   const visibleTree = useMemo(
@@ -283,7 +311,7 @@ export default function AdminLayout() {
       children: group.items.map(toLeaf),
       // 折叠态只剩图标，靠主色标出「当前页面所在分组」，否则用户不知道自己在哪一层
       className:
-        collapsed && !isTop && groupMenuKey(group.key) === activeGroupKey
+        collapsed && !isTop && !isMobile && groupMenuKey(group.key) === activeGroupKey
           ? 'adm-menu-group-active'
           : undefined,
     }))
@@ -291,7 +319,7 @@ export default function AdminLayout() {
     return (footer.length > 0
       ? [...groups, { type: 'divider' as const }, ...footer]
       : groups) as MenuProps['items']
-  }, [visibleTree, collapsed, activeGroupKey, isTop])
+  }, [visibleTree, collapsed, activeGroupKey, isTop, isMobile])
 
   // 顶栏当前位置（父级 / 页面）：折叠侧栏后仍能判断自己在哪一层
   const currentCrumb = useMemo(() => {
@@ -323,18 +351,18 @@ export default function AdminLayout() {
   const userMenu: MenuProps = {
     items: [
       // 个人中心：顶栏账号下拉里的快捷入口（与左侧菜单同一路由）
-      { key: 'profile', icon: <UserOutlined />, label: '个人中心', onClick: () => navigate('/profile') },
+      { key: 'profile', icon: <UserOutlined />, label: t('layout.profile'), onClick: () => navigate('/profile') },
       { type: 'divider' },
-      { key: 'logout', icon: <LogoutOutlined />, label: '退出登录', onClick: handleLogout },
+      { key: 'logout', icon: <LogoutOutlined />, label: t('layout.logout'), onClick: handleLogout },
     ],
   }
 
   /** 主题：亮 / 暗 / 跟随系统（system 由 main.tsx 的 matchMedia 实时解析） */
   const themeMenu: MenuProps = {
     items: [
-      { key: 'light', label: '亮色' },
-      { key: 'dark', label: '暗色' },
-      { key: 'system', label: '跟随系统' },
+      { key: 'light', label: t('layout.light') },
+      { key: 'dark', label: t('layout.dark') },
+      { key: 'system', label: t('layout.system') },
     ],
     selectedKeys: [mode],
     onClick: ({ key }) => setMode(key as ThemeMode),
@@ -343,27 +371,58 @@ export default function AdminLayout() {
   /** 布局：侧边导航 / 顶部导航，与主题同属展示偏好 */
   const layoutMenu: MenuProps = {
     items: [
-      { key: 'side', label: '侧边导航' },
-      { key: 'top', label: '顶部导航' },
+      { key: 'side', label: t('layout.side') },
+      { key: 'top', label: t('layout.top') },
     ],
     selectedKeys: [layout],
     onClick: ({ key }) => setLayout(key as LayoutMode),
   }
 
+  /** 语言：切换后菜单会按新语言重拉（见上方 useEffect 的 locale 依赖） */
+  const languageMenu: MenuProps = {
+    items: [
+      { key: 'zh-CN', label: LOCALE_LABELS['zh-CN'] },
+      { key: 'en-US', label: LOCALE_LABELS['en-US'] },
+    ],
+    selectedKeys: [locale],
+    onClick: ({ key }) => setLocale(key as Locale),
+  }
+
   const headerActions = (
     <Space size={4}>
-      {/* 提示用原生 title 而非 Tooltip：Dropdown 会 cloneElement 给触发元素绑事件，
-          中间再套一层 Tooltip 会吃掉这些事件 */}
-      <Dropdown menu={themeMenu} placement="bottomRight" trigger={['click']}>
-        <Button type="text" icon={<BulbOutlined />} aria-label="主题模式" title="主题模式" />
-      </Dropdown>
-      <Dropdown menu={layoutMenu} placement="bottomRight" trigger={['click']}>
-        <Button type="text" icon={<LayoutOutlined />} aria-label="布局" title="布局" />
-      </Dropdown>
+      <Button
+        type="text"
+        icon={<SearchOutlined />}
+        aria-label={t('layout.search')}
+        title={t('layout.searchTitle')}
+        onClick={() => setPaletteOpen(true)}
+      />
+      <TodoBell />
+      {/* 手机顶栏只留搜索 / 待办 / 头像；主题、布局、语言在命令面板里仍可用 */}
+      {!isMobile && (
+        <>
+          {/* 提示用原生 title 而非 Tooltip：Dropdown 会 cloneElement 给触发元素绑事件，
+              中间再套一层 Tooltip 会吃掉这些事件 */}
+          <Dropdown menu={languageMenu} placement="bottomRight" trigger={['click']}>
+            <Button
+              type="text"
+              icon={<TranslationOutlined />}
+              aria-label={t('layout.language')}
+              title={t('layout.language')}
+            />
+          </Dropdown>
+          <Dropdown menu={themeMenu} placement="bottomRight" trigger={['click']}>
+            <Button type="text" icon={<BulbOutlined />} aria-label={t('layout.theme')} title={t('layout.theme')} />
+          </Dropdown>
+          <Dropdown menu={layoutMenu} placement="bottomRight" trigger={['click']}>
+            <Button type="text" icon={<LayoutOutlined />} aria-label={t('layout.layout')} title={t('layout.layout')} />
+          </Dropdown>
+        </>
+      )}
       <Dropdown menu={userMenu} placement="bottomRight">
         <Space style={{ cursor: 'pointer' }}>
           <Avatar icon={<UserOutlined />} src={avatarUrl || undefined} />
-          <Typography.Text>{account || '管理员'}</Typography.Text>
+          {!isMobile && <Typography.Text>{account || t('layout.adminFallback')}</Typography.Text>}
         </Space>
       </Dropdown>
     </Space>
@@ -379,17 +438,17 @@ export default function AdminLayout() {
         <div style={menuFallbackStyle}>
           {!collapsed && (
             <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              菜单加载失败
+              {t('layout.menuLoadFailed')}
             </Typography.Text>
           )}
           <div style={{ marginTop: collapsed ? 0 : 8 }}>
-            <Tooltip title={collapsed ? '重新加载菜单' : undefined}>
+            <Tooltip title={collapsed ? t('layout.retryMenu') : undefined}>
               <Button
                 size="small"
                 icon={<ReloadOutlined />}
                 onClick={() => setReloadToken((token) => token + 1)}
               >
-                {collapsed ? null : '重试'}
+                {collapsed ? null : t('common.retry')}
               </Button>
             </Tooltip>
           </div>
@@ -409,6 +468,7 @@ export default function AdminLayout() {
           // 外链菜单由 <a> 新窗口打开、分组节点由 antd 自行展开，均不改变当前 SPA 路由
           if (externalKeys.has(key) || key.startsWith(GROUP_KEY_PREFIX)) return
           navigate(key)
+          if (isMobile) setMobileMenuOpen(false)
         }}
         style={
           isTop
@@ -421,11 +481,21 @@ export default function AdminLayout() {
 
   return (
     <Layout style={{ height: '100vh', overflow: 'hidden' }}>
-      {!isTop && (
+      <Drawer
+        open={mobileMenuOpen}
+        onClose={() => setMobileMenuOpen(false)}
+        placement="left"
+        width={260}
+        title={t('layout.brand')}
+        styles={{ body: { padding: 0 } }}
+      >
+        <div style={menuScrollStyle}>{renderMenu()}</div>
+      </Drawer>
+      {!isTop && !isMobile && (
         <Sider trigger={null} collapsible collapsed={collapsed} width={220} style={siderStyle}>
           <div style={logoStyle}>
             <Typography.Title level={4} style={{ margin: 0, color: BRAND.primary }}>
-              {collapsed ? '猫' : 'AI猫后台'}
+              {collapsed ? t('layout.brandShort') : t('layout.brand')}
             </Typography.Title>
           </div>
           <div style={menuScrollStyle}>{renderMenu()}</div>
@@ -433,7 +503,7 @@ export default function AdminLayout() {
       )}
       <Layout
         style={{
-          marginLeft: isTop ? 0 : collapsed ? 80 : 220,
+          marginLeft: isMobile ? 0 : isTop ? 0 : collapsed ? 80 : 220,
           height: '100vh',
           display: 'flex',
           flexDirection: 'column',
@@ -444,7 +514,7 @@ export default function AdminLayout() {
             <>
               <div style={topLogoStyle}>
                 <Typography.Title level={4} style={{ margin: 0, color: BRAND.primary, whiteSpace: 'nowrap' }}>
-                  AI猫后台
+                  {t('layout.brand')}
                 </Typography.Title>
               </div>
               <div style={topMenuWrapStyle}>{renderMenu()}</div>
@@ -455,12 +525,18 @@ export default function AdminLayout() {
               <div style={headerLeftStyle}>
                 <button
                   type="button"
-                  onClick={() => setCollapsed(!collapsed)}
-                  aria-label={collapsed ? '展开侧边栏' : '收起侧边栏'}
-                  aria-expanded={!collapsed}
+                  onClick={() => (isMobile ? setMobileMenuOpen(true) : setCollapsed(!collapsed))}
+                  aria-label={
+                    isMobile
+                      ? t('layout.openMenu')
+                      : collapsed
+                        ? t('layout.expandSidebar')
+                        : t('layout.collapseSidebar')
+                  }
+                  aria-expanded={isMobile ? mobileMenuOpen : !collapsed}
                   style={{ ...collapseTriggerStyle, background: 'none', border: 'none', color: 'inherit' }}
                 >
-                  {collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+                  {isMobile || collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
                 </button>
                 {currentCrumb && (
                   <Space size={4}>
@@ -478,13 +554,28 @@ export default function AdminLayout() {
             </>
           )}
         </Header>
-        <Content style={isEditPage ? contentStyleZeroVerticalPadding : contentStyle}>
+        <Content
+          style={
+            isMobile
+              ? { ...contentStyle, margin: 0, borderRadius: 0, padding: 12 }
+              : isEditPage
+                ? contentStyleZeroVerticalPadding
+                : contentStyle
+          }
+        >
           {/* 页面级错误边界：某一页渲染挂了不该把侧栏一起带走（见组件注释） */}
           <RouteErrorBoundary path={location.pathname}>
             <Outlet />
           </RouteErrorBoundary>
         </Content>
       </Layout>
+      <CommandPalette
+        open={paletteOpen}
+        onOpenChange={setPaletteOpen}
+        menuTree={visibleTree}
+        permissions={permissions}
+        isSuper={isSuper}
+      />
     </Layout>
   )
 }

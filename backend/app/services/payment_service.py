@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.exceptions import AppException
 from app.models.payment import PaymentOrder, PaymentProduct
 from app.models.user import User
-from app.services.admin_audit_service import record_admin_action
+from app.services.admin_audit_service import diff_values, record_admin_action
 from app.services.integration_settings_service import get_payment_config
 from app.services.payments import (
     PaymentError,
@@ -490,6 +490,7 @@ async def update_product(db: AsyncSession, product_id: int, data: dict, admin: U
         raise AppException(code=400, message="积分套餐必须配置大于 0 的积分")
     if effective_kind == "vip" and (not effective_vip_days or effective_vip_days <= 0):
         raise AppException(code=400, message="VIP 套餐必须配置大于 0 的天数")
+    before = {key: getattr(product, key, None) for key in payload}
     for key, value in payload.items():
         setattr(product, key, value)
     record_admin_action(
@@ -499,7 +500,12 @@ async def update_product(db: AsyncSession, product_id: int, data: dict, admin: U
         target_type="payment_product",
         target_id=product.id,
         summary=f"编辑充值套餐「{product.name}」",
-        detail={"fields": sorted(payload.keys())},
+        detail={
+            "fields": sorted(payload.keys()),
+            "changes": diff_values(
+                before, {key: getattr(product, key, None) for key in payload}
+            ),
+        },
     )
     await db.commit()
     await db.refresh(product)

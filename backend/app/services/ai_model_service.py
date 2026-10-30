@@ -31,7 +31,7 @@ from app.database import async_session
 from app.models.ai_model import AiModel
 from app.models.ai_writing_prompt import AiWritingPrompt
 from app.models.user import User
-from app.services.admin_audit_service import record_admin_action
+from app.services.admin_audit_service import diff_values, record_admin_action
 from app.services.ai.registry import (
     provider_constants,
     provider_meta,
@@ -720,6 +720,7 @@ async def update_model(
         # 改模态会让历史默认与前端下拉错位（文本与图像各有默认，切换后旧默认失效）
         raise AppException(code=400, message="模型模态创建后不可修改")
     changed_fields = sorted(payload.keys())
+    before_payload = {field: getattr(row, field, None) for field in payload}
 
     if payload.get("is_default") is True and not payload.get("is_enabled", row.is_enabled):
         raise AppException(code=400, message="默认模型必须处于启用状态")
@@ -748,6 +749,12 @@ async def update_model(
     await _ensure_default(db, preferred_id=preferred_id, modality=row.modality)
 
     remove_key = "api_key" in changed_fields
+    changes = diff_values(
+        before_payload, {field: getattr(row, field, None) for field in payload}
+    )
+    # Key 不落明文，也不落掩码以外的任何形式；这里只表达「换过 Key」这一事实
+    if remove_key:
+        changes["api_key"] = ["***", "***"]
     record_admin_action(
         db,
         admin,
@@ -757,6 +764,7 @@ async def update_model(
         summary=f"编辑 AI 模型「{row.display_name}」（{row.code}）",
         detail={
             "fields": changed_fields,
+            "changes": changes,
             "provider": row.provider,
             "has_api_key": bool(row.api_key_enc) or remove_key,
         },

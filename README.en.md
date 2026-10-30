@@ -37,7 +37,7 @@ Use it to run content and users; use its API to render your own site.
 | Menu entry exists, page returns 403 | Permission codes are declared **once** and derive menu / route / API / button — inconsistency is physically impossible |
 | A new endpoint ships without a permission check | Route rule table is **fail-closed**: unregistered requests get 403 |
 | Nobody can tell who changed what | Write operations **must** be audited; a missing audit record turns tests red |
-| Shared accounts, unclear accountability | 80 permission codes, 3 built-in roles, customizable down to the button |
+| Shared accounts, unclear accountability | 63 permission codes, 3 built-in roles, customizable down to the button |
 | Third-party keys stored in plain text | Keys are **encrypted with Fernet** in the DB, only a masked value is returned |
 | The editor is dumb, images are found by hand | Quill 2 + AI rewrite/continue/illustrate + image library search |
 
@@ -63,9 +63,9 @@ Want to see it with data?
 docker compose exec app python seed_demo.py
 ```
 
-Seeds 5 tutorials (with 15 chapters), 8 wiki entries, sample resources/tools/extensions, comments,
-feedback, announcements and points history — and generates cover images and avatars **into the real
-storage driver**, so images actually load instead of showing 404 placeholders.
+Seeds 5 tutorials (with 15 chapters), categories, users, comments, feedback, announcements and points
+history — and generates cover images and avatars **into the real storage driver**, so images actually
+load instead of showing 404 placeholders.
 
 The script is idempotent (titles are prefixed with `【示例】`); it refuses to run on a database that
 already has real content unless you pass `--yes`.
@@ -82,10 +82,15 @@ already has real content unless you pass `--yes`.
 | **Editing** | Quill 2 rich text (tables, code blocks, captions, TOC, Markdown paste), AI rewrite/continue/illustrate, image library search, draft preview |
 | **Moderation** | Machine-review trail, user reports, comment governance (deletable and restorable, never editable) |
 | **Users** | CRUD, ban, soft delete and restore, points adjustment, role assignment, real-name review |
-| **Permissions** | Roles / permission tree / departments, 64 permission codes, button-level |
-| **Audit** | Every write is recorded; searchable by module / actor / time / result |
+| **Permissions** | Roles / permission tree / departments / positions, 63 permission codes, button-level |
+| **Audit** | Every write is recorded; high-risk actions keep a **field-level diff** (old → new, secrets masked, long values truncated), searchable by module / actor / time / result |
+| **Experience** | Global command palette (Ctrl/Cmd + K): jump to pages, search users / tutorials, switch theme / layout; results land on filtered lists or edit pages. Below 767px the menu becomes a drawer, and comments / moderation / feedback prioritize content columns |
+| **Analytics (demo)** | Standalone analysis page: KPI trends, reading trend, traffic sources, content ranking, content quadrant, new vs returning users, active hours, conversion funnel, quality radar, search terms; rendered with **ECharts** (hover tooltips / emphasis, count-up, line-rise, bar/pie/radar expansion), with animations replaying on range/seed change; **all numbers are browser-local mock data** (no backend calls, no database writes), clearly labelled as demo |
+| **Menu management** | Edit sidebar labels (zh/en), icons, order and visibility; changes apply immediately and are audited. Routes and permission codes stay code-defined, so the page deliberately offers no create/delete to avoid dead 404/403 entries |
+| **Dictionaries** | Two-pane dictionary types + items: code/name/description, label/value/order/default/enabled; one default per type; type deletion requires empty items; ships content/moderation/feedback/user dictionaries |
+| **Monitoring** | Online users (all sessions, device/IP/activity, force logout), server metrics (CPU/memory/disk/swap/process), Redis cache (INFO, key-prefix distribution, hit rate); read-only with graceful degradation |
 | **Operations** | Announcements (scheduled publish/unpublish), system notifications, recharge plans and orders (read-only), search-term analytics |
-| **System** | 26 groups / 137 settings, login methods, payment channels, mail, AI models and pricing, scheduled jobs, legal documents, **deployment readiness**, list export |
+| **System** | 26 groups / 138 settings, login methods, mandatory admin 2FA, payment channels, mail, AI models and pricing, scheduled jobs, legal documents, **deployment readiness**, list export, **header to-do center**, **unified recycle bin**, **version & upgrade**, **backup manager** |
 | **AI** | Multiple providers (OpenAI-compatible / DeepSeek / Qwen), per-model pricing, global cost guard, per-user quota |
 
 ---
@@ -93,11 +98,11 @@ already has real content unless you pass `--yes`.
 ## Tech stack
 
 **Backend** FastAPI 0.138 · SQLAlchemy 2 (async) · MySQL 8 · Redis 7 · Alembic · APScheduler · Pydantic 2
-**Frontend** React 18 · TypeScript · Vite 5 · Ant Design 6 · Zustand · Quill 2
+**Frontend** React 18 · TypeScript · Vite 5 · Ant Design 6 · Zustand · Quill 2 · ECharts 6 (analytics page)
 **Deploy** Docker Compose · nginx · optional Sentry
 
 ```
-backend/         FastAPI app (237 operations, 122 admin; content API at /api/v1/content/docs)
+backend/         FastAPI app (248 operations, 137 admin; content API at /api/v1/content/docs)
 admin-frontend/  Admin SPA (base=/admin/)
 docs/            Documentation (Chinese)
 ```
@@ -110,7 +115,7 @@ The thing worth reviewing in an open-source project is discipline, not feature c
 
 | Capability | This project | Typical open-source admin |
 |------|------|-------------------|
-| Backend tests | **146 files / 1777 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
+| Backend tests | **155 files / 1840 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
 | Architecture guards | Permission coverage / audit coverage / menu consistency / task registry, all covered by tests | Rare |
 | Secret storage | Fernet-encrypted in DB + mask sentinel | Plain text in DB or config |
 | Audit | Mandatory for writes; missing record fails tests | Logs exist, no coverage guarantee |
@@ -124,7 +129,7 @@ The thing worth reviewing in an open-source project is discipline, not feature c
 
 - **MySQL 8 only** (depends on `ngram` Chinese full-text index)
 - **Single-instance deployment**: the scheduler runs in-process; horizontal scaling requires splitting it out
-- **Simplified Chinese UI only** (i18n is on the roadmap)
+- **Simplified Chinese business page copy**: the admin shell, login, command palette and common list components switch between zh-CN / en-US (persisted), and menus are localized via `Accept-Language`; tutorial / user / operations page copy is still Chinese
 - No multi-tenancy, no low-code form engine, no in-app money movement (refunds go through the payment provider)
 
 ---

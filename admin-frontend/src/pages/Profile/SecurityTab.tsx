@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Alert, Button, Descriptions, Divider, Input, Modal, Space, Tag, Typography } from 'antd'
+import { Alert, Button, Descriptions, Divider, Input, Modal, Space, Tag, Tooltip, Typography } from 'antd'
 import { apiGet, apiPost } from '../../api/client'
 import { getErrorMessage } from '../../utils/error'
 import { toast } from '../../utils/toast'
@@ -23,6 +23,8 @@ interface TotpStatus {
   pending?: boolean
   recovery_remaining?: number
   recovery_should_regenerate?: boolean
+  /** 管理员强制 2FA 已开启：不能关闭 */
+  required?: boolean
 }
 
 interface SetupResult {
@@ -165,7 +167,10 @@ export default function SecurityTab() {
           {loading ? (
             <Typography.Text type="secondary">加载中…</Typography.Text>
           ) : enabled ? (
-            <Tag color="success">已启用</Tag>
+            <Space size={6}>
+              <Tag color="success">已启用</Tag>
+              {status?.required ? <Tag color="red">管理员强制</Tag> : null}
+            </Space>
           ) : status?.pending ? (
             <Tag color="warning">已生成密钥但未验证（未启用）</Tag>
           ) : (
@@ -260,9 +265,11 @@ export default function SecurityTab() {
             <Button loading={busy} onClick={handleRegenerate} disabled={!code.trim()}>
               重新生成恢复码
             </Button>
-            <Button danger onClick={() => setDisableOpen(true)}>
-              关闭二次验证
-            </Button>
+            <Tooltip title={status?.required ? '管理员强制二次验证已开启，不能关闭' : undefined}>
+              <Button danger disabled={status?.required} onClick={() => setDisableOpen(true)}>
+                关闭二次验证
+              </Button>
+            </Tooltip>
           </>
         )}
       </Space>

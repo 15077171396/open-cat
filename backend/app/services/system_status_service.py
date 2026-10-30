@@ -173,7 +173,7 @@ async def read_json(key: str) -> dict | None:
     return await _read_json_key(key)
 
 
-async def _jobs_status() -> list[dict]:
+async def get_jobs_status() -> list[dict]:
     """定时任务：最近一次执行时间、是否成功、是否超期未跑、是否被停用。
 
     停用状态的来源是调度器写回的 `ops:jobs:applied`（它记着「我按哪份配置在跑」），
@@ -344,7 +344,7 @@ async def get_system_status() -> dict:
             "alerts": alert_readiness(),
             "data_quality": await _read_json_key(_QUALITY_KEY) or {},
         },
-        "jobs": await _jobs_status(),
+        "jobs": await get_jobs_status(),
         "env": {
             "app_env": settings.APP_ENV,
             "release": settings.APP_RELEASE or None,

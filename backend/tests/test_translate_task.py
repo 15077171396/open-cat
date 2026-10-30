@@ -20,6 +20,7 @@ from unittest import mock
 
 from app.config import settings
 from app.core.exceptions import AppException
+from app.services import ai_config_service
 from app.services import translate_service as ts
 from tests.conftest import FakeRedis
 
@@ -28,6 +29,9 @@ class _TaskTestBase(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.fake = FakeRedis()
         ts._translate_tasks.clear()
+        # 运行时的 AI 配置有进程内缓存：全量套件里前面的用例可能已缓存「无 Key」，
+        # 这里再 patch settings 也不会生效。每个用例从空缓存开始，保证独立可跑。
+        ai_config_service._LOCAL_CACHE.clear()
         self._patches = [
             mock.patch.object(ts, "redis_client", self.fake),
             mock.patch.object(settings, "DEEPSEEK_API_KEY", "sk-test"),

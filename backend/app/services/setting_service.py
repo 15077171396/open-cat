@@ -14,13 +14,14 @@ import math
 from urllib.parse import urlsplit
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
 from app.core.crypto import decrypt_secret, encrypt_secret, looks_like_mask, mask_secret
 from app.database import async_session
 from app.models.system_setting import SystemSetting
+from app.models.user import User
 from app.redis import log_redis_degraded, redis_client
 
 # 设置项声明拆到 setting_definitions（MNT-08）；这里重新导出，既有 import 路径不变
@@ -200,6 +201,16 @@ async def get_stored_settings(
         else:
             result[row.setting_key] = row.value
     return result
+
+
+async def get_bool_setting(db: AsyncSession, key: str, default: bool = False) -> bool:
+    """读取布尔设置（未配置/脏值回退 default）；只查一行，供登录等热路径使用。"""
+    row = (
+        await db.execute(select(SystemSetting).where(SystemSetting.setting_key == key))
+    ).scalar_one_or_none()
+    if row is None or not row.value:
+        return default
+    return str(row.value).strip().lower() in ("1", "true", "on", "yes", "y")
 
 
 async def get_secret_setting(db: AsyncSession, key: str) -> str | None:
@@ -399,6 +410,24 @@ async def update_settings(db: AsyncSession, items: dict, *, surface: str | None 
         if defn.secret and looks_like_mask(value if isinstance(value, str) else None):
             continue
         normalized[key] = _validate_setting_value(defn, value)
+
+    # 强制 2FA 是「锁定后无法自救」的开关：开启前必须确认没有未绑定 TOTP 的管理员，
+    # 否则下一次登录就会把人挡在门外。
+    if normalized.get("admin_require_2fa") == "1":
+        unbound = (
+            await db.execute(
+                select(func.count(User.id)).where(
+                    User.role == "admin",
+                    User.deleted_at.is_(None),
+                    User.totp_enabled.is_(False),
+                )
+            )
+        ).scalar() or 0
+        if unbound:
+            raise ValueError(
+                f"仍有 {unbound} 个管理员未开启二次验证；"
+                "请先让其在「个人中心 → 安全设置」绑定后再开启强制"
+            )
 
     rows = {
         row.setting_key: row

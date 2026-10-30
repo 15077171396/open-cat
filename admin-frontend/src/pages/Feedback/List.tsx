@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, DatePicker, Form, Image, Input, Modal, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Form, Grid, Image, Input, Modal, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { CommentOutlined, DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
@@ -53,6 +53,9 @@ interface FeedbackItem {
 }
 
 export default function FeedbackList() {
+  const screens = Grid.useBreakpoint()
+  // md 以下：内容优先，次要列隐藏；操作列不再 fixed，避免浮在正文上
+  const isMobile = screens.md === false
   const [statusFilter, setStatusFilter] = useState('')
   const [statusOptions, setStatusOptions] = useState<Option[]>([])
   const [keywordInput, setKeywordInput] = useState('')
@@ -148,7 +151,8 @@ export default function FeedbackList() {
     {
       title: '提交人',
       key: 'user',
-      width: 160,
+      width: 150,
+      responsive: ['md'],
       render: (_: unknown, row: FeedbackItem) => (
         <span className="adm-cell__name">
           {row.user_nickname || row.user_account || `用户 ${row.user_id}`}
@@ -159,7 +163,8 @@ export default function FeedbackList() {
       title: '提交人账号',
       dataIndex: 'user_account',
       key: 'user_account',
-      width: 160,
+      width: 150,
+      responsive: ['md'],
       render: (v: string | null | undefined) =>
         v ? (
           <Typography.Text ellipsis={{ tooltip: v }} style={{ maxWidth: 140 }}>
@@ -173,7 +178,7 @@ export default function FeedbackList() {
       title: '反馈内容',
       dataIndex: 'content',
       key: 'content',
-      width: 320,
+      width: isMobile ? 260 : 280,
       render: (v: string, row: FeedbackItem) => (
         <div>
           <Typography.Paragraph
@@ -203,10 +208,22 @@ export default function FeedbackList() {
       ),
     },
     {
+      title: '操作',
+      key: 'mobile_action',
+      width: 80,
+      render: (_: unknown, row: FeedbackItem) => (
+        <PermGuard perm="feedback:review">
+          <Button type="link" size="small" onClick={() => openDetail(row)}>
+            审阅
+          </Button>
+        </PermGuard>
+      ),
+    },
+    {
       title: '联系方式',
       dataIndex: 'contact',
       key: 'contact',
-      width: 130,
+      width: 120,
       render: (v: string | null) =>
         v ? (
           <Typography.Text copyable={{ text: v }} style={{ fontSize: 13 }}>
@@ -239,13 +256,14 @@ export default function FeedbackList() {
       title: '提交时间',
       dataIndex: 'created_at',
       key: 'created_at',
-      width: 130,
+      width: 120,
+      responsive: ['md'],
       render: (v: string | null) => <span className="adm-muted">{formatTime(v)}</span>,
     },
     {
       title: '操作',
       key: 'action',
-      width: 200,
+      width: 220,
       fixed: 'right',
       render: (_: unknown, row: FeedbackItem) => (
         <Space size={0}>
@@ -279,7 +297,7 @@ export default function FeedbackList() {
   ]
 
   return (
-    <div className="adm-page">
+    <div className="adm-page adm-page--responsive">
       <PageHeader
         icon={<CommentOutlined />}
         title="用户反馈"
@@ -339,10 +357,15 @@ export default function FeedbackList() {
 
       <DataTable<FeedbackItem>
         dataSource={items}
-        columns={columns}
+        columns={columns.filter((column) => {
+          if (!column || typeof column !== 'object' || !('key' in column)) return true
+          if (column.key === 'mobile_action') return isMobile
+          if (column.key === 'action') return !isMobile
+          return true
+        })}
         rowKey="id"
         loading={loading}
-        scrollX={1190}
+        scrollX={isMobile ? 360 : 1130}
         pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
         empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的反馈", emptyText: "暂无用户反馈", onReset: handleResetFilters }}
       />

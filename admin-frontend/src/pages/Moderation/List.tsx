@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, Empty, Form, Input, Modal, Segmented, Select, Space, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
+import { Badge, Button, Card, Empty, Form, Grid, Input, Modal, Segmented, Select, Space, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
 import type { FormInstance, TableProps } from 'antd'
 import { FlagOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
+import { useSearchParams } from 'react-router-dom'
 import { apiGet, apiPut } from '../../api/client'
 import { useCrudList } from '../../hooks/useCrudList'
 import { PermGuard } from '../../components/PermGuard'
@@ -136,6 +137,8 @@ function textCell(v: string | null, maxWidth = 300) {
 }
 
 function LogTab({ onChanged }: { onChanged: () => void }) {
+  const screens = Grid.useBreakpoint()
+  const isMobile = screens.md === false
   const [statusFilter, setStatusFilter] = useState('')
   const [contentType, setContentType] = useState('')
   const [contentTypeOptions, setContentTypeOptions] = useState<Option[]>([])
@@ -205,6 +208,7 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'content_type',
       key: 'content_type',
       width: 90,
+      responsive: ['sm'],
       render: (_: unknown, row: ModerationLogItem) => (
         <Tag color="geekblue" style={{ margin: 0 }}>
           {row.content_type_label || row.content_type}
@@ -216,6 +220,7 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'hit_words',
       key: 'hit_words',
       width: 170,
+      responsive: ['lg'],
       render: (words: string[]) =>
         words.length ? (
           <Space size={4} wrap>
@@ -241,6 +246,7 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'action',
       key: 'action',
       width: 100,
+      responsive: ['md'],
       render: (_: unknown, row: ModerationLogItem) => (
         <Tag color={ACTION_COLOR[row.action] ?? 'default'} style={{ margin: 0 }}>
           {row.action_label || row.action}
@@ -272,6 +278,7 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'user_id',
       key: 'user_id',
       width: 90,
+      responsive: ['lg'],
       render: (v: number | null) => (v != null ? <span className="adm-num">{v}</span> : <span className="adm-muted">—</span>),
     },
     {
@@ -279,6 +286,7 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'reviewer_id',
       key: 'reviewer_id',
       width: 90,
+      responsive: ['lg'],
       render: (v: number | null) =>
         v != null ? <span className="adm-num">{v}</span> : <span className="adm-muted">—</span>,
     },
@@ -287,13 +295,14 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'created_at',
       key: 'created_at',
       width: 130,
+      responsive: ['md'],
       render: (v: string | null) => <span className="adm-muted">{formatTime(v)}</span>,
     },
     {
       title: '操作',
       key: 'action_col',
       width: 80,
-      fixed: 'right',
+      fixed: isMobile ? undefined : 'right',
       render: (_: unknown, row: ModerationLogItem) => (
         <PermGuard perm="moderation:review">
           <Button type="link" size="small" onClick={() => openModal(row)}>
@@ -343,7 +352,7 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
         columns={columns}
         rowKey="id"
         loading={loading}
-        scrollX={1150}
+        scrollX={isMobile ? 480 : 1150}
         pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
         empty={{
         hasFilter: hasFilter,
@@ -378,6 +387,8 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
 }
 
 function ReportTab({ onChanged }: { onChanged: () => void }) {
+  const screens = Grid.useBreakpoint()
+  const isMobile = screens.md === false
   const [statusFilter, setStatusFilter] = useState('')
   const [contentType, setContentType] = useState('')
   const [contentTypeOptions, setContentTypeOptions] = useState<Option[]>([])
@@ -457,6 +468,7 @@ function ReportTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'target_id',
       key: 'target_id',
       width: 130,
+      responsive: ['sm'],
       render: (v: string) => (
         <Typography.Text copyable={{ text: v }} style={{ fontSize: 13 }}>
           {v}
@@ -468,6 +480,7 @@ function ReportTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'reporter_id',
       key: 'reporter_id',
       width: 90,
+      responsive: ['lg'],
       render: (v: number) => <span className="adm-num">{v}</span>,
     },
     {
@@ -513,6 +526,7 @@ function ReportTab({ onChanged }: { onChanged: () => void }) {
       dataIndex: 'handler_id',
       key: 'handler_id',
       width: 90,
+      responsive: ['lg'],
       render: (v: number | null) =>
         v != null ? <span className="adm-num">{v}</span> : <span className="adm-muted">—</span>,
     },
@@ -527,7 +541,7 @@ function ReportTab({ onChanged }: { onChanged: () => void }) {
       title: '操作',
       key: 'action_col',
       width: 80,
-      fixed: 'right',
+      fixed: isMobile ? undefined : 'right',
       render: (_: unknown, row: ReportItem) =>
         row.status === 'pending' ? (
           <PermGuard perm="report:handle">
@@ -597,7 +611,7 @@ function ReportTab({ onChanged }: { onChanged: () => void }) {
           columns={columns}
           rowKey="id"
           loading={loading}
-          scroll={{ x: 1100 }}
+          scroll={{ x: isMobile ? 570 : 1100 }}
           locale={{
             emptyText: (
               <Empty
@@ -644,6 +658,17 @@ function ReportTab({ onChanged }: { onChanged: () => void }) {
 export default function ModerationList() {
   // 角标仅提示不作为准入依据（数量为 0 也能进页面查历史）；拉取失败静默降级
   const [summary, setSummary] = useState({ pending_logs: 0, pending_reports: 0 })
+  // Tab 与 URL 同步：顶栏待办可以直接深链到「用户举报」而不是只落到默认 Tab
+  const [searchParams, setSearchParams] = useSearchParams()
+  const tab = searchParams.get('tab') === 'reports' ? 'reports' : 'logs'
+
+  const changeTab = (key: string) => {
+    const next = new URLSearchParams(searchParams)
+    if (key === 'reports') next.set('tab', 'reports')
+    else next.delete('tab')
+    // replace：切 Tab 不该在浏览器历史里留下一步，否则「返回」会变成在两 Tab 间来回跳
+    setSearchParams(next, { replace: true })
+  }
 
   const refreshSummary = useCallback(() => {
     apiGet<{ pending_logs: number; pending_reports: number }>('/admin/moderation/summary')
@@ -681,7 +706,7 @@ export default function ModerationList() {
   ]
 
   return (
-    <div className="adm-page">
+    <div className="adm-page adm-page--responsive">
       <PageHeader
         icon={<SafetyCertificateOutlined />}
         title="内容审核"
@@ -692,7 +717,7 @@ export default function ModerationList() {
           ]}
       />
 
-      <Tabs defaultActiveKey="logs" items={tabItems} />
+      <Tabs activeKey={tab} onChange={changeTab} items={tabItems} />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
         <FlagOutlined /> 敏感词库由 <code>MODERATION_EXTRA_WORDS</code> 维护（部署配置，非数据库），

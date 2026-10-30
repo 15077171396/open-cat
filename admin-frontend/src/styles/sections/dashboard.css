@@ -228,6 +228,40 @@
   flex: none;
 }
 
+/* 切片 hover：加粗 + 轻微外扩（对齐 ECharts 饼图 emphasis），并跟随指针出提示 */
+.dash-donut__slice {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: stroke-width 0.2s ease, transform 0.2s ease;
+  cursor: pointer;
+}
+
+.dash-donut__slice.is-active {
+  transform: scale(1.035);
+}
+
+.dash-donut__tip {
+  position: absolute;
+  z-index: 5;
+  transform: translate(-50%, -118%);
+  padding: 6px 9px;
+  border: 1px solid var(--app-border);
+  border-radius: 8px;
+  background: var(--app-elevated);
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.16);
+  color: var(--app-text-2);
+  font-size: 12px;
+  line-height: 1.4;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.dash-donut__tip strong {
+  margin: 0 2px;
+  color: var(--app-text);
+  font-variant-numeric: tabular-nums;
+}
+
 .dash-donut__center {
   position: absolute;
   inset: 0;

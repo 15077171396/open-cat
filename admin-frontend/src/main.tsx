@@ -1,7 +1,10 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 import { App as AntdApp, ConfigProvider } from 'antd'
+import enUS from 'antd/locale/en_US'
 import zhCN from 'antd/locale/zh_CN'
+import dayjs from 'dayjs'
+import 'dayjs/locale/zh-cn'
 import App from './App'
 import { getThemeConfig } from './theme'
 import { resolveMode, usePrefsStore } from './store/prefsStore'
@@ -27,6 +30,14 @@ function applyInitialTheme(): void {
   document.documentElement.style.colorScheme = resolved
 }
 applyInitialTheme()
+
+/** 首帧语言：`<html lang>` 与 dayjs（日期选择器/日历的月份、星期名）在渲染前就位 */
+function applyLocale(locale: string): void {
+  const lang = locale === 'en-US' ? 'en' : 'zh-cn'
+  document.documentElement.lang = locale
+  dayjs.locale(lang)
+}
+applyLocale(usePrefsStore.getState().locale)
 
 /**
  * 把 antd `App` 提供的 message 实例接给 `utils/toast`（MNT-07）。
@@ -55,6 +66,7 @@ function ToastBridge() {
  */
 function ThemeShell({ children }: { children: React.ReactNode }) {
   const mode = usePrefsStore((s) => s.mode)
+  const locale = usePrefsStore((s) => s.locale)
   const [systemDark, setSystemDark] = React.useState(
     () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches,
   )
@@ -76,8 +88,12 @@ function ThemeShell({ children }: { children: React.ReactNode }) {
     document.documentElement.style.colorScheme = resolved
   }, [resolved])
 
+  React.useEffect(() => {
+    applyLocale(locale)
+  }, [locale])
+
   return (
-    <ConfigProvider locale={zhCN} theme={getThemeConfig(resolved)}>
+    <ConfigProvider locale={locale === 'en-US' ? enUS : zhCN} theme={getThemeConfig(resolved)}>
       {children}
     </ConfigProvider>
   )
@@ -85,14 +101,14 @@ function ThemeShell({ children }: { children: React.ReactNode }) {
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* 主题 token：次要文字压深到 WCAG AA（详见 src/theme.ts）；
-        顺带显式 zh_CN —— 此前没设 locale，antd 内置文案（分页、空态、Modal
-        按钮）走的是英文默认值。 */}
-    <AntdApp>
-      <ThemeShell>
+    {/* 主题 token：次要文字压深到 WCAG AA（详见 src/theme.ts）。
+        ConfigProvider 包在 AntdApp 外层：message/Modal 这些 App 提供的实例
+        才能拿到当前主题与语言（反过来的话它们退回 antd 默认值）。 */}
+    <ThemeShell>
+      <AntdApp>
         <ToastBridge />
         <App />
-      </ThemeShell>
-    </AntdApp>
+      </AntdApp>
+    </ThemeShell>
   </React.StrictMode>,
 )

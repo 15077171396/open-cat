@@ -185,6 +185,16 @@ JOB_SPECS: tuple[JobSpec, ...] = (
         note="保留 180 天：看内容到决定付费的周期通常以周计，太短会删掉有效归因",
     ),
     JobSpec(
+        id="purge_recycle_bin",
+        label="回收站清理",
+        category=CATEGORY_STORAGE,
+        desc="硬删除超过保留期的回收站教程与评论；用户账号与有购买记录的教程不自动清理",
+        kind="daily",
+        hour=4,
+        minute=50,
+        note="教程 90 天 / 评论 30 天；有购买记录的教程跳过，避免破坏用户已购权益",
+    ),
+    JobSpec(
         id="flush_view_counts",
         label="浏览量落库",
         category=CATEGORY_STORAGE,

@@ -18,7 +18,7 @@ import datetime as dt
 import re
 from contextlib import asynccontextmanager
 
-from sqlalchemy import Column
+from sqlalchemy import Column, ForeignKeyConstraint
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.sql import Delete as _DeleteStmt
 from sqlalchemy.sql import Insert as _InsertStmt
@@ -557,6 +557,10 @@ class MemorySession:
         """
         for cons in obj.__table__.constraints:
             if not hasattr(cons, "columns") or len(cons.columns) == 0:
+                continue
+            # 外键不是唯一约束：多条子行指向同一父行是合法的。
+            # 仿真层曾把 ForeignKeyConstraint 也当唯一约束，导致「第二条字典项」必红。
+            if isinstance(cons, ForeignKeyConstraint):
                 continue
             names = [c.name for c in cons.columns]
             row = self.rows_snapshot(obj)

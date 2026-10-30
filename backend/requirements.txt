@@ -14,6 +14,7 @@ alembic==1.16.5
 
 # Redis
 redis[hiredis]==5.0.4
+psutil==7.2.2
 
 # Auth
 pyjwt==2.8.0

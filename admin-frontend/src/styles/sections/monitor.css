@@ -1,0 +1,32 @@
+/* 管理后台样式 · 监控管理（服务器 / 缓存 / 在线用户）
+ * 复用 antd Card/Statistic/Progress，补充指标卡的文字层级。
+ */
+
+.monitor-metric.ant-card {
+  height: 100%;
+}
+
+.monitor-metric .ant-statistic-title {
+  font-size: 12px;
+  color: var(--app-text-2);
+}
+
+.monitor-metric .ant-statistic-content {
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor-metric .ant-progress {
+  margin-top: 10px;
+}
+
+.monitor-metric__detail {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--app-text-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.monitor-detail.ant-card .ant-card-body {
+  padding-top: 8px;
+}

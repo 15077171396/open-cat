@@ -33,3 +33,114 @@
   color: var(--app-text-2);
 }
 
+
+/* 字段级 diff：旧值 → 新值（高危操作展开后的主视图）
+ *
+ * 注意：展开行位于宽度 1190 的 table 单元格内，而屏幕可视宽度可能只有 700 左右。
+ * 因此旧值/新值不能各占一整列（会被横向滚动裁掉），改为同一单元格内 inline 排列，
+ * 长值自然换行；管理员不需要拖动底部滚动条才能看到「改成了什么」。
+ */
+.aud-details {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 860px;
+}
+
+.aud-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.aud-diff__row {
+  display: grid;
+  grid-template-columns: minmax(110px, 170px) minmax(0, 1fr);
+  gap: 8px;
+  align-items: start;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--app-border-light);
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.aud-diff__row:last-child {
+  border-bottom: 0;
+}
+
+.aud-diff__key {
+  font-weight: 600;
+  color: var(--app-text-2);
+  word-break: break-all;
+}
+
+.aud-diff__values {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.aud-diff__old {
+  color: var(--app-text-3);
+  text-decoration: line-through;
+  text-decoration-color: var(--app-danger-border);
+  word-break: break-all;
+}
+
+.aud-diff__arrow {
+  color: var(--app-text-4);
+}
+
+.aud-diff__new {
+  font-weight: 600;
+  color: var(--app-text);
+  word-break: break-all;
+}
+
+/* 权限集合的增删（没有单一旧值/新值，用 + / - 芯片表达） */
+.aud-sets {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+}
+
+.aud-sets__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.aud-sets__label {
+  min-width: 32px;
+  color: var(--app-text-2);
+}
+
+.aud-chip {
+  display: inline-block;
+  padding: 0 6px;
+  border-radius: var(--app-radius-xs);
+  font-size: 11px;
+  line-height: 20px;
+  word-break: break-all;
+}
+
+.aud-chip--removed {
+  color: var(--app-danger);
+  background: var(--app-danger-bg);
+}
+
+.aud-chip--added {
+  color: var(--app-success);
+  background: var(--app-success-bg);
+}
+
+@media (max-width: 768px) {
+  .aud-diff__row {
+    grid-template-columns: 1fr;
+    gap: 2px;
+  }
+}

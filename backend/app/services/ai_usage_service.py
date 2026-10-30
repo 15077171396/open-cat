@@ -41,6 +41,11 @@ _MONTH_TTL = 400 * 86400
 # 管理端看板单次最多回看多少天（防止 ?days=100000 拉爆 Redis 往返）
 MAX_SUMMARY_DAYS = 90
 
+# 顶栏「额度将尽」提醒的触发线：达到任一上限的 90% 才提示。
+# 阈值固定而非可配置：它只影响提醒、不影响熔断（真正的拒绝仍按 100% 判定），
+# 再开一个配置项只会让「为什么没提醒」变成第二个需要排查的开关。
+QUOTA_WARN_RATIO = 0.9
+
 
 # ---------------- 生效配置：后台（设置 + 模型管理）优先，.env 兜底 ----------------
 #
@@ -1124,4 +1129,41 @@ async def get_usage_summary(days: int = 30) -> dict:
             },
         },
         "trend": daily_trend,
+    }
+
+
+async def get_quota_pressure() -> dict | None:
+    """额度将尽时返回最紧张的一维；未设上限或未达阈值返回 None。
+
+    与 :func:`get_usage_summary` 刻意分开：顶栏每 60 秒轮询一次，不能为了一个红点
+    把看板的整套聚合（趋势 / 模型明细 / 图片费用）再跑一遍。这里只做一次 MGET。
+    Redis 故障时 ``_safe_mget_ints`` 返回全 0，表现为「暂无提醒」而不是报错。
+    """
+    cfg = await get_quota_config()
+    now = datetime.now(timezone.utc)
+    today_calls, month_calls, images_today = await _safe_mget_ints(
+        [_calls_day_key(now), _calls_month_key(now), _images_day_key(now)]
+    )
+
+    candidates: list[tuple[str, str, int, int]] = []
+    if cfg.daily_limit > 0:
+        candidates.append(("daily", "今日 AI 调用", today_calls, cfg.daily_limit))
+    if cfg.monthly_limit > 0:
+        candidates.append(("monthly", "本月 AI 调用", month_calls, cfg.monthly_limit))
+    if cfg.image_daily_limit > 0:
+        candidates.append(("images", "今日 AI 插图", images_today, cfg.image_daily_limit))
+    if not candidates:
+        return None
+
+    dimension, label, used, limit = max(candidates, key=lambda item: item[2] / item[3])
+    ratio = used / limit
+    if ratio < QUOTA_WARN_RATIO:
+        return None
+    return {
+        "dimension": dimension,
+        "label": label,
+        "used": used,
+        "limit": limit,
+        "remaining": max(0, limit - used),
+        "ratio": round(ratio, 4),
     }

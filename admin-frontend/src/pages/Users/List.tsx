@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { Avatar, Button, Input, Modal, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { DeleteOutlined, EyeOutlined, LogoutOutlined, MinusCircleOutlined, PlusOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
@@ -38,12 +39,15 @@ const ACCOUNT_STATUS_OPTIONS = [
 ]
 
 export default function UsersList() {
+  const [searchParams] = useSearchParams()
+  // 命令面板 / 外链搜索落地：?keyword= 作为初始关键词（仅初始化，不改写 URL）
+  const urlKeyword = searchParams.get('keyword') ?? ''
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   // 搜索：keywordInput 仅受控输入，回车/点击后才提交进查询参数
   // （避免未提交的输入文字意外影响删除/刷新等隐式 load() 的过滤条件）
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const [keywordInput, setKeywordInput] = useState(urlKeyword)
+  const [keyword, setKeyword] = useState(urlKeyword)
   const [role, setRole] = useState('')
   const [accountStatus, setAccountStatus] = useState('active')
   const [page, setPage] = useState(1)
@@ -113,6 +117,19 @@ export default function UsersList() {
   }
 
   useEffect(() => { load({ page: 1 }) }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // 同一页内再次收到 ?keyword=（命令面板搜用户后跳回列表）也要生效：
+  // 路由 query 变化不会重挂载组件，只靠 useState 初始值会把新关键词静默丢掉。
+  const lastUrlKeyword = useRef(urlKeyword)
+  useEffect(() => {
+    if (urlKeyword === lastUrlKeyword.current) return
+    lastUrlKeyword.current = urlKeyword
+    setKeywordInput(urlKeyword)
+    setKeyword(urlKeyword)
+    setSelectedIds([])
+    setPage(1)
+    load({ page: 1, keyword: urlKeyword })
+  }, [urlKeyword]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSearch = (value: string) => {
     setKeyword(value)

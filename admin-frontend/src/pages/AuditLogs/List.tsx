@@ -11,6 +11,7 @@ import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
 import { DEFAULT_PAGE_SIZE } from '../../constants'
 import { DataTable, ListToolbar } from '../../components/ui'
+import { AuditDetail } from './AuditDetail'
 /**
  * 管理操作审计：**只读**页面（能改能删的审计等于没有审计，故不用 useCrudList）。
  *
@@ -59,41 +60,6 @@ const RISK_COLOR: Record<string, string> = {
   danger: 'red',
   money: 'gold',
   normal: 'blue',
-}
-
-function formatValue(value: unknown): string {
-  return typeof value === 'string' ? value : JSON.stringify(value)
-}
-
-/** 展开区：结构化明细 + 来源；比直接甩一段 JSON 好读得多 */
-function AuditDetail({ row }: { row: AuditLogItem }) {
-  const entries = row.detail ? Object.entries(row.detail) : []
-  const source = ([
-    ['IP', row.ip],
-    ['请求 ID', row.request_id],
-    ['来源 UA', row.user_agent],
-  ] as [string, string | null][]).filter(([, v]) => !!v)
-
-  return (
-    <div className="aud-detail">
-      {entries.length === 0 && source.length === 0 && (
-        <Typography.Text type="secondary">无结构化明细</Typography.Text>
-      )}
-      {entries.map(([key, value]) => (
-        <div key={key} style={{ display: 'contents' }}>
-          <span className="aud-detail__key">{key}</span>
-          <span className="aud-detail__val">{formatValue(value)}</span>
-        </div>
-      ))}
-      {source.length > 0 && <div className="aud-detail__section">来源</div>}
-      {source.map(([key, value]) => (
-        <div key={key} style={{ display: 'contents' }}>
-          <span className="aud-detail__key">{key}</span>
-          <span className="aud-detail__val">{value}</span>
-        </div>
-      ))}
-    </div>
-  )
 }
 
 export default function AuditLogsList() {
@@ -324,7 +290,7 @@ export default function AuditLogsList() {
         scrollX={1190}
         expandable={{
         // 明细默认收起：一屏要能扫过更多记录，需要细节时再展开
-        expandedRowRender: (row) => <AuditDetail row={row} />,
+        expandedRowRender: (row) => <AuditDetail detail={row.detail} source={row} />,
         rowExpandable: (row) => !!row.detail || !!row.ip || !!row.request_id,
         }}
         pagination={{ page: page, pageSize: DEFAULT_PAGE_SIZE, total: total, onPageChange: setPage }}

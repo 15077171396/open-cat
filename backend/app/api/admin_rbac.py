@@ -146,13 +146,12 @@ async def update_rbac_role(
 ):
     """更新角色基本信息（编码不可改）"""
     result = await rbac_service.update_role(
-        db, role_id, name=req.name, description=req.description, data_scope=req.data_scope
-    )
-    record_admin_action(
-        db, admin, "role_update",
-        target_type="role", target_id=role_id,
-        summary=f"编辑角色 {role_id}",
-        detail={"name": req.name},
+        db,
+        role_id,
+        name=req.name,
+        description=req.description,
+        data_scope=req.data_scope,
+        admin=admin,
     )
     return success_response(result, "角色已更新")
 

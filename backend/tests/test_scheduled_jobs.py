@@ -223,7 +223,8 @@ class OverviewTests(unittest.TestCase):
         overview = sjs.build_overview(heartbeats, NOW, {})
         storage = next(group for group in overview["groups"] if group["key"] == sjs.CATEGORY_STORAGE)
         self.assertEqual(
-            [job["status"] for job in storage["jobs"]], ["failed", "stale", "never", "ok"]
+            [job["status"] for job in storage["jobs"]],
+            ["failed", "stale", "never", "never", "ok"],
         )
 
     def test_payload_survives_response_model(self):

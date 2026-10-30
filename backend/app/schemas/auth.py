@@ -189,6 +189,8 @@ class TotpStatusData(BaseModel):
     pending: bool = False
     recovery_remaining: int = 0
     recovery_should_regenerate: bool = False
+    # 管理员强制 2FA 已开启：前端隐藏/禁用「关闭二次验证」
+    required: bool = False
 
 
 class TotpSetupData(BaseModel):

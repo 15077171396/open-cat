@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, Input, Modal, Segmented, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { BookOutlined, CloudDownloadOutlined, CloudUploadOutlined, DeleteOutlined, EditOutlined, EyeOutlined, PushpinFilled, StarFilled, UndoOutlined } from '@ant-design/icons'
@@ -65,10 +65,13 @@ function accessTag(t: Tutorial): ReactNode {
 export default function TutorialsList() {
   const navigate = useNavigate()
   const categories = useCategoryOptions('tutorial', TUTORIAL_CATEGORIES)
+  const [searchParams] = useSearchParams()
+  // 命令面板 / 外链搜索落地：?keyword= 作为初始关键词（仅初始化，不改写 URL）
+  const urlKeyword = searchParams.get('keyword') ?? ''
 
   // 搜索：keywordInput 仅受控输入，回车/点击后才提交进查询参数
-  const [keywordInput, setKeywordInput] = useState('')
-  const [keyword, setKeyword] = useState('')
+  const [keywordInput, setKeywordInput] = useState(urlKeyword)
+  const [keyword, setKeyword] = useState(urlKeyword)
   // 下拉筛选：空字符串表示不筛选
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('')
@@ -100,6 +103,18 @@ export default function TutorialsList() {
   const [batchLoading, setBatchLoading] = useState(false)
   // 单条发布切换中（避免连点，同时给 Switch 之外的操作按钮一个 loading 反馈）
   const [publishingIds, setPublishingIds] = useState<number[]>([])
+
+  // 同一页内再次收到 ?keyword=（例如命令面板搜教程后跳回列表）也要生效：
+  // 组件不会因 query 变化而重挂载，仅靠 useState 初始值会静默忽略新关键词。
+  const lastUrlKeyword = useRef(urlKeyword)
+  useEffect(() => {
+    if (urlKeyword === lastUrlKeyword.current) return
+    lastUrlKeyword.current = urlKeyword
+    setKeywordInput(urlKeyword)
+    setKeyword(urlKeyword)
+    setSelectedIds([])
+    setPage(1)
+  }, [urlKeyword, setPage])
 
   const handleTogglePublish = async (t: Tutorial) => {
     setPublishingIds((prev) => [...prev, t.id])

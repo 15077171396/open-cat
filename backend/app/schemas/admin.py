@@ -75,6 +75,28 @@ class ActionAck(_Item):
     """
 
 
+class RestoreResult(_Item):
+    """从回收站恢复的返回（批量恢复）。"""
+
+    restored: Optional[int] = Field(None, description="实际恢复条数")
+
+
+class RecycleBinItem(_Item):
+    """回收站条目（教程 / 评论 / 用户统一形状）。"""
+
+    type: Optional[str] = None
+    type_label: Optional[str] = None
+    id: Optional[int] = None
+    title: Optional[str] = None
+    subtitle: Optional[str] = None
+    deleted_at: Optional[str] = None
+    retention_days: Optional[int] = None
+    expires_at: Optional[str] = None
+    remaining_days: Optional[int] = None
+    retention_note: Optional[str] = None
+    can_restore: Optional[bool] = None
+
+
 # ---------------------------------------------------------------------------
 # 后台各域条目
 # ---------------------------------------------------------------------------

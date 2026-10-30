@@ -1,13 +1,13 @@
 import { useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { Button, Card, Tag, Tooltip, Typography } from 'antd'
+import { Button, Card, Space, Tag, Tooltip, Typography } from 'antd'
 import {
   CheckCircleFilled,
   ExclamationCircleFilled,
   MinusCircleFilled,
   RightOutlined,
 } from '@ant-design/icons'
-import type { NormalizedSystemStatus } from '../../types'
+import type { NormalizedSystemStatus, VersionData } from '../../types'
 import { formatAge } from './dashboardUtils'
 
 /**
@@ -38,6 +38,11 @@ interface Props {
   onRefresh?: () => void
   /** 跳转「定时任务」页；不传则不显示入口（如权限不足） */
   onOpenJobs?: () => void
+  /** 跳转「备份管理」页；不传则不显示入口（如权限不足） */
+  onOpenBackups?: () => void
+  /** 版本与升级（GET /admin/version）；旧后端可能没有该接口 */
+  version?: VersionData | null
+  versionFailed?: boolean
 }
 
 const COLORS = {
@@ -118,7 +123,7 @@ function ChannelTag({ name, configured }: { name: string; configured: boolean })
   )
 }
 
-export default function SystemStatusPanel({ data, loading, failed, onRefresh, onOpenJobs }: Props) {
+export default function SystemStatusPanel({ data, loading, failed, onRefresh, onOpenJobs, onOpenBackups, version, versionFailed }: Props) {
   const [activeCategory, setActiveCategory] = useState<string>('all')
 
   const mysql = probeState(data.mysql.ok, data.mysql.ms)
@@ -316,6 +321,68 @@ export default function SystemStatusPanel({ data, loading, failed, onRefresh, on
         />
       </div>
 
+      {/* 版本与升级：当前版本 / 迁移待执行 / 最新 release；升级前先备份 */}
+      <div className="sys-section">
+        <div className="sys-section__head">
+          <span className="sys-section__title">版本与升级</span>
+          {versionFailed ? (
+            <Tag color="error">接口不可用</Tag>
+          ) : version?.update_available === true ? (
+            <Tag color="warning">有新版本</Tag>
+          ) : (version?.migration?.pending ?? 0) > 0 ? (
+            <Tag color="warning">待迁移</Tag>
+          ) : version?.latest_release?.tag && version?.update_available === false ? (
+            <Tag color="success">已是最新</Tag>
+          ) : null}
+        </div>
+        {versionFailed ? (
+          <div className="sys-hint">版本接口不可用（后端可能还没重启），其余状态不受影响。</div>
+        ) : !version ? (
+          <div className="sys-hint">版本信息加载中…</div>
+        ) : (
+          <>
+            <div className="sys-details">
+              <DetailRow label="当前版本">
+                {version.version || '未知'}
+                {version.app_release ? ` · ${version.app_release}` : ''}
+                {version.app_env ? ` · ${version.app_env}` : ''}
+              </DetailRow>
+              <DetailRow label="库版本">
+                库 <code>{version.migration?.current || '未知'}</code> / 代码{' '}
+                <code>{version.migration?.head || '未知'}</code>
+                {version.migration?.pending === null || version.migration?.pending === undefined ? (
+                  <span className="sys-hint" style={{ marginLeft: 8 }}>待执行数未知</span>
+                ) : version.migration.pending === 0 ? (
+                  <span style={{ marginLeft: 8, color: COLORS.ok }}>已是最新</span>
+                ) : (
+                  <span style={{ marginLeft: 8, color: COLORS.warn }}>
+                    待执行 {version.migration.pending} 个
+                  </span>
+                )}
+              </DetailRow>
+              <DetailRow label="最新版本">
+                {version.latest_release?.configured === false ? (
+                  <span className="sys-hint">未配置 APP_UPDATE_REPO，不检查更新</span>
+                ) : version.latest_release?.error ? (
+                  <span style={{ color: COLORS.warn }}>{version.latest_release.error}</span>
+                ) : version.latest_release?.tag ? (
+                  <a href={version.latest_release.url || '#'} target="_blank" rel="noreferrer">
+                    {version.latest_release.tag}
+                  </a>
+                ) : (
+                  <span className="sys-hint">尚未检查</span>
+                )}
+              </DetailRow>
+            </div>
+            {(version.update_available === true || (version.migration?.pending ?? 0) > 0) && (
+              <div className="sys-banner" style={{ marginTop: 10, marginBottom: 0 }}>
+                {version.backup_hint || '升级前请先备份数据库；迁移不是总能无损回滚。'}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       {/* ② 待处理：按类别分档，避免「10 条一样的黄字」糊成一片 */}
       <div className="sys-section">
         <div className="sys-section__head">
@@ -391,11 +458,18 @@ export default function SystemStatusPanel({ data, loading, failed, onRefresh, on
       <div className="sys-section">
         <div className="sys-section__head">
           <span className="sys-section__title">运行细节</span>
-          {onOpenJobs ? (
-            <Button type="link" size="small" style={{ paddingInline: 0 }} onClick={onOpenJobs}>
-              定时任务明细 <RightOutlined style={{ fontSize: 10 }} />
-            </Button>
-          ) : null}
+          <Space size={4}>
+            {onOpenBackups ? (
+              <Button type="link" size="small" style={{ paddingInline: 0 }} onClick={onOpenBackups}>
+                备份管理 <RightOutlined style={{ fontSize: 10 }} />
+              </Button>
+            ) : null}
+            {onOpenJobs ? (
+              <Button type="link" size="small" style={{ paddingInline: 0 }} onClick={onOpenJobs}>
+                定时任务明细 <RightOutlined style={{ fontSize: 10 }} />
+              </Button>
+            ) : null}
+          </Space>
         </div>
         <div className="sys-details">
           <DetailRow label="运行环境">

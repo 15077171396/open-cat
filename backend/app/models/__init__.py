@@ -10,6 +10,7 @@ from app.models.auth_request import AuthRequest
 from app.models.category import Category, CategoryGroup
 from app.models.comment import ContentComment
 from app.models.content_view import ContentView
+from app.models.dictionary import DictItem, DictType
 from app.models.download import Download
 from app.models.favorite import Favorite
 from app.models.feedback import Feedback
@@ -20,6 +21,7 @@ from app.models.message import Message
 from app.models.moderation import ContentModerationLog, ContentReport
 from app.models.payment import PaymentOrder, PaymentProduct
 from app.models.point_transaction import PointTransaction
+from app.models.position import Position
 from app.models.rbac import Department, Permission, Role, RolePermission, UserRole
 from app.models.redemption_code import RedemptionCode, RedemptionRecord
 from app.models.scheduled_job_config import ScheduledJobConfig
@@ -40,6 +42,8 @@ __all__ = [
     "CategoryGroup",
     "ContentComment",
     "ContentView",
+    "DictItem",
+    "DictType",
     "Download",
     "Favorite",
     "Feedback",
@@ -52,6 +56,7 @@ __all__ = [
     "PaymentOrder",
     "PaymentProduct",
     "PointTransaction",
+    "Position",
     "Department",
     "Permission",
     "Role",

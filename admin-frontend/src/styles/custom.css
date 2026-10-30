@@ -39,6 +39,18 @@
 /* 数据看板：pages/Dashboard + components/dashboard/* */
 @import './sections/dashboard.css';
 
+/* 数据分析：pages/Analysis + components/analysis/*（ECharts 图表） */
+@import './sections/analysis.css';
+
+/* 菜单管理：pages/MenuSettings */
+@import './sections/menu-settings.css';
+
+/* 字典管理：pages/Dictionaries */
+@import './sections/dictionary.css';
+
+/* 监控管理：pages/Monitor/* */
+@import './sections/monitor.css';
+
 /* 内容模块通用片段（adm- 前缀，跨模块复用） */
 @import './sections/adm-common.css';
 
@@ -66,5 +78,21 @@
 
 /* 素材库页面 */
 @import './sections/materials.css';
-/* 暗色主题补充覆盖：antd 预设色标签 !important 兜底 + 少量装饰 badge 提亮。放最后以保覆盖优先级 */
+
+/* 顶栏待办铃铛 */
+@import './sections/todo-bell.css';
+
+/* 统一回收站 */
+@import './sections/recycle-bin.css';
+
+/* 备份管理 */
+@import './sections/backups.css';
+
+/* 全局命令面板 */
+@import './sections/command-palette.css';
+
+/* 暗色主题补充覆盖：antd 预设色标签 !important 兜底 + 少量装饰 badge 提亮 */
 @import './sections/theme-dark.css';
+
+/* 移动端布局：必须最后加载，才能覆盖桌面工具条/页头的固定宽度 */
+@import './sections/responsive.css';

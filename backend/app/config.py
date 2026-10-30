@@ -137,6 +137,8 @@ class Settings(BaseSettings):
     SENTRY_ENVIRONMENT: str = ""
     # 发布版本号（建议填 git short sha）
     APP_RELEASE: str = ""
+    # 升级检查用的 GitHub 仓库（owner/repo）；留空 = 不检查最新 release（离线/自建镜像也能用）
+    APP_UPDATE_REPO: str = ""
     # 性能追踪采样率：0 = 只上报错误（默认）；0.1 = 额外采样 10% 请求做链路追踪
     SENTRY_TRACES_SAMPLE_RATE: float = 0.0
 

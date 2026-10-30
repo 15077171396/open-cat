@@ -52,7 +52,7 @@ class HeartbeatTests(unittest.IsolatedAsyncioTestCase):
         fake = FakeRedis()
         with mock.patch.object(sss, "redis_client", fake):
             await sss.record_job_run("check_vip_expiry", True, "降级 3 个用户")
-            jobs = await sss._jobs_status()
+            jobs = await sss.get_jobs_status()
         item = next(j for j in jobs if j["id"] == "check_vip_expiry")
         self.assertTrue(item["ok"])
         self.assertEqual(item["detail"], "降级 3 个用户")
@@ -61,7 +61,7 @@ class HeartbeatTests(unittest.IsolatedAsyncioTestCase):
     async def test_missing_heartbeat_is_stale(self):
         """从未跑过的任务必须显式标 stale（后台要能看出「它压根没跑过」）"""
         with mock.patch.object(sss, "redis_client", FakeRedis()):
-            jobs = await sss._jobs_status()
+            jobs = await sss.get_jobs_status()
         self.assertTrue(all(j["stale"] for j in jobs))
         self.assertTrue(all(j["stale_reason"] == "无执行记录" for j in jobs))
 
@@ -71,7 +71,7 @@ class HeartbeatTests(unittest.IsolatedAsyncioTestCase):
         old = int(time.time()) - 3 * 24 * 3600
         await fake.set(f"{sss._JOB_KEY_PREFIX}flush_view_counts", f'{{"at": {old}, "ok": true}}')
         with mock.patch.object(sss, "redis_client", fake):
-            jobs = await sss._jobs_status()
+            jobs = await sss.get_jobs_status()
         item = next(j for j in jobs if j["id"] == "flush_view_counts")
         self.assertTrue(item["stale"])
 

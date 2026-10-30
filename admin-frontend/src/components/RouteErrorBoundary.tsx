@@ -1,11 +1,18 @@
 import { Component } from 'react'
 import type { ReactNode } from 'react'
 import { Button, Result, Typography } from 'antd'
+import { useI18n } from '../i18n'
 
 interface RouteErrorBoundaryProps {
   children: ReactNode
   /** 路由路径：变化时自动清掉错误（换页即重试），同时显示在卡片上便于定位 */
   path: string
+}
+
+type Translate = (key: string, vars?: Record<string, string | number>) => string
+
+interface BoundaryProps extends RouteErrorBoundaryProps {
+  t: Translate
 }
 
 interface RouteErrorBoundaryState {
@@ -23,10 +30,13 @@ interface RouteErrorBoundaryState {
  *
  * 刻意不吞 `console.error`：错误详情既要在控制台可查，也要能让人截图反馈。
  */
-export default class RouteErrorBoundary extends Component<
-  RouteErrorBoundaryProps,
-  RouteErrorBoundaryState
-> {
+/** 函数外壳只为拿 `useI18n`：错误边界必须是 class，但文案要跟随语言切换 */
+export default function RouteErrorBoundary(props: RouteErrorBoundaryProps) {
+  const { t } = useI18n()
+  return <RouteErrorBoundaryInner {...props} t={t} />
+}
+
+class RouteErrorBoundaryInner extends Component<BoundaryProps, RouteErrorBoundaryState> {
   state: RouteErrorBoundaryState = { error: null }
 
   static getDerivedStateFromError(error: Error): RouteErrorBoundaryState {
@@ -37,7 +47,7 @@ export default class RouteErrorBoundary extends Component<
     console.error(`[RouteErrorBoundary] ${this.props.path}`, error, info.componentStack)
   }
 
-  componentDidUpdate(prev: RouteErrorBoundaryProps) {
+  componentDidUpdate(prev: BoundaryProps) {
     // 换页自动复位：否则从坏页面点到好页面仍然显示上一页的错误
     if (prev.path !== this.props.path && this.state.error) {
       this.setState({ error: null })
@@ -46,16 +56,17 @@ export default class RouteErrorBoundary extends Component<
 
   render() {
     const { error } = this.state
+    const { t } = this.props
     if (!error) return this.props.children
 
     return (
       <Result
         status="warning"
-        title="此页面渲染失败（其它页面仍可正常使用）"
+        title={t('errorBoundary.title')}
         subTitle={
           <>
             <div>
-              路径：<Typography.Text code>{this.props.path}</Typography.Text>
+              {t('errorBoundary.path')}：<Typography.Text code>{this.props.path}</Typography.Text>
             </div>
             <Typography.Paragraph
               type="secondary"
@@ -67,7 +78,7 @@ export default class RouteErrorBoundary extends Component<
         }
         extra={
           <Button type="primary" onClick={() => this.setState({ error: null })}>
-            重试这一页
+            {t('errorBoundary.retry')}
           </Button>
         }
       />

@@ -240,6 +240,13 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
     # 基础设置
     SettingDefinition("site_logo", "站点 Logo", "image", "basic", "基础设置", "/logo_new.png"),
     SettingDefinition("site_name", "平台名称", "text", "basic", "基础设置", "AI学习猫"),
+    # 管理员强制二次验证：开启前要求所有有效管理员都已绑定 TOTP，避免把人锁在门外
+    SettingDefinition(
+        "admin_require_2fa", "管理员强制二次验证", "bool", "basic", "基础设置", "0",
+        public=False,
+        help_text="开启后管理员必须绑定 TOTP 才能登录；开启前需确保所有有效管理员已绑定，"
+        "开启期间管理员不能关闭二次验证。新管理员请先建成普通账号并完成绑定，再提升为管理员。",
+    ),
     # 各模块首页顶部主视觉图
     SettingDefinition("hero_home", "首页主视觉图", "image", "hero", "模块主视觉图", "/hero_home.webp"),
     SettingDefinition("hero_tutorials", "AI教程页主视觉图", "image", "hero", "模块主视觉图", "/hero_tutorials.webp"),

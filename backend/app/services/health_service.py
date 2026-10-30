@@ -9,6 +9,7 @@ from pathlib import Path
 from loguru import logger
 
 from app.config import settings
+from app.core.degrade import degrade_guard
 from app.redis import log_redis_degraded, redis_client
 
 _HEALTH_DEEP_CACHE_KEY = "health:deep"
@@ -36,13 +37,8 @@ async def _read_session_tz_offset(session) -> int | None:
         return None
 
 
-def _code_head_revision() -> str | None:
-    """代码侧的迁移 head（经 alembic.ini 解析脚本目录）；读不到打 WARNING 并返回 None。
-
-    为什么单独封装并吞掉异常：本函数是**附加**校验，脚本目录缺失 / alembic
-    不可用只应让结论变成「未知」，不能把一次正常的连通性探测判成失败。
-    但「未知」必须**留痕**（WARNING）—— 否则路径一变，检查静默失效而无人察觉。
-    """
+def _load_script_directory():
+    """经 alembic.ini 解析迁移脚本目录；不可用时返回 None（调用方降级为「未知」）。"""
     try:
         from alembic.config import Config
         from alembic.script import ScriptDirectory
@@ -58,10 +54,28 @@ def _code_head_revision() -> str | None:
             resolved = (_INI_PATH.parent / script_location).resolve()
             if resolved.is_dir():
                 cfg.set_main_option("script_location", str(resolved))
-        return ScriptDirectory.from_config(cfg).get_current_head()
+        return ScriptDirectory.from_config(cfg)
     except Exception as exc:  # noqa: BLE001 附加校验不得把连通性探测打成故障
-        logger.warning(f"读取 alembic head 失败，schema 漂移检查退化为「未知」: {exc}")
+        logger.warning(f"读取 alembic 脚本目录失败，schema 漂移检查退化为「未知」: {exc}")
         return None
+
+
+def _code_head_revision() -> str | None:
+    """代码侧的迁移 head（经 alembic.ini 解析脚本目录）；读不到打 WARNING 并返回 None。
+
+    为什么单独封装并吞掉异常：本函数是**附加**校验，脚本目录缺失 / alembic
+    不可用只应让结论变成「未知」，不能把一次正常的连通性探测判成失败。
+    但「未知」必须**留痕**（WARNING）—— 否则路径一变，检查静默失效而无人察觉。
+    """
+    script = _load_script_directory()
+    if script is None:
+        return None
+    head: str | None = None
+    with degrade_guard(
+        "health.code_head", detail="读取 alembic head 失败，schema 漂移检查退化为「未知」"
+    ):
+        head = script.get_current_head()
+    return head
 
 
 _CODE_HEAD_CACHE: dict[str, str] = {}
@@ -81,6 +95,21 @@ def _code_head_cached() -> str | None:
             _CODE_HEAD_CACHE["head"] = head
         return head
     return _CODE_HEAD_CACHE["head"]
+
+
+def code_head_cached() -> str | None:
+    """公开入口：供「版本与升级」接口复用同一份进程内 head 缓存。"""
+    return _code_head_cached()
+
+
+def script_directory():
+    """公开入口：迁移链遍历（版本接口用它数「待执行迁移」）。"""
+    return _load_script_directory()
+
+
+async def read_db_revision(session) -> str | None:
+    """公开入口：读库里的 alembic 版本号；读不到返回 None。"""
+    return await _read_db_revision(session)
 
 
 async def _read_db_revision(session) -> str | None:

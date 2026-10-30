@@ -22,6 +22,7 @@ import type {
   DashboardData,
   FunnelOverviewData,
   SystemStatusData,
+  VersionData,
 } from '../types'
 import {
   normalizeAiUsage,
@@ -71,6 +72,8 @@ export default function Dashboard() {
   const [funnelFailed, setFunnelFailed] = useState(false)
   const [attrRaw, setAttrRaw] = useState<ContentAttributionData | null>(null)
   const [attrFailed, setAttrFailed] = useState(false)
+  const [versionRaw, setVersionRaw] = useState<VersionData | null>(null)
+  const [versionFailed, setVersionFailed] = useState(false)
   // 新接口 404 = 后端还是升级前的进程（最常见的原因：改了代码没重启后端）。
   // 单独识别出来给一句明确提示，否则用户只会看到一串「数据异常」而不知道要做什么。
   const [staleBackend, setStaleBackend] = useState(false)
@@ -85,13 +88,13 @@ export default function Dashboard() {
     // 每次刷新都重置「后端是旧进程」的提示：否则重启后端后再点刷新，黄条会一直挂着
     setStaleBackend(false)
 
-    // ⚡ 5 个接口**并发**发出（2026-10-27）。
+    // ⚡ 6 个接口**并发**发出（2026-10-27，2026-10-30 增加版本接口）。
     // 此前是 5 次串行 await：每个都是一次完整 HTTP 往返，生产环境（公网 + nginx + 2 worker）
     // 光排队就能多花 0.5~1.5s，而它们之间**没有任何数据依赖**。
     //
     // 但「并发」不等于「一起等」：主数据（/admin/dashboard）一到就结束骨架，
     // 否则只要有一块慢（漏斗冷缓存 / 归因 GROUP BY），整页骨架就会被它拖住。
-    // 所以先 await 主数据、再 await 其余四块 —— 请求是同时发出的，只是渲染分两批。
+    // 所以先 await 主数据、再 await 其余五块 —— 请求是同时发出的，只是渲染分两批。
     const settle = <T,>(p: Promise<T>) =>
       p.then(
         (value) => ({ ok: true as const, value }),
@@ -106,6 +109,7 @@ export default function Dashboard() {
       settle(apiGet<SystemStatusData>('/admin/system-status')),
       settle(apiGet<FunnelOverviewData>('/admin/funnel?days=30')),
       settle(apiGet<ContentAttributionData>('/admin/content-attribution?days=30&limit=10')),
+      settle(apiGet<VersionData>('/admin/version')),
     ] as const
 
     const dash = await dashReq
@@ -119,9 +123,9 @@ export default function Dashboard() {
     }
     setLoading(false)
 
-    // 四块附加数据各自降级：失败只让自己的卡片显示「数据异常」，不拖垮整页
-    const [ai, sys, funnel, attr] = await Promise.all(restReq)
-    for (const result of [ai, sys, funnel, attr]) {
+    // 五块附加数据各自降级：失败只让自己的卡片显示「数据异常」，不拖垮整页
+    const [ai, sys, funnel, attr, version] = await Promise.all(restReq)
+    for (const result of [ai, sys, funnel, attr, version]) {
       if (!result.ok && getApiErrorStatus(result.error) === 404) setStaleBackend(true)
     }
     setAiRaw(ai.ok ? ai.value : null)
@@ -132,6 +136,8 @@ export default function Dashboard() {
     setFunnelFailed(!funnel.ok)
     setAttrRaw(attr.ok ? attr.value : null)
     setAttrFailed(!attr.ok)
+    setVersionRaw(version.ok ? version.value : null)
+    setVersionFailed(!version.ok)
   }, [])
 
   useEffect(() => {
@@ -454,8 +460,11 @@ export default function Dashboard() {
             data={system}
             loading={loading}
             failed={sysFailed}
+            version={versionRaw}
+            versionFailed={versionFailed}
             onRefresh={load}
             onOpenJobs={() => navigate('/scheduled-jobs')}
+            onOpenBackups={() => navigate('/backups')}
           />
         </Col>
       </Row>

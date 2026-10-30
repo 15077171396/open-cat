@@ -13,6 +13,7 @@ from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from app.config import settings
+from app.version import APP_VERSION
 # 导入即完成日志文件 sink 配置，必须在其它模块使用 logger 之前
 from app import logging as _logging  # noqa: F401
 from app.api.content import CONTENT_PREFIX, build_content_openapi
@@ -110,7 +111,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="AI 猫学习与工具聚合平台",
         description="覆盖全领域的结构化教程学习平台：多章节课程、在线工具、知识百科、资源下载与扩展推荐",
-        version="1.0.0",
+        version=APP_VERSION,
         lifespan=lifespan,
         docs_url="/docs" if settings.is_dev else None,
         redoc_url="/redoc" if settings.is_dev else None,
@@ -176,7 +177,7 @@ def create_app() -> FastAPI:
 
     @app.get("/")
     async def root():
-        return success_response({"name": "AI 猫平台 API", "version": "1.0.0", "docs": "/docs"})
+        return success_response({"name": "AI 猫平台 API", "version": APP_VERSION, "docs": "/docs"})
 
     return app
 

@@ -10,14 +10,16 @@
 """
 
 from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.i18n import request_locale
 from app.core.permissions import require_admin
 from app.core.exceptions import success_response
+from app.database import get_db
 from app.schemas.common import ApiResponse
 from app.schemas.admin import ActionAck
 from app.models.user import User
-from app.services import admin_menu
+from app.services import admin_menu, menu_setting_service
 from app.api._admin_shared import router
 
 
@@ -25,10 +27,12 @@ from app.api._admin_shared import router
 async def admin_menu_tree(
     admin: User = Depends(require_admin),
     locale: str = Depends(request_locale),
+    db: AsyncSession = Depends(get_db),
 ):
     """侧边菜单树（分组 + 叶子项 + 权限码 + 图标名）。
 
     返回**全量结构**，不按用户过滤：过滤逻辑单一地放在前端
     （`AdminLayout` 的 visibleMenuItems），避免两端各有一份权限口径。
     """
-    return success_response(admin_menu.menu_tree(locale=locale))
+    overrides = await menu_setting_service.load_overrides(db)
+    return success_response(admin_menu.menu_tree(locale=locale, overrides=overrides))

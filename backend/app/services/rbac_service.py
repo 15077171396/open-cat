@@ -19,7 +19,7 @@ from app.models.rbac import Department, Role, Permission, RolePermission, UserRo
 from app.models.user import User
 from app.core.exceptions import AppException, NotFoundError
 from app.redis import log_redis_degraded, redis_client
-from app.services.admin_audit_service import record_admin_action
+from app.services.admin_audit_service import diff_values, record_admin_action
 from app.services.rbac_catalog import ALL_PERMISSION_CODES, permissions_grouped_by_module
 
 SUPER_ADMIN_CODE = "super_admin"
@@ -257,14 +257,35 @@ async def update_role(
     name: str,
     description: str | None,
     data_scope: str | None = None,
+    admin: User,
 ) -> dict:
     """更新角色基本信息与数据范围（code 不可改：作为缓存/审计的外部标识）"""
     role = await _get_role(db, role_id)
+    before = {
+        "name": role.name,
+        "description": role.description,
+        "data_scope": role.data_scope,
+    }
     role.name = name
     role.description = description or None
     if data_scope is not None:
         _validate_scope(data_scope)
         role.data_scope = data_scope
+    changes = diff_values(
+        before,
+        {
+            "name": role.name,
+            "description": role.description,
+            "data_scope": role.data_scope,
+        },
+    )
+    # 角色改权限/数据范围会改变谁能看到什么；审计必须与业务同事务提交
+    record_admin_action(
+        db, admin, "role_update",
+        target_type="role", target_id=role_id,
+        summary=f"编辑角色「{role.name}」（{role.code}）",
+        detail={"changes": changes},
+    )
     await db.commit()
     await db.refresh(role)
     return role_to_dict(role)
@@ -317,7 +338,7 @@ async def set_role_permissions(
     # 需要调整自己的角色时由另一位管理员操作，或由 super_admin 处理。
     holds_role = (
         await db.execute(
-            select(UserRole.id).where(
+            select(UserRole.user_id).where(
                 UserRole.user_id == admin.id, UserRole.role_id == role_id
             ).limit(1)
         )
@@ -532,7 +553,13 @@ async def assign_user_rbac(
     if not user:
         raise NotFoundError("用户不存在")
 
+    before_role_ids: list[int] | None = None
     if role_ids is not None:
+        before_role_ids = sorted(
+            (
+                await db.execute(select(UserRole.role_id).where(UserRole.user_id == user_id))
+            ).scalars().all()
+        )
         # 约束 1：禁止自我提权（改自己的角色一律拒绝；改部门不受限）
         if user_id == admin.id:
             raise AppException(code=400, message="不能变更自己的角色，请由其他管理员操作")
@@ -555,6 +582,7 @@ async def assign_user_rbac(
         for rid in role_ids:
             db.add(UserRole(user_id=user_id, role_id=rid))
 
+    before_department_id = user.department_id
     if department_id is not None:
         if department_id:
             await _get_department(db, department_id)
@@ -562,15 +590,18 @@ async def assign_user_rbac(
         else:
             user.department_id = None  # 0/显式清空
 
+    changes: dict = {}
+    if role_ids is not None:
+        changes["role_ids"] = [before_role_ids or [], sorted(role_ids)]
+    if department_id is not None:
+        changes["department_id"] = [before_department_id, user.department_id]
+
     # 约束 3：审计留痕（record_admin_action 只 add 不 commit，随本次事务提交）
     record_admin_action(
         db, admin, "user_rbac_assign",
         target_type="user", target_id=user_id,
         summary=f"变更用户#{user_id}的 RBAC 分配",
-        detail={
-            "role_ids": role_ids if role_ids is not None else "<unchanged>",
-            "department_id": department_id if department_id is not None else "<unchanged>",
-        },
+        detail={"changes": changes},
     )
 
     await db.commit()

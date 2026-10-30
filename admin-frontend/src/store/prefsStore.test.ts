@@ -26,23 +26,36 @@ describe('prefsStore（主题 / 布局展示偏好）', () => {
   beforeEach(() => {
     localStorage.clear()
     // store 是模块级单例：每个用例重置到默认值，避免相互污染
-    usePrefsStore.setState({ mode: 'light', layout: 'side' })
+    usePrefsStore.setState({ mode: 'light', layout: 'side', locale: 'zh-CN' })
   })
 
-  it('默认亮色 + 侧边导航', () => {
+  it('默认亮色 + 侧边导航 + 中文', () => {
     expect(usePrefsStore.getState().mode).toBe('light')
     expect(usePrefsStore.getState().layout).toBe('side')
+    expect(usePrefsStore.getState().locale).toBe('zh-CN')
   })
 
-  it('setMode / setLayout 更新状态并持久化到 localStorage', () => {
+  it('setMode / setLayout / setLocale 更新状态并持久化到 localStorage', () => {
     usePrefsStore.getState().setMode('dark')
     usePrefsStore.getState().setLayout('top')
+    usePrefsStore.getState().setLocale('en-US')
     expect(usePrefsStore.getState().mode).toBe('dark')
     expect(usePrefsStore.getState().layout).toBe('top')
+    expect(usePrefsStore.getState().locale).toBe('en-US')
 
     const raw = localStorage.getItem(PREFS_KEY)
     expect(raw).toBeTruthy()
-    expect(JSON.parse(raw!).state).toMatchObject({ mode: 'dark', layout: 'top' })
+    expect(JSON.parse(raw!).state).toMatchObject({ mode: 'dark', layout: 'top', locale: 'en-US' })
+  })
+
+  it('老持久化数据没有 locale 时回落到中文', async () => {
+    localStorage.setItem(
+      PREFS_KEY,
+      JSON.stringify({ state: { mode: 'dark', layout: 'side' }, version: 1 }),
+    )
+    await usePrefsStore.persist.rehydrate()
+    expect(usePrefsStore.getState().mode).toBe('dark')
+    expect(usePrefsStore.getState().locale).toBe('zh-CN')
   })
 
   it('持久化只存用户显式选择，不存解析出来的亮/暗', () => {

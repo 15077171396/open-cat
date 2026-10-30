@@ -37,7 +37,11 @@ from app.services.invite_service import (
     find_inviter_by_code,
     bind_invite_and_reward,
 )
-from app.services.totp_service import is_totp_enabled, verify_login_totp
+from app.services.totp_service import (
+    enforce_admin_2fa_policy,
+    is_totp_enabled,
+    verify_login_totp,
+)
 
 # 密码登录账号级失败锁定：全局限流仅按 IP，防不了分布式对单账号的爆破；
 # 复用验证码模块「失败 N 次锁 M 秒」的成熟模式
@@ -383,6 +387,7 @@ async def login(
     await enforce_totp_if_enabled(
         db, user, account=req.account, totp_code=req.totp_code, client_ip=client_ip
     )
+    await enforce_admin_2fa_policy(db, user)
     logger.info(f"用户登录: {mask_account(req.account)} (id={user.id})")
     return await issue_login_tokens(db, user, client_ip=client_ip, user_agent=user_agent)
 

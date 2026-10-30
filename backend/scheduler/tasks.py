@@ -40,6 +40,8 @@ from app.services.admin_audit_service import (
     cleanup_expired_audit_logs,
 )
 from app.services.baidu_push_service import push_urls_to_baidu
+from app.services import recycle_bin_service
+from app.services.content_cache import invalidate_tutorials
 from app.services.data_quality_service import collect_issues
 from app.services.search_log_service import SEARCH_LOG_RETENTION_DAYS, cleanup_old as cleanup_search_logs_db
 from app.services.content_view_service import (
@@ -333,6 +335,33 @@ async def cleanup_content_views():
         return False
 
 
+async def purge_recycle_bin():
+    """回收站到期清理 - 每日 04:50（北京时间）。
+
+    只清教程与评论：用户账号不自动清理（恢复账号是人工决策）；有购买记录的教程
+    跳过，避免删掉用户已经付费的内容。教程先清章节/网盘链接再删主行。
+    """
+    logger.info("开始清理过期回收站...")
+    try:
+        async with async_session() as db:
+            result = await recycle_bin_service.purge_expired(db)
+            await db.commit()
+        if result["tutorials"]:
+            await invalidate_tutorials()
+        parts = []
+        if result["tutorials"]:
+            parts.append(f"教程 {result['tutorials']} 篇")
+        if result["comments"]:
+            parts.append(f"评论 {result['comments']} 条")
+        skipped = result.get("tutorials_skipped") or 0
+        if skipped:
+            parts.append(f"跳过有购买记录教程 {skipped} 篇")
+        return "清理 " + " / ".join(parts) if parts else "无过期记录"
+    except Exception:
+        logger.exception("回收站清理任务执行失败")
+        return False
+
+
 # ---------------------------------------------------------------------------
 # 任务注册表：id → handler
 # ---------------------------------------------------------------------------
@@ -345,6 +374,7 @@ JOB_FUNCS: dict[str, object] = {
     "cleanup_audit_logs": cleanup_audit_logs,
     "cleanup_search_logs": cleanup_search_logs,
     "cleanup_content_views": cleanup_content_views,
+    "purge_recycle_bin": purge_recycle_bin,
     "flush_view_counts": flush_view_counts,
     "data_quality_check": data_quality_check,
 }

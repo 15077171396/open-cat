@@ -422,9 +422,19 @@ class TotpDisableRequest(BaseModel):
 
 
 @router.get("/totp", response_model=ApiResponse[TotpStatusData])
-async def get_totp_status(current_user: User = Depends(get_current_user)):
+async def get_totp_status(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     """当前账号的二次验证状态（**不返回密钥**）"""
-    return success_response(totp_service.totp_status(current_user))
+    from app.services import setting_service
+
+    status = totp_service.totp_status(current_user)
+    status["required"] = bool(
+        current_user.role == "admin"
+        and await setting_service.get_bool_setting(db, "admin_require_2fa")
+    )
+    return success_response(status)
 
 
 @router.post("/totp/setup", response_model=ApiResponse[TotpSetupData])

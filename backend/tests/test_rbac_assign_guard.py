@@ -145,5 +145,57 @@ class AssignUserRbacGuardTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.db.all_rows(UserRole), [])
 
 
+class _StubResult:
+    """只回答 set_role_permissions 前置校验用到的两种结果形状。"""
+
+    def __init__(self, value=None):
+        self._value = value
+
+    def scalar_one_or_none(self):
+        return self._value
+
+    def first(self):
+        return None
+
+    def scalars(self):
+        return self
+
+    def all(self):
+        return []
+
+
+class _RoleOnlySession:
+    def __init__(self, role: Role):
+        self.role = role
+
+    async def execute(self, stmt):
+        if "FROM roles" in str(stmt):
+            return _StubResult(self.role)
+        return _StubResult(None)
+
+
+class SetRolePermissionsRegressionTests(unittest.IsolatedAsyncioTestCase):
+    """权限更新曾在 holds_role 查询里引用不存在的 UserRole.id，任何权限编辑都 500。
+
+    UserRole 是 `(user_id, role_id)` 复合主键，没有 id 列；这里用一个只实现
+    「取角色 + 查是否持有」的桩会话，确保该前置校验能正常跑完。
+    """
+
+    async def test_precheck_does_not_reference_missing_userrole_id(self):
+        role = Role(id=10, code="editor", name="编辑", is_system=False)
+        admin = _user(1)
+
+        async def _no_perms(_db, _role_id):
+            return []
+
+        with mock.patch.object(rbac_service, "get_role_permissions", _no_perms):
+            result = await rbac_service.set_role_permissions(
+                _RoleOnlySession(role), 10, [], admin
+            )
+
+        self.assertEqual(result["id"], 10)
+        self.assertEqual(result["permissions"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

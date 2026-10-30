@@ -3,7 +3,7 @@ list_audit_logs 后台查询。⚠️ 审计写入绝不能拖垮业务：拿不
 
 from datetime import datetime, timedelta, timezone
 import json
-from typing import Optional
+from typing import Iterable, Optional
 
 from loguru import logger
 from sqlalchemy import delete, func, or_, select
@@ -72,6 +72,40 @@ def _audit_value(value) -> object:
     return value
 
 
+def _is_sensitive_field(field: str) -> bool:
+    return any(part in field.lower() for part in _SENSITIVE_KEY_PARTS)
+
+
+def diff_values(
+    before: dict,
+    after: dict,
+    *,
+    fields: Iterable[str] | None = None,
+) -> dict:
+    """显式给出前后快照的逐字段差异：``{字段: [旧值, 新值]}``。
+
+    与 :func:`audit_changes` 的分工：
+    - ``audit_changes`` 依赖 ORM attribute history，适合「读出对象 → 改属性」的路径；
+    - 本函数接收两份显式快照，适合「服务层已经算好前后值」或「变更对象不是 ORM 属性」
+      的场景（角色权限集合、定时任务配置等），也不再依赖会话是否被测试替身托管。
+
+    只返回**真正变化**的字段；敏感字段只留 ``***``，超长值截断，
+    避免审计表变成第二个明文数据副本。
+    """
+    keys = list(fields) if fields is not None else list(after.keys())
+    changes: dict = {}
+    for field in keys:
+        old_value = before.get(field)
+        new_value = after.get(field)
+        if old_value == new_value:
+            continue
+        if _is_sensitive_field(field):
+            changes[field] = ["***", "***"]
+        else:
+            changes[field] = [_audit_value(old_value), _audit_value(new_value)]
+    return changes
+
+
 def audit_changes(obj, updates: dict) -> dict:
     """`{字段: [旧值, 新值]}`，供 `record_admin_action(detail=...)` 使用。
 
@@ -87,7 +121,7 @@ def audit_changes(obj, updates: dict) -> dict:
     state = sa_inspect(obj, raiseerr=False)
     changes: dict = {}
     for field in updates:
-        if any(part in field.lower() for part in _SENSITIVE_KEY_PARTS):
+        if _is_sensitive_field(field):
             changes[field] = ["***", "***"]
             continue
         deleted: tuple = ()

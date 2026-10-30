@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import {
   ApartmentOutlined,
+  AreaChartOutlined,
   AuditOutlined,
   BookOutlined,
   CheckCircleOutlined,
@@ -9,15 +10,20 @@ import {
   CommentOutlined,
   ControlOutlined,
   CreditCardOutlined,
+  CloudServerOutlined,
   DashboardOutlined,
+  DatabaseOutlined,
+  DeleteOutlined,
   FileSearchOutlined,
   FileProtectOutlined,
   FileTextOutlined,
+  FundProjectionScreenOutlined,
   GiftOutlined,
   HomeOutlined,
   IdcardOutlined,
   LoginOutlined,
   MailOutlined,
+  MenuOutlined,
   MessageOutlined,
   NotificationOutlined,
   PictureOutlined,
@@ -25,10 +31,12 @@ import {
   SafetyCertificateOutlined,
   SearchOutlined,
   SettingOutlined,
+  SolutionOutlined,
   SoundOutlined,
   TagsOutlined,
   TeamOutlined,
   UserOutlined,
+  WifiOutlined,
   WalletOutlined,
 } from '@ant-design/icons'
 
@@ -50,6 +58,13 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
 
   // 叶子图标
   dashboard: <DashboardOutlined />,
+  chart: <AreaChartOutlined />,
+  dict: <BookOutlined />,
+  monitor: <FundProjectionScreenOutlined />,
+  online: <WifiOutlined />,
+  server: <CloudServerOutlined />,
+  cache: <DatabaseOutlined />,
+  position: <SolutionOutlined />,
   picture: <PictureOutlined />,
   book: <BookOutlined />,
   tags: <TagsOutlined />,
@@ -66,6 +81,7 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
   apartment: <ApartmentOutlined />,
   robot: <RobotOutlined />,
   setting: <SettingOutlined />,
+  menu: <MenuOutlined />,
   login: <LoginOutlined />,
   'file-search': <FileSearchOutlined />,
   'file-protect': <FileProtectOutlined />,
@@ -73,6 +89,8 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
   mail: <MailOutlined />,
   clock: <ClockCircleOutlined />,
   readiness: <MedicineBoxOutlined />,
+  delete: <DeleteOutlined />,
+  database: <DatabaseOutlined />,
   user: <UserOutlined />,
 }
 
@@ -80,3 +98,6 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
 export function menuIcon(name?: string): ReactNode | undefined {
   return name ? MENU_ICON_MAP[name] : undefined
 }
+
+/** 菜单管理页图标下拉的可选项（与渲染映射同源，只暴露已注册的名字） */
+export const MENU_ICON_NAMES = Object.keys(MENU_ICON_MAP)

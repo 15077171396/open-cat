@@ -34,6 +34,7 @@ from app.core.crypto import decrypt_secret, encrypt_secret
 from app.core.exceptions import AppException
 from app.core.security import verify_password_async
 from app.models.user import User
+from app.services import setting_service
 
 # 恢复码剩余不足该数量时提醒重新生成（前端据此显示提示）
 RECOVERY_WARN_THRESHOLD = 3
@@ -119,10 +120,30 @@ async def _password_matches(user: User, password: str) -> bool:
         return False
 
 
+async def enforce_admin_2fa_policy(db: AsyncSession, user: User) -> None:
+    """管理员强制 2FA：未绑定 TOTP 的管理员不得登录。
+
+    设置开启前会校验「所有有效管理员都已绑定」，正常不会命中；这里是纵深防御，
+    防止设置被手工改库 / 新管理员绕过创建校验后出现「管理员只凭密码进入后台」。
+    """
+    if user.role != "admin" or is_totp_enabled(user):
+        return
+    if await setting_service.get_bool_setting(db, "admin_require_2fa"):
+        raise AppException(
+            code=403,
+            message="管理员账号必须开启二次验证；请在个人中心完成 TOTP 绑定后再登录",
+        )
+
+
 async def disable_totp(db: AsyncSession, user: User, password: str) -> None:
     """关闭二次验证（**要求密码**：防止「拿到已登录设备的人」直接摘掉第二因子）"""
     if not is_totp_enabled(user):
         raise AppException(code=400, message="二次验证未启用")
+    if user.role == "admin" and await setting_service.get_bool_setting(db, "admin_require_2fa"):
+        raise AppException(
+            code=400,
+            message="管理员强制二次验证已开启，不能关闭；请先由超管关闭强制策略",
+        )
     if not await _password_matches(user, password):
         raise AppException(code=400, message="密码不正确")
 

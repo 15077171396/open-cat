@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Button, Empty } from 'antd'
 import { PermGuard } from './PermGuard'
+import { useI18n } from '../i18n'
 
 /**
  * 后台列表页的统一空态（第五轮审查 MNT-09）。
@@ -38,6 +39,7 @@ export interface TableEmptyProps {
 }
 
 export function TableEmpty({ hasFilter, filteredText, emptyText, onReset, create }: TableEmptyProps) {
+  const { t } = useI18n()
   const createButton = create ? (
     <Button type="primary" icon={create.icon} onClick={create.onClick}>
       {create.label}
@@ -47,7 +49,7 @@ export function TableEmpty({ hasFilter, filteredText, emptyText, onReset, create
   return (
     <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description={hasFilter ? filteredText : emptyText}>
       {hasFilter ? (
-        onReset ? <Button onClick={onReset}>清空筛选条件</Button> : null
+        onReset ? <Button onClick={onReset}>{t('common.clearFilters')}</Button> : null
       ) : create?.perm ? (
         <PermGuard perm={create.perm}>{createButton}</PermGuard>
       ) : (

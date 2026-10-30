@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { Form, Modal } from 'antd'
 import type { FormInstance } from 'antd'
+import { useI18n } from '../../i18n'
 
 export interface ModalFormProps {
   open: boolean
@@ -53,13 +54,14 @@ export default function ModalForm({
   onSubmit,
   initialValues,
   width = 520,
-  okText = '确定',
+  okText,
   form: externalForm,
   layout = 'vertical',
   formStyle,
   zIndex,
   children,
 }: ModalFormProps) {
+  const { t } = useI18n()
   const [innerForm] = Form.useForm()
   const form = externalForm ?? innerForm
   const [submitting, setSubmitting] = useState(false)
@@ -93,8 +95,8 @@ export default function ModalForm({
       open={open}
       title={title}
       width={width}
-      okText={okText}
-      cancelText="取消"
+      okText={okText ?? t('common.confirm')}
+      cancelText={t('common.cancel')}
       confirmLoading={submitting}
       onOk={handleOk}
       onCancel={onCancel}

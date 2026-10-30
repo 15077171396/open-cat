@@ -22,6 +22,7 @@ import { lazy, type ReactNode } from 'react'
 // 性能：页面组件全部懒加载，入口 chunk 只保留 react 全家桶 + 零依赖的 ErrorBoundary / spinner，
 // antd 等重组件随首个业务页面按需并行加载
 const Dashboard = lazy(() => import('../pages/Dashboard'))
+const Analysis = lazy(() => import('../pages/Analysis'))
 const TutorialsList = lazy(() => import('../pages/Tutorials/List'))
 const TutorialsEdit = lazy(() => import('../pages/Tutorials/Edit'))
 const CategoriesList = lazy(() => import('../pages/Categories/List'))
@@ -35,6 +36,12 @@ const MessagesList = lazy(() => import('../pages/Messages/List'))
 const ModerationList = lazy(() => import('../pages/Moderation/List'))
 const CommentsList = lazy(() => import('../pages/Comments/List'))
 const SettingsPage = lazy(() => import('../pages/Settings'))
+const MenuSettingsPage = lazy(() => import('../pages/MenuSettings'))
+const DictionariesPage = lazy(() => import('../pages/Dictionaries'))
+const PositionsPage = lazy(() => import('../pages/Positions'))
+const MonitorOnlinePage = lazy(() => import('../pages/Monitor/Online'))
+const MonitorServerPage = lazy(() => import('../pages/Monitor/Server'))
+const MonitorCachePage = lazy(() => import('../pages/Monitor/Cache'))
 const LoginSettingsPage = lazy(() => import('../pages/LoginSettings'))
 const LegalDocumentsPage = lazy(() => import('../pages/LegalDocuments'))
 const PaymentSettingsPage = lazy(() => import('../pages/PaymentSettings'))
@@ -46,6 +53,8 @@ const PaymentOrdersPage = lazy(() => import('../pages/PaymentOrders/List'))
 const RolesList = lazy(() => import('../pages/Roles/List'))
 const DepartmentsList = lazy(() => import('../pages/Departments/List'))
 const AuditLogsList = lazy(() => import('../pages/AuditLogs/List'))
+const RecycleBinPage = lazy(() => import('../pages/RecycleBin'))
+const BackupsPage = lazy(() => import('../pages/Backups'))
 const SearchKeywordsPage = lazy(() => import('../pages/SearchKeywords'))
 const MaterialsPage = lazy(() => import('../pages/Materials'))
 const ScheduledJobsPage = lazy(() => import('../pages/ScheduledJobs'))
@@ -66,6 +75,8 @@ export interface AdminRouteDef {
 /** 需要登录 + 权限守卫的页面路由（登录页 / 安装向导在 `App.tsx` 里单独挂，不在此表） */
 export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/', element: <Dashboard />, perm: 'dashboard:view' },
+  // 数据分析：全页演示数据（不请求后端），权限与数据看板同层级
+  { path: '/analysis', element: <Analysis />, perm: 'dashboard:view' },
   { path: '/tutorials', element: <TutorialsList />, perm: 'tutorial:view' },
   // 新建与编辑是列表页的子页面，菜单只挂列表入口，因此不进菜单覆盖校验
   { path: '/tutorials/new', element: <TutorialsEdit />, perm: 'tutorial:create' },
@@ -88,6 +99,10 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/moderation', element: <ModerationList />, anyPerms: ['moderation:view', 'report:view'] },
   { path: '/comments', element: <CommentsList />, perm: 'comment:view' },
   { path: '/settings', element: <SettingsPage />, perm: 'setting:view' },
+  // 菜单管理：只调整展示层，路由与权限码仍由代码同源定义；复用 setting 权限
+  { path: '/menu-settings', element: <MenuSettingsPage />, perm: 'setting:view' },
+  // 数据字典：业务枚举的类型与字典项；与菜单管理同属系统配置层
+  { path: '/dicts', element: <DictionariesPage />, perm: 'setting:view' },
   // 登录管理：从「系统设置 → 登录与短信」抽出的独立模块，权限码独立
   { path: '/login-settings', element: <LoginSettingsPage />, perm: 'login_setting:view' },
   // 法律文档：对外合规文本单独授权
@@ -104,7 +119,16 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/scheduled-jobs', element: <ScheduledJobsPage />, perm: 'dashboard:view' },
   { path: '/roles', element: <RolesList />, perm: 'role:view' },
   { path: '/departments', element: <DepartmentsList />, perm: 'department:view' },
+  // 岗位目录：组织架构，复用部门权限
+  { path: '/positions', element: <PositionsPage />, perm: 'department:view' },
+  // 监控管理：只读运维数据，与看板同层级
+  { path: '/monitor/online', element: <MonitorOnlinePage />, perm: 'dashboard:view' },
+  { path: '/monitor/server', element: <MonitorServerPage />, perm: 'dashboard:view' },
+  { path: '/monitor/cache', element: <MonitorCachePage />, perm: 'dashboard:view' },
   { path: '/audit-logs', element: <AuditLogsList />, perm: 'audit:view' },
+  { path: '/backups', element: <BackupsPage />, perm: 'setting:view' },
+  // 回收站跨教程 / 评论 / 用户三个域：任一查看权限即可进入，类型由接口按权限裁剪
+  { path: '/recycle-bin', element: <RecycleBinPage />, anyPerms: ['tutorial:view', 'comment:view', 'user:view'] },
   // 个人中心：任何已登录管理员都能进，**不挂页面级权限守卫**
   // （看自己的资料 / 改自己的密码 / 查自己的记录，与业务权限无关）
   { path: '/profile', element: <ProfilePage /> },

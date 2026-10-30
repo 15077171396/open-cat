@@ -483,6 +483,7 @@ async def admin_list_comments(
     include_deleted: bool = False,
     start_at: dt.datetime | None = None,
     end_at: dt.datetime | None = None,
+    deleted_only: bool = False,
 ) -> dict:
     """评论列表（后台）：可按内容类型/ID 筛选、按正文关键词搜索、查看已删除项
 
@@ -492,7 +493,10 @@ async def admin_list_comments(
     而此前只能靠翻页按时间倒序找。
     """
     conds = []
-    if not include_deleted:
+    if deleted_only:
+        # 回收站视图只看已删除项；与 include_deleted 互斥，避免调用方同时传两个语义
+        conds.append(ContentComment.deleted_at.isnot(None))
+    elif not include_deleted:
         conds.append(ContentComment.deleted_at.is_(None))
     if target_type:
         conds.append(ContentComment.target_type == target_type)
@@ -515,8 +519,15 @@ async def admin_list_comments(
         await db.execute(
             select(ContentComment)
             .where(*conds)
-            # 同 list_comments：秒级 created_at 必须配 id.desc() 才能跨页稳定（否则误删漏删）
-            .order_by(ContentComment.created_at.desc(), ContentComment.id.desc())
+            # 回收站按删除时间倒序（「最近删的」先恢复）；普通列表仍按发布时间。
+            # 秒级时间必须配 id.desc() 才能跨页稳定（否则误删漏删）
+            .order_by(
+                *(
+                    (ContentComment.deleted_at.desc(), ContentComment.id.desc())
+                    if deleted_only
+                    else (ContentComment.created_at.desc(), ContentComment.id.desc())
+                )
+            )
             .offset((page - 1) * page_size)
             .limit(page_size)
         )

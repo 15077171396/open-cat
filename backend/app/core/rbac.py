@@ -33,8 +33,26 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("GET", "/api/v1/admin/ai-usage", ["dashboard:view"]),
     # 系统状态（依赖探活/库版本/备份年龄/任务心跳）同样只读，复用 dashboard:view
     ("GET", "/api/v1/admin/system-status", ["dashboard:view"]),
+    # 版本与升级（当前版本 / 迁移待执行数 / 最新 release）只读运维，同样复用 dashboard:view
+    ("GET", "/api/v1/admin/version", ["dashboard:view"]),
+    # 备份管理：列表只给元数据（setting:view）；下载是全库数据外带，要求 setting:update。
+    # 刻意不新建 backup:* 权限码：新码要配套补种迁移，而这两档权限已经覆盖「可信运维」边界。
+    ("GET", "/api/v1/admin/backups", ["setting:view"]),
+    ("GET", "/api/v1/admin/backups/{name}/download", ["setting:update"]),
     # 部署体检（存储/站点地址/邮件/短信/AI/支付是否真的可用）：运维只读，同上
     ("GET", "/api/v1/admin/readiness", ["dashboard:view"]),
+    # 顶栏待办聚合：任何管理员都能看到铃铛，具体类别由服务层按权限裁剪
+    # （无权限的类别直接不出现，而不是显示一个点进去 403 的数字）
+    ("GET", "/api/v1/admin/todos", []),
+    # 统一回收站：汇总只返回有查看权限的类型；列表/恢复按类型显式登记权限。
+    # 恢复复用「能删才放回」口径（tutorial:delete / comment:delete / user:restore）
+    ("GET", "/api/v1/admin/recycle-bin/summary", []),
+    ("GET", "/api/v1/admin/recycle-bin/tutorials", ["tutorial:view"]),
+    ("POST", "/api/v1/admin/recycle-bin/tutorials/restore", ["tutorial:delete"]),
+    ("GET", "/api/v1/admin/recycle-bin/comments", ["comment:view"]),
+    ("POST", "/api/v1/admin/recycle-bin/comments/restore", ["comment:delete"]),
+    ("GET", "/api/v1/admin/recycle-bin/users", ["user:view"]),
+    ("POST", "/api/v1/admin/recycle-bin/users/restore", ["user:restore"]),
 
     # 列表导出：权限与各自的列表页**完全一致** —— 能看见就能导出，
     # 不多给一个 export:xxx 权限码（新码必须配「补种给已有角色」的迁移，
@@ -232,6 +250,31 @@ _RULES: list[tuple[str, str, list[str]]] = [
     # 侧边菜单（任何 admin 可读）：菜单结构不含业务数据，可见性由前端按权限过滤。
     # 若在这里加权限码，低权限角色将整条菜单链拿不到 → 侧边栏空白。
     ("GET", "/api/v1/admin/menus", []),
+    # 数据字典：系统配置层，复用 setting:view / setting:update
+    # 监控管理：只读运维数据，复用 dashboard:view
+    ("GET", "/api/v1/admin/monitor/online", ["dashboard:view"]),
+    ("GET", "/api/v1/admin/monitor/server", ["dashboard:view"]),
+    ("GET", "/api/v1/admin/monitor/cache", ["dashboard:view"]),
+    ("GET", "/api/v1/admin/dicts", ["setting:view"]),
+    ("POST", "/api/v1/admin/dicts", ["setting:update"]),
+    ("PUT", "/api/v1/admin/dicts/{type_id}", ["setting:update"]),
+    ("DELETE", "/api/v1/admin/dicts/{type_id}", ["setting:update"]),
+    ("GET", "/api/v1/admin/dicts/{type_id}/items", ["setting:view"]),
+    ("POST", "/api/v1/admin/dicts/{type_id}/items", ["setting:update"]),
+    ("PUT", "/api/v1/admin/dicts/{type_id}/items/{item_id}", ["setting:update"]),
+    ("DELETE", "/api/v1/admin/dicts/{type_id}/items/{item_id}", ["setting:update"]),
+    # 岗位目录：组织架构，复用部门权限
+    ("GET", "/api/v1/admin/positions", ["department:view"]),
+    ("POST", "/api/v1/admin/positions", ["department:edit"]),
+    ("PUT", "/api/v1/admin/positions/{position_id}", ["department:edit"]),
+    ("DELETE", "/api/v1/admin/positions/{position_id}", ["department:edit"]),
+    # 菜单管理：读取菜单目录用 setting:view，写展示设置用 setting:update。
+    # order 必须排在 /{menu_key} 之前，否则会被路径参数通配吞掉（同 category-groups）。
+    ("GET", "/api/v1/admin/menu-settings", ["setting:view"]),
+    ("PUT", "/api/v1/admin/menu-settings/order", ["setting:update"]),
+    ("POST", "/api/v1/admin/menu-settings/reset", ["setting:update"]),
+    ("PUT", "/api/v1/admin/menu-settings/item", ["setting:update"]),
+    ("DELETE", "/api/v1/admin/menu-settings/item", ["setting:update"]),
 
     # RBAC：自身档案（任何 admin 可看，前端动态菜单数据源）
     ("GET", "/api/v1/admin/rbac/profile", []),

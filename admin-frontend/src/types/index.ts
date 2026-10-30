@@ -523,6 +523,73 @@ export interface SystemStatusData {
   warnings?: SystemStatusWarning[]
 }
 
+// ===== 版本与升级（GET /admin/version） =====
+
+export interface VersionMigrationInfo {
+  current?: string | null
+  head?: string | null
+  in_sync?: boolean | null
+  pending?: number | null
+  pending_ids?: string[]
+}
+
+export interface LatestReleaseInfo {
+  configured?: boolean
+  checked?: boolean
+  tag?: string | null
+  name?: string | null
+  url?: string | null
+  published_at?: string | null
+  checked_at?: number | null
+  /** 外部检查失败时的可读原因；未配置更新源时为 null */
+  error?: string | null
+}
+
+export interface VersionData {
+  version?: string
+  app_env?: string
+  app_release?: string | null
+  migration?: VersionMigrationInfo
+  latest_release?: LatestReleaseInfo
+  update_available?: boolean | null
+  backup_hint?: string
+}
+
+// ===== 备份管理（GET /admin/backups） =====
+
+export interface BackupItem {
+  name: string
+  size: number
+  size_human: string
+  /** naive UTC ISO（与其他后台时间字段同一口径） */
+  modified_at: string | null
+  age_hours: number
+  kind: 'auto' | 'pre_restore' | 'other' | string
+  has_checksum: boolean
+  restore_command: string
+}
+
+export interface BackupCommands {
+  backup: string
+  install_cron: string
+  verify: string
+  restore_template: string
+}
+
+export interface BackupsData {
+  dir: string
+  visible: boolean
+  latest: string | null
+  stale: boolean
+  stale_hours: number
+  count: number
+  total_size: number
+  items: BackupItem[]
+  commands: BackupCommands
+  /** 当前管理员是否有下载权限（setting:update） */
+  can_download: boolean
+}
+
 /** 归一化后的系统状态：字段必定存在，组件内无需判空 */
 export interface NormalizedSystemStatus {
   ts: number
@@ -896,6 +963,59 @@ export interface MenuGroup {
 export interface MenuTree {
   groups: MenuGroup[]
   footer: MenuLeaf[]
+}
+
+// ===== 顶栏待办（GET /admin/todos） =====
+//
+// 只含「当前管理员有权限处理且计数 > 0」的类别；无权限的类别由后端直接裁掉。
+// 前端不做二次权限判断，也不复制各业务域的计数口径。
+export type TodoSeverity = 'warning' | 'error'
+
+export interface TodoGroup {
+  key: string
+  label: string
+  count: number
+  /** 站内相对路径，点击后跳到原业务页面处理 */
+  path: string
+  severity: TodoSeverity
+  /** 补充说明（失败任务名、额度用量等），可能为空串 */
+  detail: string
+}
+
+export interface TodoSummary {
+  total: number
+  groups: TodoGroup[]
+}
+
+// ===== 统一回收站 =====
+//
+// 教程 / 评论 / 用户三类软删除记录共用同一形状；`retention_days = null`
+// 表示不自动清理（用户账号、有购买记录的教程）。
+export interface RecycleBinTypeSummary {
+  type: 'tutorial' | 'comment' | 'user'
+  type_label: string
+  count: number
+  retention_days: number | null
+  can_restore: boolean
+}
+
+export interface RecycleBinSummary {
+  total: number
+  items: RecycleBinTypeSummary[]
+}
+
+export interface RecycleBinItem {
+  type: 'tutorial' | 'comment' | 'user'
+  type_label: string
+  id: number
+  title: string
+  subtitle: string
+  deleted_at: string | null
+  retention_days: number | null
+  expires_at: string | null
+  remaining_days: number | null
+  retention_note: string
+  can_restore: boolean
 }
 
 // ===== 部署体检（GET /admin/readiness） =====

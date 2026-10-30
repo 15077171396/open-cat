@@ -1,0 +1,110 @@
+/* 全局命令面板（Ctrl/Cmd + K） */
+.cmdk-modal .ant-modal-content {
+  overflow: hidden;
+  padding: 0;
+  border-radius: var(--app-radius);
+}
+
+.cmdk-input {
+  padding: 14px 16px !important;
+  border-bottom: 1px solid var(--app-border-light);
+  border-radius: 0 !important;
+}
+
+.cmdk-input .ant-input-prefix {
+  margin-right: 10px;
+  color: var(--app-text-3);
+}
+
+.cmdk-list {
+  max-height: min(430px, 62vh);
+  overflow-y: auto;
+  padding: 6px;
+}
+
+.cmdk-section__title {
+  padding: 8px 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--app-text-3);
+  letter-spacing: 0.04em;
+}
+
+.cmdk-item {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: var(--app-radius-sm);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.cmdk-item.is-active {
+  background: var(--app-primary-weak);
+}
+
+.cmdk-item__label {
+  overflow: hidden;
+  font-size: 13px;
+  color: var(--app-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmdk-item.is-active .cmdk-item__label {
+  color: var(--app-primary);
+  font-weight: 600;
+}
+
+.cmdk-item__hint {
+  flex: none;
+  max-width: 42%;
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--app-text-3);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cmdk-empty {
+  padding: 28px 12px;
+  font-size: 13px;
+  color: var(--app-text-3);
+  text-align: center;
+}
+
+.cmdk-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 14px;
+  border-top: 1px solid var(--app-border-light);
+  color: var(--app-text-3);
+  font-size: 11px;
+}
+
+/* 输入区与弹窗体：只保留底部分隔线，不显示 antd 的聚焦边框 / 蓝色 ring */
+.cmdk-modal .ant-modal-body {
+  padding: 0 !important;
+}
+
+.cmdk-input.ant-input-affix-wrapper,
+.cmdk-input.ant-input-affix-wrapper-focused,
+.cmdk-input.ant-input-affix-wrapper:hover {
+  border: 0 !important;
+  border-bottom: 1px solid var(--app-border-light) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  outline: none !important;
+}
+
+.cmdk-input input {
+  outline: none !important;
+  box-shadow: none !important;
+}

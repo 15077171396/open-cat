@@ -14,7 +14,7 @@ import { getErrorMessage } from '../utils/error'
  * 2. 文件名在 `Content-Disposition` 里，且后端已经带了时间戳；
  *    取不到就回落到调用方给的默认名，避免下载成 `download`。
  */
-export async function downloadCsv(
+export async function downloadFile(
   url: string,
   params: Record<string, unknown>,
   fallbackName = 'export.csv',
@@ -57,6 +57,9 @@ export async function downloadCsv(
 }
 
 /** 导出失败时的统一提示（把异常转成给用户看的一句话）。 */
+/** 兼容导出按钮的旧名。 */
+export const downloadCsv = downloadFile
+
 export function exportErrorMessage(err: unknown): string {
   // 后端在 JSON 信封里给了 message 时，它比任何前端文案都准确（例如「无导出权限」）
   if (err instanceof Error && err.message) {
