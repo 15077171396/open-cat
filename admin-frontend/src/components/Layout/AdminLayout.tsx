@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Drawer, Grid, Layout, Menu, Avatar, Dropdown, Typography, Space, Skeleton, Button, Tooltip } from 'antd'
 import type { MenuProps } from 'antd'
 import type { CSSProperties } from 'react'
@@ -18,15 +18,17 @@ import { useAuthStore } from '../../store/authStore'
 import { usePrefsStore } from '../../store/prefsStore'
 import type { LayoutMode, ThemeMode } from '../../store/prefsStore'
 import { apiGet } from '../../api/client'
-import { BRAND } from '../../theme'
 import RouteErrorBoundary from '../RouteErrorBoundary'
 import TodoBell from './TodoBell'
 import CommandPalette from './CommandPalette'
+import PageTabs from './PageTabs'
+import { usePageTitleStore } from '../../store/pageTitleStore'
 import { menuIcon } from '../../constants/menuIcons'
 import { LOCALE_LABELS, useI18n } from '../../i18n'
 import type { Locale } from '../../i18n'
 import {
   GROUP_KEY_PREFIX,
+  collectMenuLabels,
   externalLeafKeys,
   filterMenuTree,
   groupMenuKey,
@@ -34,6 +36,16 @@ import {
   resolveOpenGroupKey,
   resolveSelectedKey,
 } from '../../utils/menu'
+import {
+  HOME_TAB,
+  addTab,
+  closeAllTabs,
+  closeOtherTabs,
+  nextTabAfterClose,
+  readTabs,
+  removeTab,
+  writeTabs,
+} from '../../utils/pageTabs'
 import type { MenuLeaf, MenuTree } from '../../types'
 
 const { Sider, Header, Content } = Layout
@@ -92,11 +104,12 @@ function writeMenuCache(tree: MenuTree, locale: Locale): void {
 }
 
 // 提取内联样式为模块级常量，避免每次渲染创建新引用
-// 尺寸与圆角遵循设计规范（docs/07-开源文档/06-UI设计规范.md）：顶栏 56 / 内边距 16 / 卡片圆角 12
+// 尺寸与圆角遵循设计规范（docs/07-开源文档/06-UI设计规范.md）：顶栏 56 / 内边距 16 / 卡片圆角 4
 // 颜色一律用 CSS 变量（tokens.css），暗色主题下由 [data-theme='dark'] 覆盖，不写死十六进制
 const siderStyle: CSSProperties = {
   background: 'var(--app-card)',
-  borderRight: '1px solid var(--app-border)',
+  borderRight: 'none',
+  boxShadow: '0 2px 5px rgba(0, 0, 0, 0.08)',
   position: 'fixed',
   left: 0,
   top: 0,
@@ -104,15 +117,6 @@ const siderStyle: CSSProperties = {
   zIndex: 10,
   display: 'flex',
   flexDirection: 'column',
-}
-
-const logoStyle: CSSProperties = {
-  height: 56,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  borderBottom: '1px solid var(--app-border)',
-  flex: 'none',
 }
 
 /** 菜单区可滚动：分组展开后总高度会超过视口（小屏尤其明显） */
@@ -134,7 +138,7 @@ const headerStyle: CSSProperties = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  borderBottom: '1px solid var(--app-border)',
+  borderBottom: '1px solid var(--app-border-light)',
   flex: 'none',
   position: 'sticky',
   top: 0,
@@ -143,29 +147,12 @@ const headerStyle: CSSProperties = {
 
 /** 顶栏布局：logo 与操作区固定，中间的横向菜单吃掉剩余宽度 */
 const topHeaderStyle: CSSProperties = { ...headerStyle, gap: 8 }
-const topLogoStyle: CSSProperties = { ...logoStyle, borderBottom: 'none', paddingRight: 8 }
 const topMenuWrapStyle: CSSProperties = { flex: 1, minWidth: 0, overflow: 'hidden' }
 
 const headerLeftStyle: CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 8,
-}
-
-const contentStyle: CSSProperties = {
-  flex: 1,
-  overflow: 'auto',
-  margin: 16,
-  padding: 16,
-  background: 'var(--app-card)',
-  // 与卡片圆角一致：内容区本身就是一张大卡片，页面内的卡片叠在其上时靠间距区分
-  borderRadius: 12,
-}
-
-const contentStyleZeroVerticalPadding: CSSProperties = {
-  ...contentStyle,
-  paddingTop: 0,
-  paddingBottom: 0,
 }
 
 const collapseTriggerStyle: CSSProperties = {
@@ -343,6 +330,82 @@ export default function AdminLayout() {
     [location.pathname]
   )
 
+  // 看板类页面直接在画布上铺卡片，不套白色页面卡（与 gi-demo 首页一致）
+  const isCanvasPage =
+    location.pathname === '/' ||
+    location.pathname === '/workplace' ||
+    location.pathname === '/analysis'
+
+  // ---- 多标签页：路径 key + 菜单/页头标题，sessionStorage 持久化 ----
+  const pageTitles = usePageTitleStore((s) => s.titles)
+  const clearTitle = usePageTitleStore((s) => s.clearTitle)
+  const menuLabels = useMemo(() => collectMenuLabels(visibleTree), [visibleTree])
+  const [tabs, setTabs] = useState<string[]>(() =>
+    typeof window === 'undefined' ? [HOME_TAB] : readTabs(window.sessionStorage)
+  )
+  const [refreshKey, setRefreshKey] = useState(0)
+
+  useEffect(() => {
+    setTabs((prev) => {
+      const next = addTab(prev, location.pathname)
+      if (next.length === prev.length && next.every((key, index) => key === prev[index])) return prev
+      writeTabs(window.sessionStorage, next)
+      return next
+    })
+  }, [location.pathname])
+
+  // 权限/菜单变化后丢弃已不存在的入口；编辑页等子路由靠父菜单前缀保留
+  useEffect(() => {
+    if (!menuTree) return
+    setTabs((prev) => {
+      const menuKeys = [...menuLabels.keys()]
+      const known = (key: string) =>
+        key === HOME_TAB ||
+        menuLabels.has(key) ||
+        menuKeys.some((menuKey) => menuKey !== HOME_TAB && key.startsWith(`${menuKey}/`)) ||
+        !!usePageTitleStore.getState().titles[key]
+      const next = prev.filter(known)
+      if (next.length === prev.length) return prev
+      writeTabs(window.sessionStorage, next)
+      return next
+    })
+  }, [menuLabels, menuTree])
+
+  const tabTitle = useCallback(
+    (key: string) =>
+      pageTitles[key] ??
+      menuLabels.get(key) ??
+      menuLabels.get(resolveSelectedKey(visibleTree, key)) ??
+      t('tabs.untitled'),
+    [pageTitles, menuLabels, visibleTree, t]
+  )
+
+  const handleCloseTab = (key: string) => {
+    const nextActive = nextTabAfterClose(tabs, key, location.pathname)
+    const next = removeTab(tabs, key)
+    setTabs(next)
+    writeTabs(window.sessionStorage, next)
+    clearTitle(key)
+    if (key === location.pathname && nextActive) navigate(nextActive)
+  }
+
+  const handleCloseOthers = (key: string) => {
+    const next = closeOtherTabs(tabs, key)
+    tabs.filter((item) => !next.includes(item)).forEach(clearTitle)
+    setTabs(next)
+    writeTabs(window.sessionStorage, next)
+  }
+
+  const handleCloseAll = () => {
+    tabs.filter((item) => item !== HOME_TAB).forEach(clearTitle)
+    const next = closeAllTabs()
+    setTabs(next)
+    writeTabs(window.sessionStorage, next)
+    navigate(HOME_TAB)
+  }
+
+  const handleRefreshTab = () => setRefreshKey((value) => value + 1)
+
   const handleLogout = async () => {
     await logout()
     navigate('/login')
@@ -493,10 +556,9 @@ export default function AdminLayout() {
       </Drawer>
       {!isTop && !isMobile && (
         <Sider trigger={null} collapsible collapsed={collapsed} width={220} style={siderStyle}>
-          <div style={logoStyle}>
-            <Typography.Title level={4} style={{ margin: 0, color: BRAND.primary }}>
-              {collapsed ? t('layout.brandShort') : t('layout.brand')}
-            </Typography.Title>
+          <div className={`app-logo${collapsed ? ' is-collapsed' : ''}`}>
+            <img className="app-logo__img" src={`${import.meta.env.BASE_URL}favicon-64.png`} alt="" />
+            {!collapsed && <span className="app-logo__text">{t('layout.brand')}</span>}
           </div>
           <div style={menuScrollStyle}>{renderMenu()}</div>
         </Sider>
@@ -509,13 +571,12 @@ export default function AdminLayout() {
           flexDirection: 'column',
         }}
       >
-        <Header style={isTop ? topHeaderStyle : headerStyle}>
+        <Header className="app-header" style={isTop ? topHeaderStyle : headerStyle}>
           {isTop ? (
             <>
-              <div style={topLogoStyle}>
-                <Typography.Title level={4} style={{ margin: 0, color: BRAND.primary, whiteSpace: 'nowrap' }}>
-                  {t('layout.brand')}
-                </Typography.Title>
+              <div className="app-logo">
+                <img className="app-logo__img" src={`${import.meta.env.BASE_URL}favicon-64.png`} alt="" />
+                <span className="app-logo__text">{t('layout.brand')}</span>
               </div>
               <div style={topMenuWrapStyle}>{renderMenu()}</div>
               {headerActions}
@@ -554,17 +615,29 @@ export default function AdminLayout() {
             </>
           )}
         </Header>
+        {!isMobile && (
+          <PageTabs
+            tabs={tabs}
+            activeKey={location.pathname}
+            getTitle={tabTitle}
+            onChange={(key) => navigate(key)}
+            onClose={handleCloseTab}
+            onCloseOthers={handleCloseOthers}
+            onCloseAll={handleCloseAll}
+            onRefresh={handleRefreshTab}
+          />
+        )}
         <Content
-          style={
-            isMobile
-              ? { ...contentStyle, margin: 0, borderRadius: 0, padding: 12 }
-              : isEditPage
-                ? contentStyleZeroVerticalPadding
-                : contentStyle
-          }
+          className={[
+            'app-content',
+            isCanvasPage ? 'app-content--canvas' : '',
+            isEditPage ? 'app-content--edit' : '',
+          ]
+            .filter(Boolean)
+            .join(' ')}
         >
           {/* 页面级错误边界：某一页渲染挂了不该把侧栏一起带走（见组件注释） */}
-          <RouteErrorBoundary path={location.pathname}>
+          <RouteErrorBoundary key={`${location.pathname}:${refreshKey}`} path={location.pathname}>
             <Outlet />
           </RouteErrorBoundary>
         </Content>

@@ -80,9 +80,9 @@ function ImageSettingItem({
           width: 120,
           height: 120,
           flexShrink: 0,
-          borderRadius: 8,
+          borderRadius: "var(--app-radius)",
           border: '1px dashed #d9d9d9',
-          background: '#fafafa',
+          background: 'var(--app-subtle)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
@@ -92,7 +92,7 @@ function ImageSettingItem({
         {effective ? (
           <img src={effective} alt={def.label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
         ) : (
-          <PictureOutlined style={{ fontSize: 28, color: '#bfbfbf' }} />
+          <PictureOutlined style={{ fontSize: 28, color: 'var(--app-text-4)' }} />
         )}
       </div>
       <Space orientation="vertical" size={8}>

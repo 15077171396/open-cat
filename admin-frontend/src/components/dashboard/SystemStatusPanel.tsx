@@ -46,10 +46,10 @@ interface Props {
 }
 
 const COLORS = {
-  ok: '#52c41a',
-  fail: '#ff4d4f',
-  unknown: '#8c8c8c',
-  warn: '#faad14',
+  ok: 'var(--app-success)',
+  fail: 'var(--app-danger)',
+  unknown: 'var(--app-text-3)',
+  warn: 'var(--app-warning)',
 } as const
 
 const titleStyle = { fontSize: 15, fontWeight: 600 } as const
@@ -276,7 +276,7 @@ export default function SystemStatusPanel({ data, loading, failed, onRefresh, on
                 <span style={{ color: jobBad ? COLORS.warn : COLORS.ok }}>
                   {jobEnabled.length - jobBad}
                 </span>
-                <span style={{ color: '#8c8c8c', fontSize: 13, fontWeight: 400 }}>
+                <span style={{ color: 'var(--app-text-3)', fontSize: 13, fontWeight: 400 }}>
                   {' '}
                   / {jobEnabled.length} 正常
                 </span>

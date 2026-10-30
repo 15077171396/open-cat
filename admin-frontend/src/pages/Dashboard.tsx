@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Row, Col, Card, Typography, Button, Segmented, Result, Alert } from 'antd'
+import { Row, Col, Card, Avatar, Button, Segmented, Result, Alert } from 'antd'
 import {
   TeamOutlined,
   HddOutlined,
@@ -15,6 +15,7 @@ import {
 import { useNavigate } from 'react-router-dom'
 import { apiGet } from '../api/client'
 import { getApiErrorStatus } from '../utils/error'
+import { greetingKey } from '../utils/greeting'
 import { useAuthStore } from '../store/authStore'
 import type {
   AiUsageData,
@@ -45,16 +46,16 @@ import type { BarItem } from '../components/dashboard/BarList'
 type TrendMetric = 'download' | 'registration'
 
 const TREND_METRICS: { value: TrendMetric; label: string; color: string }[] = [
-  { value: 'download', label: '下载量', color: '#1677ff' },
-  { value: 'registration', label: '新增注册', color: '#52c41a' },
+  { value: 'download', label: '下载量', color: 'var(--app-primary)' },
+  { value: 'registration', label: '新增注册', color: 'var(--app-success)' },
 ]
 
 /** 注册来源配色（与环形图、图例共用同一常量，避免两处写死不一致） */
-const SOURCE_COLORS = { phone: '#1677ff', email: '#722ed1' } as const
+const SOURCE_COLORS = { phone: 'var(--app-primary)', email: 'var(--app-purple)' } as const
 
 /** 内容资产条形配色（按「内容体量级」由深到浅，便于一眼区分板块） */
 const CONTENT_COLORS = {
-  tutorials: '#52c41a',
+  tutorials: 'var(--app-success)',
 } as const
 
 const cardTitleStyle = { fontSize: 15, fontWeight: 600 } as const
@@ -62,6 +63,8 @@ const cardTitleStyle = { fontSize: 15, fontWeight: 600 } as const
 export default function Dashboard() {
   const navigate = useNavigate()
   const { isSuper, permissions } = useAuthStore()
+  const account = useAuthStore((s) => s.user?.account)
+  const avatarUrl = useAuthStore((s) => s.user?.avatar_url)
 
   const [raw, setRaw] = useState<DashboardData | null>(null)
   const [aiRaw, setAiRaw] = useState<AiUsageData | null>(null)
@@ -153,6 +156,19 @@ export default function Dashboard() {
   // 兜底归一化：接口缺增强字段时降级为 0/空数组，而不是整页崩掉
   const data = useMemo(() => normalizeDashboard(raw), [raw])
 
+  const greetingText =
+    greetingKey(new Date()) === 'morning'
+      ? '早上好'
+      : greetingKey(new Date()) === 'afternoon'
+        ? '下午好'
+        : '晚上好'
+  const today = new Date().toLocaleDateString('zh-CN', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    weekday: 'long',
+  })
+
   // AI 用量同样先兜底：缺字段只表现为「显示 0」，不会让卡片崩掉
   const ai = useMemo(() => normalizeAiUsage(aiRaw), [aiRaw])
 
@@ -213,22 +229,39 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard">
-      {/* 页头：标题 + 数据新鲜度 + 手动刷新 */}
-      <div className="dash-header">
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            数据看板
-          </Typography.Title>
-          <div className="dash-header__sub">
-            <span>{updatedAt ? `更新于 ${updatedAt}` : '正在加载…'}</span>
-            <span className="dash-header__dot">·</span>
-            <span>服务端缓存 15 分钟，指标为 UTC 日界口径</span>
+      {/* 欢迎卡：头像 + 问候 + 核心数字 + 刷新（gi-demo 工作台卡结构） */}
+      <Card className="dash-hero" variant="outlined">
+        <div className="dash-hero__main">
+          <Avatar size={56} src={avatarUrl || undefined} icon={<UserOutlined />} />
+          <div className="dash-hero__copy">
+            <div className="dash-hero__title">
+              {greetingText}，{account || '管理员'}，开始您一天的工作吧！
+            </div>
+            <div className="dash-hero__sub">
+              <span>{today}</span>
+              <span>·</span>
+              <span>{updatedAt ? `数据更新于 ${updatedAt}` : '正在加载…'}</span>
+            </div>
           </div>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={load} loading={loading} disabled={loading}>
-          刷新
-        </Button>
-      </div>
+        <div className="dash-hero__side">
+          <div className="dash-hero__stat">
+            <span>总用户</span>
+            <strong>{data.total_users}</strong>
+          </div>
+          <div className="dash-hero__stat">
+            <span>待审核</span>
+            <strong>{data.pending.auth_requests}</strong>
+          </div>
+          <div className="dash-hero__stat">
+            <span>待处理反馈</span>
+            <strong>{data.pending.feedbacks}</strong>
+          </div>
+          <Button icon={<ReloadOutlined />} onClick={load} loading={loading} disabled={loading}>
+            刷新
+          </Button>
+        </div>
+      </Card>
 
       {/* 第一行：今日核心指标 */}
       <Row gutter={[16, 16]}>
@@ -405,7 +438,7 @@ export default function Dashboard() {
             variant="outlined"
             title={
               <span style={cardTitleStyle}>
-                <BookOutlined style={{ marginRight: 8, color: '#8c8c8c' }} />
+                <BookOutlined style={{ marginRight: 8, color: 'var(--app-text-3)' }} />
                 内容资产总览
               </span>
             }

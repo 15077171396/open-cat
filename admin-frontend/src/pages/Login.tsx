@@ -1,7 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Card, Form, Input, Button, Typography, Alert, Space, Tag, Segmented } from 'antd'
-import { LockOutlined, UserOutlined, SafetyOutlined } from '@ant-design/icons'
+import { Form, Input, Button, Typography, Alert, Segmented } from 'antd'
+import {
+  BulbOutlined,
+  LockOutlined,
+  MobileOutlined,
+  SafetyOutlined,
+  UserOutlined,
+} from '@ant-design/icons'
 import { useAuthStore } from '../store/authStore'
 import { getErrorMessage, getErrorData } from '../utils/error'
 import { apiGet } from '../api/client'
@@ -60,8 +66,14 @@ export default function Login() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     const { account, password, totpCode } = values
-    if (!account || !password) { setError(t('login.missing')); return }
-    if (totpRequired && !totpCode) { setError(t('login.totpMissing')); return }
+    if (!account || !password) {
+      setError(t('login.missing'))
+      return
+    }
+    if (totpRequired && !totpCode) {
+      setError(t('login.totpMissing'))
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -76,87 +88,138 @@ export default function Login() {
     }
   }
 
+  const year = new Date().getFullYear()
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #1e3a8a 0%, #312e81 100%)',
-      padding: '24px',
-    }}>
-      <Card style={{
-        maxWidth: 400,
-        width: '100%',
-        borderRadius: 16,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.15)',
-      }}>
+    <div className="login-page">
+      <aside className="login-brand" aria-hidden="true">
+        <div className="login-brand__logo">
+          <img src={`${import.meta.env.BASE_URL}favicon-64.png`} alt="" />
+          <span>{t('login.title')}</span>
+        </div>
+
+        <div className="login-brand__copy">
+          <h1>{t('login.heroTitle')}</h1>
+          <p>{t('login.heroDesc')}</p>
+        </div>
+
+        <ul className="login-brand__features">
+          <li>
+            <SafetyOutlined />
+            <div>
+              <strong>{t('login.feature1Title')}</strong>
+              <span>{t('login.feature1Desc')}</span>
+            </div>
+          </li>
+          <li>
+            <BulbOutlined />
+            <div>
+              <strong>{t('login.feature2Title')}</strong>
+              <span>{t('login.feature2Desc')}</span>
+            </div>
+          </li>
+          <li>
+            <MobileOutlined />
+            <div>
+              <strong>{t('login.feature3Title')}</strong>
+              <span>{t('login.feature3Desc')}</span>
+            </div>
+          </li>
+        </ul>
+
+        <div className="login-brand__footer">© {year} AI学习猫</div>
+      </aside>
+
+      <main className="login-main">
         {/* 登录页在后台外壳之外，语言入口要单独给：选中结果同样持久化，进后台后沿用 */}
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 4 }}>
+        <div className="login-main__lang">
           <Segmented
             size="small"
             value={locale}
             onChange={(value) => setLocale(value as Locale)}
-            options={SUPPORTED_LOCALES.map((item) => ({ label: LOCALE_LABELS[item], value: item }))}
+            options={SUPPORTED_LOCALES.map((item) => ({
+              label: LOCALE_LABELS[item],
+              value: item,
+            }))}
           />
         </div>
 
-        <Space orientation="vertical" align="center" style={{ width: '100%', marginBottom: 24 }}>
-          <Tag color="geekblue" icon={<SafetyOutlined />}>{t('login.tag')}</Tag>
-          <Typography.Title level={3} style={{ margin: 0 }}>{t('login.title')}</Typography.Title>
-          <Typography.Text type="secondary">{t('login.subtitle')}</Typography.Text>
-        </Space>
-
-        <Form form={form} layout="vertical" onFinish={handleSubmit} size="large" initialValues={LOGIN_PREFILL}>
-          <Form.Item
-            label={t('login.account')}
-            name="account"
-            rules={[{ required: true, message: t('login.accountRequired') }]}
-          >
-            <Input prefix={<UserOutlined />} placeholder={t('login.accountPlaceholder')} autoComplete="username" />
-          </Form.Item>
-
-          <Form.Item
-            label={t('login.password')}
-            name="password"
-            rules={[{ required: true, message: t('login.passwordRequired') }]}
-          >
-            <Input.Password
-              prefix={<LockOutlined />}
-              placeholder={t('login.passwordPlaceholder')}
-              autoComplete="current-password"
+        <div className="login-card">
+          <div className="login-card__head">
+            <img
+              className="login-card__logo"
+              src={`${import.meta.env.BASE_URL}favicon-64.png`}
+              alt=""
             />
-          </Form.Item>
+            <Typography.Title level={3} style={{ margin: 0 }}>
+              {t('login.welcome')}
+            </Typography.Title>
+            <Typography.Text type="secondary">{t('login.subtitle')}</Typography.Text>
+          </div>
 
-          {totpRequired && (
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleSubmit}
+            size="large"
+            initialValues={LOGIN_PREFILL}
+          >
             <Form.Item
-              label={t('login.totp')}
-              name="totpCode"
-              rules={[{ required: true, message: t('login.totpRequired') }]}
-              extra={t('login.totpHint')}
+              label={t('login.account')}
+              name="account"
+              rules={[{ required: true, message: t('login.accountRequired') }]}
             >
               <Input
-                prefix={<SafetyOutlined />}
-                placeholder={t('login.totpPlaceholder')}
-                autoComplete="one-time-code"
-                maxLength={12}
+                prefix={<UserOutlined />}
+                placeholder={t('login.accountPlaceholder')}
+                autoComplete="username"
               />
             </Form.Item>
-          )}
 
-          {error && (
-            <Form.Item style={{ marginBottom: 16 }}>
-              <Alert title={error} type="error" showIcon />
+            <Form.Item
+              label={t('login.password')}
+              name="password"
+              rules={[{ required: true, message: t('login.passwordRequired') }]}
+            >
+              <Input.Password
+                prefix={<LockOutlined />}
+                placeholder={t('login.passwordPlaceholder')}
+                autoComplete="current-password"
+              />
             </Form.Item>
-          )}
 
-          <Form.Item>
-            <Button type="primary" htmlType="submit" loading={loading} block>
-              {loading ? t('login.submitting') : t('login.submit')}
-            </Button>
-          </Form.Item>
-        </Form>
-      </Card>
+            {totpRequired && (
+              <Form.Item
+                label={t('login.totp')}
+                name="totpCode"
+                rules={[{ required: true, message: t('login.totpRequired') }]}
+                extra={t('login.totpHint')}
+              >
+                <Input
+                  prefix={<SafetyOutlined />}
+                  placeholder={t('login.totpPlaceholder')}
+                  autoComplete="one-time-code"
+                  maxLength={12}
+                />
+              </Form.Item>
+            )}
+
+            {error && (
+              <Form.Item style={{ marginBottom: 16 }}>
+                <Alert title={error} type="error" showIcon />
+              </Form.Item>
+            )}
+
+            <Form.Item>
+              <Button type="primary" htmlType="submit" loading={loading} block>
+                {loading ? t('login.submitting') : t('login.submit')}
+              </Button>
+            </Form.Item>
+          </Form>
+        </div>
+
+        <div className="login-main__footer">© {year} AI学习猫</div>
+      </main>
     </div>
   )
 }

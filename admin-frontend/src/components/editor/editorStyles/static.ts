@@ -35,7 +35,7 @@ export const STATIC_EDITOR_CSS = `
     background: #fafafa;
     border-radius: 8px;
     padding: 16px;
-    border: 1px solid #f0f0f0;
+    border: 1px solid var(--app-border-light);
   }
   .quill-toc-title {
     font-weight: 600;
@@ -47,7 +47,7 @@ export const STATIC_EDITOR_CSS = `
     z-index: 1;
     margin: -16px -16px 0;
     padding: 16px 16px 12px;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--app-border-light);
   }
   /* 目录项使用 <button>（可键盘 Tab 导航 + Enter 触发跳转），此处重置浏览器默认按钮样式 */
   .quill-toc-item {
@@ -68,13 +68,13 @@ export const STATIC_EDITOR_CSS = `
     transition: color 0.2s;
   }
   .quill-toc-item:hover {
-    color: #1677ff;
+    color: var(--app-primary);
   }
   .quill-toc-item:focus-visible {
-    outline: 2px solid #1677ff;
+    outline: 2px solid var(--app-primary);
     outline-offset: 2px;
     border-radius: 2px;
-    color: #1677ff;
+    color: var(--app-primary);
   }
   /* 编辑器正文排版：覆盖 Quill snow 主题对块级元素的 margin:0 重置，
      选择器加 .quill-editor-wrapper 前缀提高特异性确保生效，
@@ -164,7 +164,7 @@ export const STATIC_EDITOR_CSS = `
     margin: 0.4em 0;
   }
   .quill-editor-wrapper .ql-editor a {
-    color: #1677ff;
+    color: var(--app-primary);
     text-decoration: underline;
   }
   .quill-editor-wrapper .ql-editor hr {
@@ -194,7 +194,7 @@ export const STATIC_EDITOR_CSS = `
     position: absolute;
     z-index: 20;
     pointer-events: none;
-    border: 1.5px dashed #1677ff;
+    border: 1.5px dashed var(--app-primary);
     border-radius: 2px;
     box-sizing: border-box;
   }
@@ -231,7 +231,7 @@ export const STATIC_EDITOR_CSS = `
     box-sizing: border-box;
   }
   .quill-img-size-input:focus {
-    border-color: #1677ff;
+    border-color: var(--app-primary);
   }
   .quill-img-alt-input {
     width: 110px;
@@ -247,18 +247,18 @@ export const STATIC_EDITOR_CSS = `
     background: none;
     cursor: pointer;
     font-size: 12px;
-    color: #1677ff;
+    color: var(--app-primary);
     padding: 2px 3px;
     line-height: 18px;
     border-radius: 4px;
   }
   .quill-img-resize-btn:hover {
-    color: #4096ff;
+    color: var(--app-primary-hover);
     background: #f0f7ff;
   }
   .quill-img-resize-btn.ql-active {
-    background: #e6f4ff;
-    color: #0958d9;
+    background: var(--app-primary-weak);
+    color: var(--app-primary);
     font-weight: 600;
   }
   .quill-img-resize-handle {
@@ -267,7 +267,7 @@ export const STATIC_EDITOR_CSS = `
     bottom: -7px;
     width: 14px;
     height: 14px;
-    background: #1677ff;
+    background: var(--app-primary);
     border: 2px solid #fff;
     border-radius: 50%;
     box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);

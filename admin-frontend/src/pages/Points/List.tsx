@@ -135,7 +135,7 @@ export default function PointsList() {
       align: 'right',
       render: (v: number) => (
         // 颜色沿用既有口径（收入绿 / 支出橙），0 变动单独用灰色 —— 它是数据异常，不该看起来像收入
-        <span className="adm-delta" style={{ color: v > 0 ? '#52c41a' : v < 0 ? '#fa8c16' : '#bfbfbf' }}>
+        <span className="adm-delta" style={{ color: v > 0 ? 'var(--app-success)' : v < 0 ? 'var(--app-warning)' : 'var(--app-text-4)' }}>
           {v > 0 ? `+${v}` : v}
         </span>
       ),

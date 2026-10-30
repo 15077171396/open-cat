@@ -1,0 +1,143 @@
+/* 布局外壳：内容页面卡、侧栏 logo、多标签页 */
+
+.app-content {
+  flex: 1;
+  overflow: auto;
+  margin: 16px;
+  padding: var(--app-page-pad);
+  background: var(--app-card);
+  border-radius: var(--app-radius);
+}
+
+.app-content--canvas {
+  margin: 0;
+  padding: var(--app-page-pad);
+  background: transparent;
+  border-radius: 0;
+}
+
+.app-content--edit {
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
+.app-logo {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: 56px;
+  padding: 0 16px;
+  overflow: hidden;
+}
+
+.app-logo.is-collapsed {
+  justify-content: center;
+  padding: 0;
+}
+
+.app-logo__img {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: var(--app-radius);
+}
+
+.app-logo__text {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--app-text);
+  white-space: nowrap;
+}
+
+/* 顶部导航布局：logo 在 header 内，不再叠加一层左右内边距 */
+.app-header .app-logo {
+  height: 56px;
+  padding: 0 8px 0 0;
+}
+
+.page-tabs {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  height: var(--app-tabs-h);
+  padding: 0 12px;
+  background: var(--app-card);
+  border-bottom: 1px solid var(--app-border-light);
+}
+
+.page-tabs__list {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.page-tabs__list::-webkit-scrollbar {
+  display: none;
+}
+
+.page-tabs__item {
+  display: flex;
+  flex: none;
+  align-items: center;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  font-size: 13px;
+  color: var(--app-text-2);
+  white-space: nowrap;
+  border-radius: var(--app-radius);
+}
+
+.page-tabs__item:hover {
+  background: var(--app-fill);
+}
+
+.page-tabs__item.is-active {
+  color: var(--app-primary);
+}
+
+.page-tabs__label {
+  padding: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+}
+
+.page-tabs__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-left: 2px;
+  font-size: 10px;
+  color: var(--app-text-3);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--app-radius);
+  opacity: 0;
+}
+
+.page-tabs__item:hover .page-tabs__close,
+.page-tabs__item.is-active .page-tabs__close,
+.page-tabs__close:focus-visible {
+  opacity: 1;
+}
+
+.page-tabs__close:hover {
+  color: var(--app-danger);
+  background: var(--app-danger-bg);
+}
+
+.page-tabs__actions {
+  flex: none;
+}

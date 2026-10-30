@@ -15,12 +15,36 @@ export interface CategoryMeta {
 }
 
 const CATEGORY_PALETTE: CategoryMeta[] = [
-  { text: '#0958d9', bg: '#e6f4ff', gradient: 'linear-gradient(135deg, #1677ff, #4096ff)' },
-  { text: '#531dab', bg: '#f9f0ff', gradient: 'linear-gradient(135deg, #722ed1, #9254de)' },
-  { text: '#006d75', bg: '#e6fffb', gradient: 'linear-gradient(135deg, #13c2c2, #36cfc9)' },
-  { text: '#389e0d', bg: '#f6ffed', gradient: 'linear-gradient(135deg, #52c41a, #73d13d)' },
-  { text: '#d46b08', bg: '#fff7e6', gradient: 'linear-gradient(135deg, #fa8c16, #ffa940)' },
-  { text: '#c41d7f', bg: '#fff0f6', gradient: 'linear-gradient(135deg, #eb2f96, #f759ab)' },
+  {
+    text: 'var(--app-primary)',
+    bg: 'var(--app-primary-weak)',
+    gradient: 'linear-gradient(135deg, var(--app-primary), var(--app-primary-hover))',
+  },
+  {
+    text: 'var(--app-purple)',
+    bg: 'var(--app-purple-bg)',
+    gradient: 'linear-gradient(135deg, var(--app-purple), #9254de)',
+  },
+  {
+    text: 'var(--app-teal)',
+    bg: 'var(--app-teal-bg)',
+    gradient: 'linear-gradient(135deg, #13c2c2, #36cfc9)',
+  },
+  {
+    text: 'var(--app-success)',
+    bg: 'var(--app-success-bg)',
+    gradient: 'linear-gradient(135deg, var(--app-success), #73d13d)',
+  },
+  {
+    text: 'var(--app-warning)',
+    bg: 'var(--app-warning-bg)',
+    gradient: 'linear-gradient(135deg, var(--app-warning), #ffa940)',
+  },
+  {
+    text: 'var(--app-pink)',
+    bg: 'var(--app-pink-bg)',
+    gradient: 'linear-gradient(135deg, #eb2f96, #f759ab)',
+  },
 ]
 
 /** 分类名 → 配色（同名恒同色） */

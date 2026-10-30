@@ -61,4 +61,11 @@ describe('Login 语言切换', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))
     expect(await screen.findByText('Enter your phone number or email')).toBeInTheDocument()
   })
+
+  it('左侧品牌区展示卖点，右侧表单标题为欢迎回来', () => {
+    renderLogin()
+    expect(screen.getByText('欢迎回来')).toBeInTheDocument()
+    expect(screen.getByText('权限体系')).toBeInTheDocument()
+    expect(screen.getByText('响应式布局')).toBeInTheDocument()
+  })
 })

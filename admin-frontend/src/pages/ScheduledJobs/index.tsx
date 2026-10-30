@@ -193,7 +193,7 @@ export default function ScheduledJobsPage() {
       <div className="dash-header">
         <div>
           <Typography.Title level={4} style={{ margin: 0 }}>
-            <ClockCircleOutlined style={{ marginRight: 8, color: '#1677ff' }} />
+            <ClockCircleOutlined style={{ marginRight: 8, color: 'var(--app-primary)' }} />
             定时任务
           </Typography.Title>
           <div className="dash-header__sub">
@@ -289,16 +289,16 @@ export default function ScheduledJobsPage() {
         <div className={`sys-tile sys-tile--${data.summary.ok ? 'ok' : 'unknown'}`}>
           <div className="sys-tile__label">正常运行</div>
           <div className="sys-tile__value">
-            <CheckCircleFilled style={{ color: '#52c41a' }} />
-            <span style={{ color: '#52c41a' }}>{data.summary.ok}</span>
+            <CheckCircleFilled style={{ color: 'var(--app-success)' }} />
+            <span style={{ color: 'var(--app-success)' }}>{data.summary.ok}</span>
           </div>
           <div className="sys-tile__sub">上次执行成功且未超期</div>
         </div>
         <div className={`sys-tile sys-tile--${data.summary.failed ? 'fail' : 'ok'}`}>
           <div className="sys-tile__label">上次失败</div>
           <div className="sys-tile__value">
-            <ExclamationCircleFilled style={{ color: data.summary.failed ? '#ff4d4f' : '#d9d9d9' }} />
-            <span style={{ color: data.summary.failed ? '#ff4d4f' : 'rgba(0,0,0,0.45)' }}>
+            <ExclamationCircleFilled style={{ color: data.summary.failed ? 'var(--app-danger)' : '#d9d9d9' }} />
+            <span style={{ color: data.summary.failed ? 'var(--app-danger)' : 'rgba(0,0,0,0.45)' }}>
               {data.summary.failed}
             </span>
           </div>
@@ -307,8 +307,8 @@ export default function ScheduledJobsPage() {
         <div className={`sys-tile sys-tile--${data.summary.stale ? 'warn' : 'ok'}`}>
           <div className="sys-tile__label">未按时执行</div>
           <div className="sys-tile__value">
-            <SyncOutlined style={{ color: data.summary.stale ? '#faad14' : '#d9d9d9' }} />
-            <span style={{ color: data.summary.stale ? '#faad14' : 'rgba(0,0,0,0.45)' }}>
+            <SyncOutlined style={{ color: data.summary.stale ? 'var(--app-warning)' : '#d9d9d9' }} />
+            <span style={{ color: data.summary.stale ? 'var(--app-warning)' : 'rgba(0,0,0,0.45)' }}>
               {data.summary.stale}
             </span>
           </div>
@@ -317,8 +317,8 @@ export default function ScheduledJobsPage() {
         <div className={`sys-tile sys-tile--${data.summary.never ? 'warn' : 'ok'}`}>
           <div className="sys-tile__label">从未执行</div>
           <div className="sys-tile__value">
-            <MinusCircleFilled style={{ color: data.summary.never ? '#faad14' : '#d9d9d9' }} />
-            <span style={{ color: data.summary.never ? '#faad14' : 'rgba(0,0,0,0.45)' }}>
+            <MinusCircleFilled style={{ color: data.summary.never ? 'var(--app-warning)' : '#d9d9d9' }} />
+            <span style={{ color: data.summary.never ? 'var(--app-warning)' : 'rgba(0,0,0,0.45)' }}>
               {data.summary.never}
             </span>
           </div>
@@ -352,7 +352,7 @@ export default function ScheduledJobsPage() {
       {!loading && !failed && groups.length === 0 ? (
         <Card className="dash-card" variant="outlined">
           <div className="sys-empty">
-            <CheckCircleFilled style={{ color: '#52c41a', marginRight: 6 }} />
+            <CheckCircleFilled style={{ color: 'var(--app-success)', marginRight: 6 }} />
             {filter === 'bad' ? '没有异常任务，全部按周期正常执行' : '没有任何任务'}
           </div>
         </Card>
@@ -503,7 +503,7 @@ function Banner({
   description?: ReactNode
   action?: ReactNode
 }) {
-  const color = tone === 'error' ? '#ff4d4f' : tone === 'warning' ? '#faad14' : '#1677ff'
+  const color = tone === 'error' ? 'var(--app-danger)' : tone === 'warning' ? 'var(--app-warning)' : 'var(--app-primary)'
   const Icon = tone === 'error' ? CloseCircleFilled : tone === 'warning' ? ExclamationCircleFilled : InfoCircleFilled
   return (
     <div className="jobs-banner" style={{ borderLeftColor: color }}>
@@ -582,7 +582,7 @@ function JobRow({
             <span>{formatAge(job.lastAgeSeconds)}</span>
           </Tooltip>
         ) : (
-          <span style={{ color: '#bfbfbf' }}>无记录</span>
+          <span style={{ color: 'var(--app-text-4)' }}>无记录</span>
         )}
         <div className="jobs-cell__sub">{formatCst(job.lastRunAt)}</div>
       </div>
@@ -591,11 +591,11 @@ function JobRow({
         <span className="jobs-cell__k">下次执行</span>
         {job.enabled ? (
           <>
-            <span style={{ color: healthy ? undefined : '#8c8c8c' }}>{formatCst(job.nextRunAt)}</span>
+            <span style={{ color: healthy ? undefined : 'var(--app-text-3)' }}>{formatCst(job.nextRunAt)}</span>
             <div className="jobs-cell__sub">预计</div>
           </>
         ) : (
-          <span style={{ color: '#bfbfbf' }}>已停用</span>
+          <span style={{ color: 'var(--app-text-4)' }}>已停用</span>
         )}
       </div>
 
@@ -606,7 +606,7 @@ function JobRow({
             <span className="jobs-ellipsis">{resultText}</span>
           </Tooltip>
         ) : (
-          <span style={{ color: '#bfbfbf' }}>—</span>
+          <span style={{ color: 'var(--app-text-4)' }}>—</span>
         )}
       </div>
 

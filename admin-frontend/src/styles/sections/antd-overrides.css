@@ -1,0 +1,87 @@
+/* antd 组件视觉对齐 gi-demo：卡头橙条、扁平卡、表格密度、实心分页。
+ * 加载顺序见 ../custom.css（theme-dark 之后、responsive 之前）。
+ * antd 6 样式是运行时注入，这里统一用双类名提高特异性。 */
+
+.ant-card.ant-card {
+  border-color: var(--app-border-light);
+  box-shadow: none;
+}
+
+.ant-card .ant-card-head {
+  min-height: 44px;
+  padding: 0 16px;
+  border-bottom: none;
+}
+
+.ant-card .ant-card-head .ant-card-head-title {
+  position: relative;
+  padding-left: 12px;
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--app-text);
+}
+
+.ant-card .ant-card-head .ant-card-head-title::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 16px;
+  content: '';
+  background: var(--app-accent);
+  border-radius: 0 var(--app-radius) var(--app-radius) 0;
+  transform: translateY(-50%);
+}
+
+.ant-table-wrapper .ant-table-thead > tr > th {
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--app-border-light);
+}
+
+.ant-table-wrapper .ant-table-tbody > tr > td {
+  border-bottom: 1px solid var(--app-border-light);
+}
+
+.ant-table-wrapper .ant-table-tbody > tr.ant-table-row:hover > td {
+  background: var(--app-table-hover);
+}
+
+.ant-pagination .ant-pagination-item {
+  border-radius: var(--app-radius);
+}
+
+.ant-pagination .ant-pagination-item-active {
+  background: var(--app-primary);
+  border-color: var(--app-primary);
+}
+
+.ant-pagination .ant-pagination-item-active a {
+  color: #fff;
+}
+
+.ant-menu-light .ant-menu-item-selected {
+  font-weight: 500;
+}
+
+.ant-menu-light .ant-menu-item-group-title {
+  font-size: 12px;
+  color: var(--app-text-3);
+}
+
+.ant-tabs .ant-tabs-tab.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--app-primary);
+}
+
+.ant-modal .ant-modal-content {
+  border-radius: var(--app-radius-lg);
+}
+
+.ant-drawer .ant-drawer-header {
+  min-height: 56px;
+  padding: 0 16px;
+}
+
+.ant-tag.ant-tag {
+  border-radius: var(--app-radius);
+}

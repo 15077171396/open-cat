@@ -4,44 +4,43 @@ import type { ThemeConfig } from 'antd'
 /**
  * 管理端主题 token（设计规范见 docs/07-开源文档/06-UI设计规范.md）。
  *
- * 结构取自参考项目 `design/UI-GUIDELINES.md` 的硬性纪律：
- *   卡片间距 16 / 卡片圆角 12 / 控件圆角 8 / 页面内边距 16 / 顶栏 56 /
- *   表格行高 40、表头 44、无竖分隔线。
+ * 视觉基线：gi-demo（Gi Admin Pro）—— 蓝 #165DFF + 橙 #FF9A2E 点缀、
+ * 4px 小圆角、浅灰画布 #F5F7FD、白色页面卡、无卡片阴影。
  * 颜色与形状集中在这里，**页面里不要再写死十六进制与像素**。
  *
  * 可读性红线（改造时不要回退）：
- *   此前没有 ConfigProvider，直接用 antd 默认 token：`colorTextSecondary`
- *   等为 `rgba(0,0,0,0.45)`，白底 **3.35:1**，低于 WCAG AA 的 4.5:1。
- *   后台大量用 `Typography.Text type="secondary"` 写字段说明、时间、计数，
- *   长时间盯着看更吃力，所以这里一并压深。
- *   `colorError` 用 red-7（#cf1322，白底 5.5:1）而非 red-5（#ff4d4f，3.27:1），
- *   否则删除类按钮的文字读不清。
- *   `colorTextDisabled` 刻意不压深：WCAG 1.4.3 豁免非活动控件。
+ *   `colorTextSecondary` 保持 #5C5C5C（白底约 6.5:1），不许回到 antd 默认的
+ *   rgba(0,0,0,.45)（3.35:1，低于 WCAG AA）。
+ *   `colorError` 用 #CF1322（白底 5.5:1）而非 gi-demo 的 #F53F3F（3.7:1）。
+ *   橙色 #FF9A2E 只做装饰（卡片标题竖条），不承担状态文字。
  */
 
-/**
- * 品牌色。参考项目用 #4F6BFF，白底作按钮底色时白字只有 **4.24:1**（AA 正文要求 4.5:1），
- * 这里下调到 #4263EB（**4.94:1**）——观感几乎一致，但实心按钮的文字达到 AA。
- * 想完全用同款色，把 primary 改回 '#4F6BFF' 即可，其余 token 不必动。
- */
+/** 品牌色：主色白字对比度 5.15:1，达 WCAG AA */
 export const BRAND = {
-  primary: '#4263EB',
-  primaryHover: '#5B6CFF',
-  gradient: 'linear-gradient(135deg, #4263EB 0%, #6D5BFF 100%)',
+  primary: '#165DFF',
+  primaryHover: '#4080FF',
+  primaryActive: '#0E42D2',
+  primaryWeak: '#E8F3FF',
+  accent: '#FF9A2E',
+  gradient: 'linear-gradient(135deg, #165DFF 0%, #0E42D2 100%)',
 } as const
 
-/** 画布与卡片：层次靠色差而非阴影，避免满屏卡片阴影导致的"脏" */
+/** 画布与卡片：层次靠色差而非阴影，卡片一律无阴影 */
 export const SURFACE = {
   /** 页面画布 */
-  canvas: '#F5F6F8',
+  canvas: '#F5F7FD',
   /** 卡片底色 */
   card: '#FFFFFF',
   /** 分隔线与侧栏描边 */
-  border: '#E6E8EC',
+  border: '#E5E6EB',
+  /** 卡片、表格分隔线 */
+  borderLight: '#EBEEF5',
   /** 表头等次级填充 */
-  subtle: '#FAFBFC',
+  subtle: '#FAFAFA',
+  /** hover / 中性标签填充 */
+  fill: '#F2F3F5',
   /** 菜单选中底 */
-  selected: '#EEF1FF',
+  selected: '#F2F3F5',
 } as const
 
 export const themeConfig: ThemeConfig = {
@@ -51,21 +50,25 @@ export const themeConfig: ThemeConfig = {
     colorSuccess: '#16A34A',
     colorWarning: '#D97706',
     colorError: '#CF1322',
-    colorLink: '#0958D9',
+    colorLink: BRAND.primary,
 
-    colorText: '#1F2329',
-    colorTextSecondary: '#595959',
-    colorTextTertiary: '#6B6B6B',
-    colorTextDescription: '#6B6B6B',
+    colorText: '#121314',
+    colorTextSecondary: '#5C5C5C',
+    colorTextTertiary: '#909399',
+    colorTextDescription: '#5C5C5C',
+    colorTextDisabled: '#C2C2C2',
 
     colorBgLayout: SURFACE.canvas,
     colorBgContainer: SURFACE.card,
+    colorBgElevated: SURFACE.card,
+    colorBorder: '#DCDFE6',
     colorBorderSecondary: SURFACE.border,
+    boxShadowTertiary: 'none',
 
-    // 形状：卡片 12 / 控件 8 / 小标签 6
-    borderRadius: 8,
-    borderRadiusLG: 12,
-    borderRadiusSM: 6,
+    // 形状：卡片/控件/标签 4，弹窗/浮层 8
+    borderRadius: 4,
+    borderRadiusLG: 8,
+    borderRadiusSM: 4,
     controlHeight: 32,
     controlHeightLG: 40,
     controlHeightSM: 24,
@@ -77,35 +80,57 @@ export const themeConfig: ThemeConfig = {
       headerHeight: 56,
       headerPadding: '0 16px',
       bodyBg: SURFACE.canvas,
+      headerBg: SURFACE.card,
+      siderBg: SURFACE.card,
     },
     Menu: {
-      // 选中文字单独压深：`colorPrimary` 压在浅色选中底上对比度不足
-      itemSelectedColor: '#0958D9',
-      itemSelectedBg: SURFACE.selected,
-      itemBorderRadius: 8,
+      itemSelectedColor: BRAND.primary,
+      itemSelectedBg: SURFACE.fill,
+      itemHoverBg: SURFACE.fill,
+      itemBorderRadius: 4,
       itemHeight: 40,
       itemMarginInline: 8,
+      itemMarginBlock: 2,
+      collapsedWidth: 80,
+      iconSize: 16,
+      groupTitleColor: '#5C5C5C',
+      groupTitleFontSize: 12,
     },
     Table: {
       headerBg: SURFACE.subtle,
+      headerColor: '#5C5C5C',
       headerSplitColor: 'transparent',
-      rowHoverBg: '#F7F9FF',
-      cellPaddingBlock: 10,
-      borderColor: '#F0F1F3',
+      rowHoverBg: '#F7F9FC',
+      cellPaddingBlock: 12,
+      borderColor: SURFACE.borderLight,
     },
-    Card: { paddingLG: 16, borderRadiusLG: 12 },
+    Card: { paddingLG: 16, borderRadiusLG: 4, headerHeight: 44, headerFontSize: 16 },
     Button: { primaryShadow: 'none', defaultShadow: 'none' },
-    Modal: { borderRadiusLG: 12 },
+    Modal: { borderRadiusLG: 8, titleFontSize: 16 },
+    Tabs: {
+      itemSelectedColor: BRAND.primary,
+      inkBarColor: BRAND.primary,
+      titleFontSize: 13,
+      horizontalItemPadding: '8px 12px',
+    },
+    Pagination: { itemActiveBg: BRAND.primary, itemSize: 28 },
+    Input: {
+      activeBorderColor: BRAND.primary,
+      hoverBorderColor: BRAND.primaryHover,
+      activeShadow: '0 0 0 2px rgba(22, 93, 255, 0.12)',
+    },
+    Tag: { defaultBg: SURFACE.fill, defaultColor: '#5C5C5C' },
   },
 }
-
 
 /** 暗色表面：与 tokens.css 的 [data-theme='dark'] 一一对应 */
 export const SURFACE_DARK = {
   canvas: '#0F1115',
   card: '#161A21',
   border: '#262B35',
+  borderLight: '#20252E',
   subtle: '#1B2029',
+  fill: '#21262F',
   selected: '#1E2A54',
 } as const
 
@@ -116,8 +141,8 @@ export const SURFACE_DARK = {
 const darkThemeConfig: ThemeConfig = {
   algorithm: antdTheme.darkAlgorithm,
   token: {
-    colorPrimary: BRAND.primary,
-    colorInfo: BRAND.primary,
+    colorPrimary: '#4080FF',
+    colorInfo: '#4080FF',
     colorSuccess: '#3FB950',
     colorWarning: '#D29922',
     colorError: '#F85149',
@@ -126,12 +151,24 @@ const darkThemeConfig: ThemeConfig = {
     colorText: '#E6E9EF',
     colorTextSecondary: '#A6ADBB',
     colorTextTertiary: '#8B93A1',
-    colorTextDescription: '#8B93A1',
+    colorTextDescription: '#A6ADBB',
+    colorTextDisabled: '#5F6672',
 
     colorBgLayout: SURFACE_DARK.canvas,
     colorBgContainer: SURFACE_DARK.card,
     colorBgElevated: '#1B2029',
+    colorBorder: '#3A4250',
     colorBorderSecondary: SURFACE_DARK.border,
+    boxShadowTertiary: 'none',
+
+    borderRadius: 4,
+    borderRadiusLG: 8,
+    borderRadiusSM: 4,
+    controlHeight: 32,
+    controlHeightLG: 40,
+    controlHeightSM: 24,
+
+    fontSize: 14,
   },
   components: {
     Layout: {
@@ -142,27 +179,47 @@ const darkThemeConfig: ThemeConfig = {
       siderBg: SURFACE_DARK.card,
     },
     Menu: {
-      itemSelectedColor: '#9DB4FF',
+      itemSelectedColor: '#6AA1FF',
       itemSelectedBg: SURFACE_DARK.selected,
-      itemBorderRadius: 8,
+      itemHoverBg: SURFACE_DARK.fill,
+      itemBorderRadius: 4,
       itemHeight: 40,
       itemMarginInline: 8,
+      itemMarginBlock: 2,
+      collapsedWidth: 80,
+      iconSize: 16,
+      groupTitleColor: '#8B93A1',
+      groupTitleFontSize: 12,
     },
     Table: {
       headerBg: SURFACE_DARK.subtle,
+      headerColor: '#A6ADBB',
       headerSplitColor: 'transparent',
-      rowHoverBg: '#1C2230',
-      cellPaddingBlock: 10,
-      borderColor: SURFACE_DARK.border,
+      rowHoverBg: SURFACE_DARK.fill,
+      cellPaddingBlock: 12,
+      borderColor: SURFACE_DARK.borderLight,
     },
-    Card: { paddingLG: 16, borderRadiusLG: 12 },
+    Card: { paddingLG: 16, borderRadiusLG: 4, headerHeight: 44, headerFontSize: 16 },
     Button: { primaryShadow: 'none', defaultShadow: 'none' },
-    Modal: { borderRadiusLG: 12 },
+    Modal: { borderRadiusLG: 8, titleFontSize: 16 },
+    Tabs: {
+      itemSelectedColor: '#6AA1FF',
+      inkBarColor: '#4080FF',
+      titleFontSize: 13,
+      horizontalItemPadding: '8px 12px',
+    },
+    Pagination: { itemActiveBg: '#4080FF', itemSize: 28 },
+    Input: {
+      activeBorderColor: '#4080FF',
+      hoverBorderColor: '#6AA1FF',
+      activeShadow: '0 0 0 2px rgba(64, 128, 255, 0.18)',
+    },
+    Tag: { defaultBg: SURFACE_DARK.fill, defaultColor: '#A6ADBB' },
   },
 }
 
 /**
- * 按模式取主题：亮色沿用原配置（**不改动**，避免视觉回归），暗色只覆盖必要 token。
+ * 按模式取主题：亮色用 gi-demo 基线，暗色只覆盖必要 token。
  * 调用方传入 `resolveMode()` 的结果（'light' | 'dark'）。
  */
 export function getThemeConfig(mode: 'light' | 'dark'): ThemeConfig {

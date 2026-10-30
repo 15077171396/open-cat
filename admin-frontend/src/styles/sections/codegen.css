@@ -37,7 +37,7 @@
   padding: 8px 10px;
   border: none;
   border-inline-start: 3px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--app-radius);
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -140,7 +140,7 @@
   max-height: 540px;
   overflow: auto;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   background: var(--app-subtle);
   color: var(--app-text);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;

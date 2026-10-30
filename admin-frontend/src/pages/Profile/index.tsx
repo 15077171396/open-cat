@@ -255,7 +255,7 @@ function AccountTab() {
             // 有头像时用中性浅底：品牌紫只服务于「无头像时的首字母兜底」，
             // 否则会透过透明 PNG 露出来（图标类头像多为透明底，会染成一块紫底）。
             background: profile?.avatar_url ? '#f5f7fa' : '#4f46e5',
-            border: profile?.avatar_url ? '1px solid #f0f0f0' : 'none',
+            border: profile?.avatar_url ? '1px solid var(--app-border-light)' : 'none',
             fontSize: 28,
           }}
         >

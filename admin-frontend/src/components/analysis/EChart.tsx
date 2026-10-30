@@ -34,16 +34,22 @@ export default function EChart({ option, height = 260, ariaLabel, className }: E
     })
     chartRef.current = chart
 
-    const resize = () => chart.resize()
+    const resize = () => {
+      const width = el.clientWidth
+      if (width > 0) chart.resize({ width, height })
+    }
+    // 首帧布局可能还没稳定（移动端尤其明显）：下一帧按真实容器宽度重算一次
+    const frame = window.requestAnimationFrame(resize)
     let observer: ResizeObserver | undefined
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', resize)
-    } else {
+    if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(resize)
       observer.observe(el)
     }
+    // 窗口尺寸变化始终兜底：ResizeObserver 在部分嵌入环境里不会触发
+    window.addEventListener('resize', resize)
 
     return () => {
+      window.cancelAnimationFrame(frame)
       observer?.disconnect()
       window.removeEventListener('resize', resize)
       chart.dispose()

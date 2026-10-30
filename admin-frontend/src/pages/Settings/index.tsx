@@ -65,7 +65,7 @@ export default function SettingsPage() {
                   />
                 ))
               ) : (
-                <span style={{ color: '#8c8c8c' }}>没有可显示的设置项。</span>
+                <span style={{ color: 'var(--app-text-3)' }}>没有可显示的设置项。</span>
               )}
             </SettingsPanel>
           </div>

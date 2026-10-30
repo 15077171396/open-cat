@@ -153,9 +153,9 @@ interface ProbeResult {
 
 /** 供应商色点：只用于视觉区分，不参与业务判断 */
 const PROVIDER_COLORS: Record<string, string> = {
-  deepseek: '#1677ff',
-  openai: '#52c41a',
-  qwen: '#722ed1',
+  deepseek: 'var(--app-primary)',
+  openai: 'var(--app-success)',
+  qwen: 'var(--app-purple)',
 }
 
 function priceLabel(row: AiModelRow): string {
@@ -745,7 +745,7 @@ export default function AiModelsPage() {
                 >
                   <span
                     className="ai-models-provider__dot"
-                    style={{ background: PROVIDER_COLORS[provider.name] || '#8c8c8c' }}
+                    style={{ background: PROVIDER_COLORS[provider.name] || 'var(--app-text-3)' }}
                   />
                   <span className="ai-models-provider__main">
                     <span className="ai-models-provider__name">{provider.display_name}</span>

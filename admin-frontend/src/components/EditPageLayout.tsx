@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Button, Card, Spin, Typography } from 'antd'
-import { ArrowLeftOutlined, SaveOutlined } from '@ant-design/icons'
+import { Button, Card, Spin } from 'antd'
+import { ArrowLeftOutlined, EditOutlined, SaveOutlined } from '@ant-design/icons'
+import PageHeader from './ui/PageHeader'
 
 interface EditPageLayoutProps {
   /** 页面标题，如 "编辑教程" / "新建教程" */
@@ -21,7 +22,7 @@ interface EditPageLayoutProps {
   children: ReactNode
 }
 
-/** 编辑页通用布局：返回按钮 + 卡片（标题 + 内容）+ 底部操作栏（取消/保存），各 Edit 页共用 */
+/** 编辑页通用布局：页头（返回）+ 卡片（表单 + 底部操作栏），各 Edit 页共用 */
 export default function EditPageLayout({
   title,
   backLabel,
@@ -34,22 +35,28 @@ export default function EditPageLayout({
 }: EditPageLayoutProps) {
   return (
     <div>
-      <Button
-        type="link"
-        icon={<ArrowLeftOutlined />}
-        onClick={onCancel}
-        style={{ marginBottom: 16, padding: 0 }}
-      >
-        {backLabel}
-      </Button>
+      <PageHeader
+        icon={<EditOutlined />}
+        title={title}
+        actions={
+          <Button icon={<ArrowLeftOutlined />} onClick={onCancel}>
+            {backLabel}
+          </Button>
+        }
+      />
 
       <Spin spinning={loading} size="large">
         <Card>
-          <Typography.Title level={4} style={{ marginTop: 0, marginBottom: 24 }}>
-            {title}
-          </Typography.Title>
           {children}
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, paddingTop: 16, borderTop: '1px solid #f1f5f9' }}>
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'flex-end',
+              gap: 12,
+              paddingTop: 16,
+              borderTop: '1px solid var(--app-border-light)',
+            }}
+          >
             <Button onClick={onCancel}>取消</Button>
             <Button type="primary" icon={<SaveOutlined />} loading={saving} onClick={onSave}>
               {saveText}

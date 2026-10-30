@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  collectMenuLabels,
   externalLeafKeys,
   filterMenuTree,
   groupMenuKey,
@@ -180,5 +181,15 @@ describe('nextOpenKeys（手风琴：同时只展开一个分组）', () => {
 
   it('空输入安全', () => {
     expect(nextOpenKeys([], [])).toEqual([])
+  })
+})
+
+describe('collectMenuLabels', () => {
+  it('把菜单叶子 key 映射到当前语言标题', () => {
+    const labels = collectMenuLabels(TREE)
+    expect(labels.get('/tutorials')).toBe('教程管理')
+    expect(labels.get('/')).toBe('数据看板')
+    expect(labels.get('/profile')).toBe('个人中心')
+    expect(labels.get('/not-exist')).toBeUndefined()
   })
 })

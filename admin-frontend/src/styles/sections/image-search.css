@@ -4,7 +4,7 @@
   padding: 0;
   overflow: hidden;
   border: 1px solid var(--app-tint-border);
-  border-radius: 16px;
+  border-radius: var(--app-radius);
   box-shadow: 0 24px 64px rgba(15, 45, 80, 0.18);
 }
 
@@ -75,8 +75,8 @@
 }
 
 .image-search-toolbar .ant-input-affix-wrapper-focused {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 2px rgba(22, 93, 255, 0.12);
 }
 
 .image-search-toolbar__row {
@@ -147,7 +147,7 @@
   padding: 1px 7px;
   border-radius: 999px;
   background: var(--app-tint);
-  color: #2563eb;
+  color: var(--app-primary);
   font-size: 11px;
 }
 
@@ -182,7 +182,7 @@
   flex-wrap: wrap;
   padding: 6px 10px;
   border: 1px dashed var(--app-tint-border);
-  border-radius: 8px;
+  border-radius: var(--app-radius);
   background: var(--app-tint-soft);
   color: var(--app-text-2);
   font-size: 12px;
@@ -215,7 +215,7 @@
   padding: 0;
   overflow: hidden;
   border: 2px solid transparent;
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   background: var(--app-tint);
   cursor: pointer;
   font: inherit;
@@ -235,13 +235,13 @@
 }
 
 .image-search-card:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--app-primary);
   outline-offset: 2px;
 }
 
 .image-search-card.is-selected {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 3px rgba(22, 93, 255, 0.15);
 }
 
 .image-search-card__meta {
@@ -286,7 +286,7 @@
 .image-search-skeleton {
   display: block;
   aspect-ratio: 4 / 3;
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   background: linear-gradient(90deg, var(--app-tint), var(--app-tint-soft), var(--app-tint));
   background-size: 200% 100%;
   animation: image-search-shimmer 1.2s infinite;
@@ -337,7 +337,7 @@
   justify-content: center;
   aspect-ratio: 4 / 3;
   overflow: hidden;
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   background: var(--app-tint);
 }
 
@@ -363,12 +363,12 @@
 }
 
 .image-search-preview__source {
-  color: #2563eb;
+  color: var(--app-primary);
   font-weight: 600;
 }
 
 .image-search-preview__origin {
-  color: #2563eb;
+  color: var(--app-primary);
   font-size: 12px;
 }
 
@@ -383,7 +383,7 @@
 .image-search-preview__credit {
   padding: 6px 8px;
   border: 1px dashed var(--app-tint-border);
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   background: var(--app-tint);
   color: var(--app-text-2);
   font-size: 11px;
@@ -391,7 +391,7 @@
 
 .image-search-preview__error {
   padding: 6px 8px;
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   background: var(--app-danger-bg);
   color: var(--app-danger);
   font-size: 12px;

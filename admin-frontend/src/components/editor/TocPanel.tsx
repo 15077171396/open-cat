@@ -33,7 +33,7 @@ export default function TocPanel({ items, onSelect }: TocPanelProps) {
       ) : (
         <div
           style={{
-            color: '#bfbfbf',
+            color: 'var(--app-text-4)',
             fontSize: 12,
             textAlign: 'center',
             padding: '24px 8px',

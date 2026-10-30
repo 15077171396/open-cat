@@ -15,9 +15,9 @@
 [data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-volcano { color: #ff9c6e !important; }
 [data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-green,
 [data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-success,
-[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-lime { color: #73d13d !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-lime { color: var(--app-success) !important; }
 [data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-red,
-[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-error { color: #ff7875 !important; }
+[data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-error { color: var(--app-danger) !important; }
 [data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-magenta { color: #ff85c0 !important; }
 [data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-purple { color: #b37feb !important; }
 [data-theme='dark'] .ant-tag.ant-tag-filled.ant-tag-geekblue,
@@ -28,8 +28,8 @@
 /* ---- 数据看板装饰：浅底已压暗，深色文字提亮 ---- */
 [data-theme='dark'] .dash-metric__icon--cyan { color: #5ad1e6; }
 [data-theme='dark'] .dash-metric__icon--geekblue { color: #85a5ff; }
-[data-theme='dark'] .dash-metric__icon--green { color: #73d13d; }
+[data-theme='dark'] .dash-metric__icon--green { color: var(--app-success); }
 [data-theme='dark'] .dash-metric__icon--orange { color: #ffa940; }
-[data-theme='dark'] .dash-metric__icon--red { color: #ff7875; }
+[data-theme='dark'] .dash-metric__icon--red { color: var(--app-danger); }
 [data-theme='dark'] .dash-bars__rank--1 { color: #e3b341; }
 [data-theme='dark'] .dash-bars__rank--3 { color: #ff9c6e; }

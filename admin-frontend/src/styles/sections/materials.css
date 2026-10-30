@@ -51,8 +51,8 @@
 }
 
 .mat-chip.is-active {
-  border-color: #2563eb;
-  background: #2563eb;
+  border-color: var(--app-primary);
+  background: var(--app-primary);
   color: #fff;
 }
 
@@ -88,7 +88,7 @@
   margin-bottom: 16px;
   padding: 10px 12px;
   border: 1px solid var(--app-tint-border);
-  border-radius: 12px;
+  border-radius: var(--app-radius);
   background: var(--app-card);
 }
 
@@ -123,15 +123,13 @@
   flex-direction: column;
   overflow: hidden;
   border: 1px solid var(--app-tint-border);
-  border-radius: 14px;
+  border-radius: var(--app-radius);
   background: var(--app-card);
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+  transition: border-color 0.18s ease;
 }
 
 .mat-card:hover {
-  border-color: var(--app-tint-border);
-  box-shadow: 0 10px 26px rgba(15, 45, 80, 0.1);
-  transform: translateY(-2px);
+  border-color: var(--app-primary-border);
 }
 
 /* 缩略图容器：方形，各种比例的图都靠 cover 裁齐，避免网格参差 */
@@ -166,7 +164,7 @@
 }
 
 .mat-card__preview:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid var(--app-primary);
   outline-offset: -2px;
 }
 
@@ -182,7 +180,7 @@
 }
 
 .mat-card__file-icon {
-  color: #2563eb;
+  color: var(--app-primary);
   font-size: 34px;
 }
 
@@ -199,7 +197,7 @@
   top: 10px;
   left: 10px;
   padding: 3px 8px;
-  border-radius: 7px;
+  border-radius: var(--app-radius);
   background: rgba(15, 39, 68, 0.68);
   color: #fff;
   font-size: 11px;
@@ -277,7 +275,7 @@
 }
 
 .mat-card__source {
-  color: #2563eb;
+  color: var(--app-primary);
   font-weight: 500;
 }
 
@@ -311,7 +309,7 @@
   gap: 8px;
   padding: 64px 24px;
   border: 1px dashed var(--app-tint-border);
-  border-radius: 14px;
+  border-radius: var(--app-radius);
   background: var(--app-card);
   text-align: center;
 }
@@ -323,9 +321,9 @@
   width: 56px;
   height: 56px;
   margin-bottom: 4px;
-  border-radius: 16px;
+  border-radius: var(--app-radius);
   background: var(--app-tint);
-  color: #2563eb;
+  color: var(--app-primary);
   font-size: 24px;
 }
 
@@ -373,7 +371,7 @@
   min-height: 300px;
   max-height: 60vh;
   overflow: hidden;
-  border-radius: 12px;
+  border-radius: var(--app-radius);
   background:
     repeating-conic-gradient(var(--app-tint-soft) 0% 25%, var(--app-tint) 0% 50%) 50% / 18px 18px;
 }
@@ -405,7 +403,7 @@
 }
 
 .mat-preview__file-icon {
-  color: #2563eb;
+  color: var(--app-primary);
   font-size: 44px;
 }
 
@@ -421,7 +419,7 @@
   gap: 0;
   margin: 0;
   border: 1px solid var(--app-tint-border);
-  border-radius: 12px;
+  border-radius: var(--app-radius);
   overflow: hidden;
 }
 

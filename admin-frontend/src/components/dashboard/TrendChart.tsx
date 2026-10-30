@@ -158,7 +158,7 @@ function TrendChartInner({
                     y1={y}
                     x2={width - CHART_PADDING.right}
                     y2={y}
-                    stroke="#f0f0f0"
+                    stroke="var(--app-border-light)"
                     strokeWidth={1}
                   />
                   <text
@@ -167,7 +167,7 @@ function TrendChartInner({
                     textAnchor="end"
                     dominantBaseline="middle"
                     fontSize={12}
-                    fill="#bfbfbf"
+                    fill="var(--app-text-4)"
                   >
                     {tick}
                   </text>
@@ -207,7 +207,7 @@ function TrendChartInner({
                 cx={p.x}
                 cy={p.y}
                 r={hover === p.index ? 5 : 3.5}
-                fill="#fff"
+                fill="var(--app-card)"
                 stroke={color}
                 strokeWidth={2}
               />
@@ -222,7 +222,7 @@ function TrendChartInner({
                   y={base + 20}
                   textAnchor="middle"
                   fontSize={12}
-                  fill="#8c8c8c"
+                  fill="var(--app-text-3)"
                 >
                   {shortDate(data[p.index]?.date ?? '')}
                 </text>

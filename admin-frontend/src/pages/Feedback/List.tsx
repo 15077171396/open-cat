@@ -197,7 +197,7 @@ export default function FeedbackList() {
                     src={url}
                     width={44}
                     height={44}
-                    style={{ objectFit: 'cover', borderRadius: 6 }}
+                    style={{ objectFit: 'cover', borderRadius: "var(--app-radius)" }}
                     alt="反馈截图"
                   />
                 ))}
@@ -416,7 +416,7 @@ export default function FeedbackList() {
                     src={url}
                     width={96}
                     height={96}
-                    style={{ objectFit: 'cover', borderRadius: 8 }}
+                    style={{ objectFit: 'cover', borderRadius: "var(--app-radius)" }}
                     alt="反馈截图"
                   />
                 ))}

@@ -497,7 +497,7 @@ export default function CategoriesList() {
               placeholder="搜索分类名称"
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              prefix={<SearchOutlined style={{ color: '#bfbfbf' }} />}
+              prefix={<SearchOutlined style={{ color: 'var(--app-text-4)' }} />}
               style={{ width: 200 }}
               allowClear
             />
@@ -553,7 +553,7 @@ export default function CategoriesList() {
             variant="outlined"
             title={
               <span>
-                <FolderOutlined style={{ marginRight: 6, color: '#8c8c8c' }} />
+                <FolderOutlined style={{ marginRight: 6, color: 'var(--app-text-3)' }} />
                 分组
               </span>
             }
@@ -591,7 +591,7 @@ export default function CategoriesList() {
                       cursor: 'pointer',
                       padding: '8px 16px',
                       background: active ? 'rgba(66, 99, 235, 0.08)' : undefined,
-                      borderInlineStart: active ? '3px solid #4263EB' : '3px solid transparent',
+                      borderInlineStart: active ? '3px solid var(--app-primary)' : '3px solid transparent',
                     }}
                     extra={
                       group ? (

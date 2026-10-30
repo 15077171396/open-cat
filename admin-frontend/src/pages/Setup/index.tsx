@@ -87,7 +87,7 @@ export default function Setup() {
         padding: 24,
       }}
     >
-      <Card style={{ maxWidth: 440, width: '100%', borderRadius: 16 }}>{children}</Card>
+      <Card style={{ maxWidth: 440, width: '100%', borderRadius: "var(--app-radius-lg)" }}>{children}</Card>
     </div>
   )
 

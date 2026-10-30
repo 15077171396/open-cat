@@ -14,7 +14,7 @@
   max-height: 200px;
   overflow-y: auto;
   border: 1px solid var(--app-border);
-  border-radius: 8px;
+  border-radius: var(--app-radius);
   background: var(--app-subtle);
   font-size: 14px;
   line-height: 1.8;

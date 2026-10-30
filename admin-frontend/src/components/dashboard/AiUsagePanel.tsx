@@ -14,9 +14,9 @@ import type { QuotaTone } from './dashboardUtils'
 import TrendChart from './TrendChart'
 
 /** AI 板块主色（与看板里 AI 相关的标签、折线保持一致） */
-const AI_ACCENT = '#722ed1'
+const AI_ACCENT = 'var(--app-purple)'
 /** tokens 构成双色：输入用蓝、输出用青，和折线的紫区分开（后台是浅色主题） */
-const TOKEN_INPUT_COLOR = '#1677ff'
+const TOKEN_INPUT_COLOR = 'var(--app-primary)'
 const TOKEN_OUTPUT_COLOR = '#36cfc9'
 
 const cardTitleStyle = { fontSize: 15, fontWeight: 600 } as const
@@ -275,7 +275,7 @@ export default function AiUsagePanel({
       variant="outlined"
       title={
         <span style={cardTitleStyle}>
-          <RobotOutlined style={{ marginRight: 8, color: '#8c8c8c' }} />
+          <RobotOutlined style={{ marginRight: 8, color: 'var(--app-text-3)' }} />
           AI 用量与成本护栏
         </span>
       }
@@ -363,7 +363,7 @@ export default function AiUsagePanel({
                 className="ai-guard__cost-value"
                 style={
                   data.today.image_cost === null
-                    ? { fontSize: 13, color: '#8c8c8c', fontWeight: 400 }
+                    ? { fontSize: 13, color: 'var(--app-text-3)', fontWeight: 400 }
                     : undefined
                 }
               >

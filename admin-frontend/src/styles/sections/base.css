@@ -12,8 +12,9 @@ body {
        直到连接超时（控制台报 ERR_CONNECTION_CLOSED），是「后台打开很慢」的根因。
      'Noto Sans SC' / 'Source Han Sans SC' 保留在**靠后**的位置作兜底：
      本机已装该字体的机器仍会用到，没装的直接落到 sans-serif，不影响任何布局。 */
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans SC', 'Noto Sans CJK SC', sans-serif;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', 'Source Han Sans SC', 'Noto Sans SC', 'Noto Sans CJK SC',
+    sans-serif;
   background: var(--app-canvas);
 }
 
@@ -53,7 +54,7 @@ body {
   width: 32px;
   height: 32px;
   border: 3px solid var(--app-border);
-  border-top-color: #1677ff;
+  border-top-color: var(--app-primary);
   border-radius: 50%;
   animation: page-spin 0.8s linear infinite;
 }
@@ -97,13 +98,13 @@ body {
   padding: 6px 20px;
   font-size: 14px;
   color: #fff;
-  background: #1677ff;
+  background: var(--app-primary);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   cursor: pointer;
 }
 
 .error-boundary-retry:hover {
-  background: #4096ff;
+  background: var(--app-primary-hover);
 }
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { Button, Card, Space, Tooltip } from 'antd'
+import { Button, Space, Tooltip } from 'antd'
 import { ReloadOutlined } from '@ant-design/icons'
 import { useI18n } from '../../i18n'
 
@@ -36,7 +36,7 @@ export interface ListToolbarProps {
 export default function ListToolbar({ children, hasFilter, onReset, extra }: ListToolbarProps) {
   const { t } = useI18n()
   return (
-    <Card className="adm-toolbar" variant="outlined">
+    <div className="adm-toolbar">
       <div className="adm-toolbar__row">
         <Space wrap size={12}>
           {children}
@@ -50,6 +50,6 @@ export default function ListToolbar({ children, hasFilter, onReset, extra }: Lis
         </Space>
         {extra}
       </div>
-    </Card>
+    </div>
   )
 }

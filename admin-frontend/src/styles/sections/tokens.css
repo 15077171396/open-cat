@@ -1,7 +1,7 @@
 /* 管理后台样式 · 设计 token（CSS 变量）
  *
  * 与 `src/theme.ts` 的 antd token **一一对应**：JS 侧改 theme.ts，CSS 侧改这里，
- * 两处取值必须同步（改一处忘另一处，会出现「按钮是靛蓝、图标还是默认蓝」的割裂）。
+ * 两处取值必须同步（`src/styles/tokens.test.ts` 会守住主色/画布/圆角）。
  *
  * 为什么要有 CSS 变量：antd 6 的 token 是运行时 CSS-in-JS，只能在 React 组件里用；
  * 而 `adm-*` 这类手写样式表拿不到它，只能各自写死十六进制 —— 换肤时就会漏。
@@ -11,57 +11,70 @@
 
 :root {
   /* 品牌 */
-  --app-primary: #4263eb;
-  --app-primary-weak: #eef1ff;
-  --app-primary-border: #d7ddff;
+  --app-primary: #165dff;
+  --app-primary-hover: #4080ff;
+  --app-primary-active: #0e42d2;
+  --app-primary-weak: #e8f3ff;
+  --app-primary-border: #bedaff;
+  --app-accent: #ff9a2e;
+  --app-accent-bg: #fff5e8;
 
   /* 表面 */
-  --app-canvas: #f5f6f8;
+  --app-canvas: #f5f7fd;
   --app-card: #ffffff;
-  --app-subtle: #fafbfc;
-  --app-border: #e6e8ec;
-  --app-border-light: #eef0f4;
+  --app-elevated: #ffffff;
+  --app-subtle: #fafafa;
+  --app-fill: #f2f3f5;
+  --app-fill-strong: #e5e6eb;
+  --app-border: #e5e6eb;
+  --app-border-light: #ebeef5;
+  --app-border-strong: #dcdfe6;
+  --app-table-hover: #f7f9fc;
 
   /* 文字 */
-  --app-text: #1f2329;
-  --app-text-2: #595959;
-  --app-text-3: #8b93a1;
+  --app-text: #121314;
+  --app-text-2: #5c5c5c;
+  --app-text-3: #909399;
+  --app-text-4: #c2c2c2;
 
   /* 语义 */
   --app-success: #16a34a;
   --app-success-bg: #eaf7ee;
   --app-warning: #d97706;
-  --app-warning-bg: #fff6e6;
+  --app-warning-bg: #fff7e8;
   --app-danger: #cf1322;
   --app-danger-bg: #fdecec;
-  --app-neutral: #4e5969;
-  --app-neutral-bg: #f2f3f5;
-
-  /* 形状与节拍 */
-  --app-radius: 12px;
-  --app-radius-sm: 8px;
-  --app-radius-xs: 6px;
-  --app-gap: 16px;
-  --app-header-h: 56px;
-  /* 浮层 / 弹层：暗色下比 --app-card 略亮一档 */
-  --app-elevated: #ffffff;
-  /* 文字第四级：分隔点、占位图标等最浅的装饰性文字 */
-  --app-text-4: #bfbfbf;
-  /* 描边：强调型（上传虚线框）/ 危险型 */
-  --app-border-strong: #d9d9d9;
   --app-danger-border: #ffccc7;
-  /* 语义浅底：信息蓝 / 紫字 / 紫底 / 金底 / 链接 */
-  --app-info-bg: #e6f4ff;
+  --app-neutral: #5c5c5c;
+  --app-neutral-bg: #f2f3f5;
+  --app-info-bg: #e8f3ff;
   --app-purple: #722ed1;
   --app-purple-bg: #f4f0ff;
+  --app-teal: #0e7490;
+  --app-teal-bg: #e6fffb;
+  --app-pink: #c41d7f;
+  --app-pink-bg: #fff0f6;
   --app-gold-bg: #fff8e6;
-  --app-link: #0958d9;
+  --app-link: #165dff;
+
   /* 蓝系装饰底色（AI 写作 / 素材库 / 图片搜索大量使用）：三档层次 */
   --app-tint: #eef4fb;
   --app-tint-soft: #f8fbff;
   --app-tint-border: #dbe8f7;
-  /* 卡片投影：亮色靠极淡阴影分层，暗色靠深色阴影 */
-  --app-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  --app-mask: rgba(18, 19, 20, 0.45);
+
+  /* 形状与节拍 */
+  --app-radius: 4px;
+  --app-radius-sm: 4px;
+  --app-radius-xs: 4px;
+  --app-radius-lg: 8px;
+  --app-radius-pill: 999px;
+  --app-shadow: none;
+  --app-shadow-float: 0 6px 16px rgba(18, 19, 20, 0.08);
+  --app-gap: 16px;
+  --app-page-pad: 16px;
+  --app-header-h: 56px;
+  --app-tabs-h: 32px;
 }
 
 /* ============================================================
@@ -69,21 +82,26 @@
  * 由 <html data-theme="dark"> 激活（见 main.tsx ThemeShell）。
  * 只覆盖「随底色反向变化」的颜色；形状类变量（--app-radius / --app-gap /
  * --app-header-h）亮暗共用，不在此重复。
- * 页面手写样式一律用 var(--app-*)，换肤时不会漏掉硬编码色值。
  * ============================================================ */
 [data-theme='dark'] {
-  --app-primary: #6d83f3;
+  --app-primary: #4080ff;
+  --app-primary-hover: #6aa1ff;
+  --app-primary-active: #165dff;
   --app-primary-weak: #1e2a54;
   --app-primary-border: #2d3a6b;
+  --app-accent: #ffb65c;
+  --app-accent-bg: #2b2313;
 
   --app-canvas: #0f1115;
   --app-card: #161a21;
   --app-elevated: #1b2029;
   --app-subtle: #1b2029;
+  --app-fill: #21262f;
+  --app-fill-strong: #2a303a;
   --app-border: #262b35;
   --app-border-light: #20252e;
   --app-border-strong: #3a4250;
-  --app-danger-border: #5c2b2b;
+  --app-table-hover: #21262f;
 
   --app-text: #e6e9ef;
   --app-text-2: #a6adbb;
@@ -96,17 +114,23 @@
   --app-warning-bg: #2b2313;
   --app-danger: #f85149;
   --app-danger-bg: #2c1a1c;
+  --app-danger-border: #5c2b2b;
   --app-neutral: #a6adbb;
   --app-neutral-bg: #21262f;
-
   --app-info-bg: #14243b;
   --app-purple: #b37feb;
   --app-purple-bg: #221c35;
+  --app-teal: #5cdbd3;
+  --app-teal-bg: #0f2e2c;
+  --app-pink: #ff85c0;
+  --app-pink-bg: #2c1420;
   --app-gold-bg: #2b2515;
   --app-link: #6ea8fe;
 
   --app-tint: #1a2532;
   --app-tint-soft: #1e2937;
   --app-tint-border: #2a3a4f;
-  --app-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --app-mask: rgba(0, 0, 0, 0.55);
+  --app-shadow: none;
+  --app-shadow-float: 0 6px 16px rgba(0, 0, 0, 0.5);
 }

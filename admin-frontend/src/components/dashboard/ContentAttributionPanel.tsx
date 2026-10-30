@@ -37,7 +37,7 @@ export default function ContentAttributionPanel({ data, loading, failed, onRefre
       variant="outlined"
       title={
         <span style={titleStyle}>
-          <AimOutlined style={{ marginRight: 8, color: '#8c8c8c' }} />
+          <AimOutlined style={{ marginRight: 8, color: 'var(--app-text-3)' }} />
           内容归因
           <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400, marginLeft: 8 }}>
             看过 → {data.windowDays} 天内申请认证
@@ -63,12 +63,12 @@ export default function ContentAttributionPanel({ data, loading, failed, onRefre
       {failed ? (
         <div
           style={{
-            background: '#fff2f0',
+            background: 'var(--app-danger-bg)',
             border: '1px solid #ffccc7',
-            borderRadius: 6,
+            borderRadius: "var(--app-radius)",
             padding: '8px 12px',
             fontSize: 13,
-            color: '#a8071a',
+            color: 'var(--app-danger)',
             marginBottom: 12,
           }}
         >
@@ -82,12 +82,12 @@ export default function ContentAttributionPanel({ data, loading, failed, onRefre
       ) : null}
 
       {!data.available ? (
-        <div style={{ fontSize: 13, color: '#8c8c8c' }}>
+        <div style={{ fontSize: 13, color: 'var(--app-text-3)' }}>
           尚未采集到归因数据。若这是刚部署的新版本，请先执行数据库迁移（`alembic upgrade head`）
           并确认后端已重启 —— 之后登录用户每次打开内容详情页都会记录一条（按天去重）。
         </div>
       ) : data.items.length === 0 ? (
-        <div style={{ fontSize: 13, color: '#8c8c8c' }}>
+        <div style={{ fontSize: 13, color: 'var(--app-text-3)' }}>
           近 {data.days} 天还没有登录用户的内容浏览记录。归因只统计登录用户（游客没有稳定标识）。
         </div>
       ) : (
@@ -97,7 +97,7 @@ export default function ContentAttributionPanel({ data, loading, failed, onRefre
               key={`${item.type}-${item.id}`}
               style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}
             >
-              <span style={{ width: 18, color: '#bfbfbf', fontSize: 12, textAlign: 'right' }}>
+              <span style={{ width: 18, color: 'var(--app-text-4)', fontSize: 12, textAlign: 'right' }}>
                 {index + 1}
               </span>
               <Tag color={index < 3 ? 'blue' : 'default'} style={{ marginInlineEnd: 0 }}>
@@ -116,7 +116,7 @@ export default function ContentAttributionPanel({ data, loading, failed, onRefre
               >
                 {item.title || `#${item.id}`}
               </span>
-              <span style={{ width: 118, flex: '0 0 auto', textAlign: 'right', fontSize: 12, color: '#8c8c8c' }}>
+              <span style={{ width: 118, flex: '0 0 auto', textAlign: 'right', fontSize: 12, color: 'var(--app-text-3)' }}>
                 看 {item.viewers} / 转化 {item.converted}
               </span>
               <span style={{ width: 52, flex: '0 0 auto', textAlign: 'right', fontSize: 13, fontWeight: 600 }}>

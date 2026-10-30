@@ -15,27 +15,27 @@ export const EDITOR_EXTRA_CSS = `
     border-radius: 8px;
     padding: 0.75em 1em;
     margin: 0 0 0.9em;
-    border-left: 4px solid #1677ff;
+    border-left: 4px solid var(--app-primary);
     background: #f0f7ff;
     color: #1e3a5f;
   }
   .quill-editor-wrapper .ql-editor .ql-callout[data-callout="info"] {
-    border-left-color: #1677ff;
+    border-left-color: var(--app-primary);
     background: #f0f7ff;
     color: #1e3a5f;
   }
   .quill-editor-wrapper .ql-editor .ql-callout[data-callout="warning"] {
-    border-left-color: #faad14;
+    border-left-color: var(--app-warning);
     background: #fffbe6;
     color: #614700;
   }
   .quill-editor-wrapper .ql-editor .ql-callout[data-callout="success"] {
-    border-left-color: #52c41a;
+    border-left-color: var(--app-success);
     background: #f6ffed;
     color: #135200;
   }
   .quill-editor-wrapper .ql-editor .ql-callout[data-callout="danger"] {
-    border-left-color: #ff4d4f;
+    border-left-color: var(--app-danger);
     background: #fff1f0;
     color: #7a1416;
   }
@@ -57,7 +57,7 @@ export const EDITOR_EXTRA_CSS = `
     font-size: 14px;
   }
   .quill-editor-wrapper .ql-editor .ql-attachment-link:hover {
-    border-color: #1677ff;
+    border-color: var(--app-primary);
     background: #f0f7ff;
   }
   .quill-editor-wrapper .ql-editor .ql-attachment-link::before {
@@ -283,7 +283,7 @@ export const EDITOR_EXTRA_CSS = `
     align-items: center;
     gap: 14px;
     padding: 6px 12px;
-    border-top: 1px solid #f0f0f0;
+    border-top: 1px solid var(--app-border-light);
     background: #fafafa;
     font-size: 12px;
     color: #94a3b8;
@@ -299,7 +299,7 @@ export const EDITOR_EXTRA_CSS = `
   }
   .quill-statusbar-hint {
     cursor: pointer;
-    color: #1677ff;
+    color: var(--app-primary);
     background: none;
     border: none;
     font: inherit;
@@ -330,7 +330,7 @@ export const EDITOR_EXTRA_CSS = `
     min-width: 140px;
   }
   .quill-find-panel input:focus {
-    border-color: #1677ff;
+    border-color: var(--app-primary);
   }
   .quill-find-panel button {
     height: 28px;
@@ -343,8 +343,8 @@ export const EDITOR_EXTRA_CSS = `
     cursor: pointer;
   }
   .quill-find-panel button:hover {
-    border-color: #1677ff;
-    color: #1677ff;
+    border-color: var(--app-primary);
+    color: var(--app-primary);
   }
   .quill-find-count {
     color: #94a3b8;
@@ -451,13 +451,13 @@ export const EDITOR_EXTRA_CSS = `
     border-radius: 8px;
     padding: 0.75em 1em;
     margin: 0 0 0.9em;
-    border-left: 4px solid #1677ff;
+    border-left: 4px solid var(--app-primary);
     background: #f0f7ff;
     color: #1e3a5f;
   }
-  .quill-preview-body .ql-callout[data-callout="warning"] { border-left-color: #faad14; background: #fffbe6; color: #614700; }
-  .quill-preview-body .ql-callout[data-callout="success"] { border-left-color: #52c41a; background: #f6ffed; color: #135200; }
-  .quill-preview-body .ql-callout[data-callout="danger"] { border-left-color: #ff4d4f; background: #fff1f0; color: #7a1416; }
+  .quill-preview-body .ql-callout[data-callout="warning"] { border-left-color: var(--app-warning); background: #fffbe6; color: #614700; }
+  .quill-preview-body .ql-callout[data-callout="success"] { border-left-color: var(--app-success); background: #f6ffed; color: #135200; }
+  .quill-preview-body .ql-callout[data-callout="danger"] { border-left-color: var(--app-danger); background: #fff1f0; color: #7a1416; }
   .quill-preview-body .ql-attachment-link {
     display: flex;
     align-items: center;

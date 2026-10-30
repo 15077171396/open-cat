@@ -25,7 +25,7 @@ interface BarListProps {
   loading?: boolean
 }
 
-const DEFAULT_COLOR = '#1677ff'
+const DEFAULT_COLOR = 'var(--app-primary)'
 
 /** 名次徽标样式：前三名给区分色，其余保持中性灰 */
 function rankClass(index: number): string {

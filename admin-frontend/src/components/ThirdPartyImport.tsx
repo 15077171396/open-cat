@@ -9,7 +9,7 @@ import { toast } from '../utils/toast'
 /** 「从第三方导入正文」的帮助说明（点标题旁的 ⓘ 弹出，避免常驻长文案挤占表单） */
 function ThirdPartyHelp() {
   const groupTitle = { fontWeight: 600, color: '#1f1f1f', margin: '10px 0 4px' } as const
-  const item = { color: '#595959', lineHeight: 1.9 } as const
+  const item = { color: 'var(--app-text-2)', lineHeight: 1.9 } as const
   return (
     <div style={{ width: 430, maxHeight: 400, overflowY: 'auto', fontSize: 12 }}>
       <div style={{ ...groupTitle, marginTop: 0 }}>支持的平台</div>
@@ -335,7 +335,7 @@ export default function ThirdPartyImport({
           content={<ThirdPartyHelp />}
         >
           <QuestionCircleOutlined
-            style={{ color: '#595959', cursor: 'pointer', fontSize: 13 }}
+            style={{ color: 'var(--app-text-2)', cursor: 'pointer', fontSize: 13 }}
             aria-label="查看第三方导入说明"
           />
         </Popover>
@@ -356,7 +356,7 @@ export default function ThirdPartyImport({
               marginInlineEnd: 0,
               paddingInline: 12,
               whiteSpace: 'nowrap',
-              background: '#fafafa',
+              background: 'var(--app-subtle)',
               borderInlineStartWidth: 0,
             }}
           >
@@ -394,9 +394,9 @@ export default function ThirdPartyImport({
           style={{
             marginTop: 8,
             padding: '6px 10px',
-            background: '#f6ffed',
+            background: 'var(--app-success-bg)',
             border: '1px solid #b7eb8f',
-            borderRadius: 6,
+            borderRadius: "var(--app-radius)",
             fontSize: 12,
             color: '#389e0d',
             display: 'flex',
@@ -414,7 +414,7 @@ export default function ThirdPartyImport({
               查看原文
             </a>
           )}
-          <span style={{ color: '#595959' }}>
+          <span style={{ color: 'var(--app-text-2)' }}>
             （已随正文写入「来源」行，可在编辑器中调整）
           </span>
         </div>

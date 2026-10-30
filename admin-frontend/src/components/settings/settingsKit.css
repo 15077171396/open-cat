@@ -1,5 +1,5 @@
 /* 设置类页面的公共视觉（登录管理 / 支付与渠道 / 后续同类模块共用）
-   配色与该后台其它页面一致：白底卡片 + 1px #f0f0f0 边框 + 10px 圆角 + 灰底索引标签。
+   配色与该后台其它页面一致：白底卡片 + 1px var(--app-border-light) 边框 + 10px 圆角 + 灰底索引标签。
    提示条统一「白底 + 左侧 3px 色条」—— 不用整块彩色底，浅色后台里大面积底色显脏。 */
 
 /* ---------- 渠道状态卡 ---------- */
@@ -13,19 +13,19 @@
 
 .settings-channel {
   padding: 14px 16px;
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 10px;
+  background: var(--app-card);
+  border: 1px solid var(--app-border-light);
+  border-radius: var(--app-radius);
 }
 
 /* 开着但不可用：左色条提示，不用整块红底 */
 .settings-channel--broken {
-  border-left: 3px solid #faad14;
+  border-left: 3px solid var(--app-warning);
 }
 
 /* 危险态（如 Mock 支付在非生产环境真实可用）：红条 */
 .settings-channel--danger {
-  border-left: 3px solid #ff4d4f;
+  border-left: 3px solid var(--app-danger);
 }
 
 .settings-channel__head {
@@ -40,15 +40,15 @@
   justify-content: center;
   width: 24px;
   height: 24px;
-  color: #595959;
-  background: #f5f5f5;
-  border-radius: 6px;
+  color: var(--app-text-2);
+  background: var(--app-fill);
+  border-radius: var(--app-radius);
 }
 
 .settings-channel__label {
   font-size: 13px;
   font-weight: 600;
-  color: #262626;
+  color: var(--app-text);
 }
 
 .settings-channel__state {
@@ -60,42 +60,42 @@
 }
 
 .settings-channel__state--ok {
-  color: #389e0d;
+  color: var(--app-success);
 }
 
 .settings-channel__state--warn {
-  color: #d46b08;
+  color: var(--app-warning);
 }
 
 .settings-channel__state--danger {
-  color: #cf1322;
+  color: var(--app-danger);
 }
 
 .settings-channel__state--muted {
-  color: #8c8c8c;
+  color: var(--app-text-3);
 }
 
 .settings-channel__pending {
   margin-left: auto;
-  color: #8c8c8c;
+  color: var(--app-text-3);
 }
 
 .settings-channel__detail {
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.6;
-  color: #8c8c8c;
+  color: var(--app-text-3);
 }
 
 .settings-channel__issue {
   margin-top: 6px;
   font-size: 12px;
   line-height: 1.6;
-  color: #d46b08;
+  color: var(--app-warning);
 }
 
 .settings-channel__issue--danger {
-  color: #cf1322;
+  color: var(--app-danger);
 }
 
 /* ---------- 提示条 ---------- */
@@ -108,22 +108,22 @@
   margin-bottom: 16px;
   font-size: 13px;
   line-height: 1.7;
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 8px;
+  background: var(--app-card);
+  border: 1px solid var(--app-border-light);
+  border-radius: var(--app-radius);
 }
 
 .settings-banner--info {
-  border-left: 3px solid #1677ff;
-  color: #595959;
+  border-left: 3px solid var(--app-primary);
+  color: var(--app-text-2);
 }
 
 .settings-banner--warn {
-  border-left: 3px solid #faad14;
+  border-left: 3px solid var(--app-warning);
 }
 
 .settings-banner--danger {
-  border-left: 3px solid #ff4d4f;
+  border-left: 3px solid var(--app-danger);
 }
 
 .settings-banner__icon {
@@ -131,11 +131,11 @@
 }
 
 .settings-banner__icon--warn {
-  color: #faad14;
+  color: var(--app-warning);
 }
 
 .settings-banner__icon--danger {
-  color: #ff4d4f;
+  color: var(--app-danger);
 }
 
 /* ---------- 分区卡片 ---------- */
@@ -143,9 +143,9 @@
 .settings-section {
   padding: 18px 20px 20px;
   margin-bottom: 16px;
-  background: #fff;
-  border: 1px solid #f0f0f0;
-  border-radius: 10px;
+  background: var(--app-card);
+  border: 1px solid var(--app-border-light);
+  border-radius: var(--app-radius);
 }
 
 .settings-section__head {
@@ -160,23 +160,23 @@
   font-size: 11px;
   font-weight: 600;
   line-height: 18px;
-  color: #8c8c8c;
+  color: var(--app-text-3);
   text-align: center;
-  background: #f5f5f5;
-  border-radius: 9px;
+  background: var(--app-fill);
+  border-radius: var(--app-radius);
 }
 
 .settings-section__title {
   font-size: 14px;
   font-weight: 600;
-  color: #262626;
+  color: var(--app-text);
 }
 
 .settings-section__desc {
   margin: 8px 0 20px;
   font-size: 12px;
   line-height: 1.7;
-  color: #8c8c8c;
+  color: var(--app-text-3);
 }
 
 /* ------------------------------------------------------------------ *
@@ -201,7 +201,7 @@
   flex-direction: column;
   gap: 18px;
   padding-right: 12px;
-  border-right: 1px solid #f0f0f0;
+  border-right: 1px solid var(--app-border-light);
 }
 
 .settings-nav__block {
@@ -217,14 +217,14 @@
   padding: 0 8px 6px;
   font-size: 12px;
   font-weight: 600;
-  color: #8c8c8c;
+  color: var(--app-text-3);
   letter-spacing: 0.02em;
 }
 
 .settings-nav__dot {
   width: 6px;
   height: 6px;
-  background: #faad14;
+  background: var(--app-warning);
   border-radius: 50%;
 }
 
@@ -235,23 +235,23 @@
   gap: 8px;
   padding: 6px 10px;
   font-size: 13px;
-  color: #262626;
+  color: var(--app-text);
   text-align: left;
   background: transparent;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   cursor: pointer;
   transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 .settings-nav__item:hover {
-  background: #f5f5f5;
+  background: var(--app-fill);
 }
 
 .settings-nav__item.is-active {
-  color: #1677ff;
+  color: var(--app-primary);
   font-weight: 600;
-  background: #e6f4ff;
+  background: var(--app-primary-weak);
 }
 
 .settings-panel {
@@ -263,6 +263,23 @@
   align-items: center;
   gap: 10px;
   margin-bottom: 6px;
+}
+
+.settings-panel__head .ant-typography {
+  position: relative;
+  padding-left: 12px;
+}
+
+.settings-panel__head .ant-typography::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 4px;
+  height: 16px;
+  content: '';
+  background: var(--app-accent);
+  border-radius: 0 var(--app-radius) var(--app-radius) 0;
+  transform: translateY(-50%);
 }
 
 .settings-panel__desc {
@@ -291,7 +308,7 @@
     gap: 8px;
     padding: 0 0 12px;
     border-right: 0;
-    border-bottom: 1px solid #f0f0f0;
+    border-bottom: 1px solid var(--app-border-light);
   }
 
   .settings-nav__title {

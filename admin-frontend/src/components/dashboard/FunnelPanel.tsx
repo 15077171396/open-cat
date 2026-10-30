@@ -26,14 +26,14 @@ interface Props {
 const titleStyle = { fontSize: 15, fontWeight: 600 } as const
 
 /** 阶段配色：由深到浅表示漏斗收窄，最后一段（认证通过）用成功色 */
-const STAGE_COLORS = ['#1677ff', '#2f9ee8', '#5cb8c4', '#95c96f', '#52c41a'] as const
+const STAGE_COLORS = ['var(--app-primary)', '#2f9ee8', '#5cb8c4', '#95c96f', 'var(--app-success)'] as const
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
     <div style={{ minWidth: 132 }}>
-      <div style={{ fontSize: 12, color: '#8c8c8c' }}>{label}</div>
+      <div style={{ fontSize: 12, color: 'var(--app-text-3)' }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 600, lineHeight: '28px' }}>{value}</div>
-      {hint ? <div style={{ fontSize: 12, color: '#8c8c8c' }}>{hint}</div> : null}
+      {hint ? <div style={{ fontSize: 12, color: 'var(--app-text-3)' }}>{hint}</div> : null}
     </div>
   )
 }
@@ -48,7 +48,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
       variant="outlined"
       title={
         <span style={titleStyle}>
-          <FunnelPlotOutlined style={{ marginRight: 8, color: '#8c8c8c' }} />
+          <FunnelPlotOutlined style={{ marginRight: 8, color: 'var(--app-text-3)' }} />
           转化漏斗
           <Typography.Text type="secondary" style={{ fontSize: 12, fontWeight: 400, marginLeft: 8 }}>
             近 {data.days} 天注册队列{data.since ? `（自 ${data.since}）` : ''}
@@ -74,12 +74,12 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
       {failed ? (
         <div
           style={{
-            background: '#fff2f0',
+            background: 'var(--app-danger-bg)',
             border: '1px solid #ffccc7',
-            borderRadius: 6,
+            borderRadius: "var(--app-radius)",
             padding: '8px 12px',
             fontSize: 13,
-            color: '#a8071a',
+            color: 'var(--app-danger)',
             marginBottom: 12,
           }}
         >
@@ -93,7 +93,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
       ) : null}
 
       {!hasData && !loading ? (
-        <div style={{ fontSize: 13, color: '#8c8c8c', padding: '8px 0' }}>
+        <div style={{ fontSize: 13, color: 'var(--app-text-3)', padding: '8px 0' }}>
           近 {data.days} 天没有新注册，暂无可分析的队列。
         </div>
       ) : (
@@ -108,7 +108,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
                 key={stage.key || stage.label}
                 style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}
               >
-                <div style={{ width: 92, fontSize: 13, color: '#595959', flex: '0 0 auto' }}>
+                <div style={{ width: 92, fontSize: 13, color: 'var(--app-text-2)', flex: '0 0 auto' }}>
                   {stage.label}
                 </div>
                 <div
@@ -116,7 +116,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
                     flex: 1,
                     minWidth: 0,
                     height: 22,
-                    background: '#f5f5f5',
+                    background: 'var(--app-fill)',
                     borderRadius: 4,
                     overflow: 'hidden',
                   }}
@@ -135,7 +135,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
                   <span style={{ fontSize: 14, fontWeight: 600 }}>
                     {count === null ? '—' : count.toLocaleString('zh-CN')}
                   </span>
-                  <span style={{ fontSize: 12, color: '#8c8c8c', marginLeft: 8 }}>
+                  <span style={{ fontSize: 12, color: 'var(--app-text-3)', marginLeft: 8 }}>
                     {index === 0 ? '人' : formatPercent(stage.rateFromPrev)}
                   </span>
                 </div>
@@ -150,7 +150,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
           display: 'flex',
           flexWrap: 'wrap',
           gap: 24,
-          borderTop: '1px solid #f0f0f0',
+          borderTop: '1px solid var(--app-border-light)',
           paddingTop: 12,
           marginTop: 4,
         }}
@@ -169,12 +169,12 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
       </div>
 
       {/* 留存：只统计「有真实使用行为」（下载/学习/工具），没有浏览埋点，故不叫「访问留存」 */}
-      <div style={{ marginTop: 12, borderTop: '1px solid #f0f0f0', paddingTop: 12 }}>
-        <div style={{ fontSize: 12, color: '#8c8c8c', marginBottom: 6 }}>
+      <div style={{ marginTop: 12, borderTop: '1px solid var(--app-border-light)', paddingTop: 12 }}>
+        <div style={{ fontSize: 12, color: 'var(--app-text-3)', marginBottom: 6 }}>
           留存（近 {data.retentionDays} 天队列 · 活跃=有下载/学习/工具行为）
         </div>
         {data.retention.length === 0 ? (
-          <div style={{ fontSize: 13, color: '#8c8c8c' }}>该窗口内没有注册，暂无留存样本。</div>
+          <div style={{ fontSize: 13, color: 'var(--app-text-3)' }}>该窗口内没有注册，暂无留存样本。</div>
         ) : (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {data.retention.slice(-10).map((row) => (
@@ -184,7 +184,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
               >
                 <Tag style={{ marginInlineEnd: 0 }}>
                   {row.date.slice(5)}
-                  <span style={{ marginLeft: 6, color: '#8c8c8c' }}>{row.cohort} 人</span>
+                  <span style={{ marginLeft: 6, color: 'var(--app-text-3)' }}>{row.cohort} 人</span>
                   <span style={{ marginLeft: 8 }}>D1 {formatPercent(row.d1Rate)}</span>
                   <span style={{ marginLeft: 6 }}>D7 {formatPercent(row.d7Rate)}</span>
                 </Tag>
@@ -192,7 +192,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
             ))}
           </div>
         )}
-        <div style={{ fontSize: 12, color: '#8c8c8c', marginTop: 6 }}>
+        <div style={{ fontSize: 12, color: 'var(--app-text-3)', marginTop: 6 }}>
           提示：最近一两天的 D1/D7 会偏低 —— 观察窗口还没过完，属正常现象。
         </div>
       </div>

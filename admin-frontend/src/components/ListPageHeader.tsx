@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
-import { Button, Typography } from 'antd'
+import { Button } from 'antd'
 import { PlusOutlined } from '@ant-design/icons'
+import PageHeader from './ui/PageHeader'
 
 interface ListPageHeaderProps {
   /** 标题前的图标节点 */
@@ -15,7 +16,7 @@ interface ListPageHeaderProps {
   extra?: ReactNode
 }
 
-/** 列表页通用头部：图标 + 标题 + 右侧操作区（新建按钮/搜索框等） */
+/** 旧版列表页头：保留 API，内部统一走 PageHeader，避免两套页头视觉分叉 */
 export default function ListPageHeader({
   icon,
   title,
@@ -24,18 +25,21 @@ export default function ListPageHeader({
   extra,
 }: ListPageHeaderProps) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-      <Typography.Title level={4} style={{ margin: 0 }}>
-        {icon} {title}
-      </Typography.Title>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        {extra}
-        {onCreate && (
-          <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
-            {createLabel}
-          </Button>
-        )}
-      </div>
-    </div>
+    <PageHeader
+      icon={icon}
+      title={title}
+      actions={
+        (extra || onCreate) && (
+          <>
+            {extra}
+            {onCreate && (
+              <Button type="primary" icon={<PlusOutlined />} onClick={onCreate}>
+                {createLabel}
+              </Button>
+            )}
+          </>
+        )
+      }
+    />
   )
 }

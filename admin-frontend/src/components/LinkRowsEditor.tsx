@@ -54,9 +54,9 @@ export default function LinkRowsEditor<T extends LinkRow>({
   return (
     <div
       style={{
-        border: '1px solid #f0f0f0',
-        borderRadius: 10,
-        background: '#fafbfc',
+        border: '1px solid var(--app-border-light)',
+        borderRadius: "var(--app-radius)",
+        background: 'var(--app-subtle)',
         padding: 16,
       }}
     >
@@ -69,7 +69,7 @@ export default function LinkRowsEditor<T extends LinkRow>({
         }}
       >
         <span style={{ fontSize: 14, fontWeight: 600, color: '#1f1f1f', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <LinkOutlined style={{ color: '#1677ff' }} />
+          <LinkOutlined style={{ color: 'var(--app-primary)' }} />
           {title}
         </span>
         <Button type="primary" ghost size="small" icon={<PlusOutlined />} onClick={() => onChange([...items, { ...emptyItem }])}>
@@ -83,7 +83,7 @@ export default function LinkRowsEditor<T extends LinkRow>({
             style={{
               textAlign: 'center',
               padding: '32px 16px',
-              color: '#bfbfbf',
+              color: 'var(--app-text-4)',
               fontSize: 13,
             }}
           >
@@ -98,9 +98,9 @@ export default function LinkRowsEditor<T extends LinkRow>({
               alignItems: 'center',
               gap: 8,
               padding: '10px 12px',
-              background: '#fff',
-              borderRadius: 8,
-              border: '1px solid #f0f0f0',
+              background: 'var(--app-card)',
+              borderRadius: 'var(--app-radius)',
+              border: '1px solid var(--app-border-light)',
             }}
           >
             {renderFirstField(item, (mapper) => patchRow(idx, mapper))}

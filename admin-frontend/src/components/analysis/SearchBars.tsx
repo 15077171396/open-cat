@@ -58,7 +58,7 @@ export default function SearchBars({ terms, height = 286 }: SearchBarsProps) {
           type: 'bar',
           data: ordered.map((item) => ({ value: item.count, delta: item.delta })),
           barWidth: '52%',
-          itemStyle: { color: '#4263EB', borderRadius: [0, 4, 4, 0] },
+          itemStyle: { color: 'var(--app-primary)', borderRadius: [0, 4, 4, 0] },
           label: {
             show: true,
             position: 'right',

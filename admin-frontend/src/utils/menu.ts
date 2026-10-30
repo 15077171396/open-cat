@@ -103,3 +103,10 @@ export function nextOpenKeys(current: string[], next: string[]): string[] {
 export function externalLeafKeys(tree: MenuTree): Set<string> {
   return new Set(flattenLeaves(tree).filter((leaf) => !!leaf.url).map((leaf) => leaf.key))
 }
+
+/** 菜单叶子 key → 当前语言标题（标签页标题的兜底来源） */
+export function collectMenuLabels(tree: MenuTree): Map<string, string> {
+  const labels = new Map<string, string>()
+  for (const leaf of flattenLeaves(tree)) labels.set(leaf.key, leaf.label)
+  return labels
+}

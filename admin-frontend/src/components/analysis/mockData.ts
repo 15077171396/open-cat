@@ -134,9 +134,9 @@ const DEMO_TERMS = [
   'controlnet 使用',
 ] as const
 
-const SOURCE_COLORS = ['#4263EB', '#0EA5A4', '#D97706', '#8B5CF6'] as const
-const CONTENT_COLORS = ['#4263EB', '#0EA5A4', '#D97706', '#8B5CF6', '#EC4899', '#0EA5E9'] as const
-const RADAR_COLORS = ['#4263EB', '#D97706'] as const
+const SOURCE_COLORS = ['var(--app-primary)', '#0EA5A4', '#D97706', '#8B5CF6'] as const
+const CONTENT_COLORS = ['var(--app-primary)', '#0EA5A4', '#D97706', '#8B5CF6', '#EC4899', '#0EA5E9'] as const
+const RADAR_COLORS = ['var(--app-primary)', '#D97706'] as const
 
 /** mulberry32：小而稳定的可复现随机数生成器 */
 export function createRng(seed: number): () => number {

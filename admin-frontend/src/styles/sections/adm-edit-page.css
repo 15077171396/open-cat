@@ -20,7 +20,7 @@
   justify-content: center;
   width: 26px;
   height: 26px;
-  border-radius: 8px;
+  border-radius: var(--app-radius);
   font-size: 14px;
   color: var(--app-link);
   background: var(--app-info-bg);
@@ -128,8 +128,8 @@
 
 .adm-checklist__item--done .adm-checklist__dot {
   color: #fff;
-  background: #52c41a;
-  border-color: #52c41a;
+  background: var(--app-success);
+  border-color: var(--app-success);
 }
 
 /* ---- 编辑页：上传区 ---- */
@@ -142,7 +142,7 @@
   width: 100%;
   height: 132px;
   padding: 16px 20px;
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   border: 1px dashed var(--app-border-strong);
   background: var(--app-subtle);
   cursor: pointer;
@@ -151,7 +151,7 @@
 }
 
 .adm-drop:hover {
-  border-color: #1677ff;
+  border-color: var(--app-primary);
   background: var(--app-tint);
 }
 
@@ -179,7 +179,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 16 / 9;
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   overflow: hidden;
   border: 1px dashed var(--app-border-strong);
   background: var(--app-subtle);
@@ -234,7 +234,7 @@
   flex-wrap: wrap;
   padding: 16px;
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   background: var(--app-subtle);
 }
 
@@ -268,7 +268,7 @@
   align-items: center;
   gap: 4px;
   padding: 7px 8px;
-  border-radius: 6px;
+  border-radius: var(--app-radius);
   cursor: pointer;
   font-size: 13px;
   color: var(--app-text-2);

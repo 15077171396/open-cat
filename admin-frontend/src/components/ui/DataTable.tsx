@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import type { TableProps } from 'antd'
-import { Card, Table } from 'antd'
+import { Table } from 'antd'
 import { TableEmpty } from '../TableEmpty'
 import { useI18n } from '../../i18n'
 
@@ -100,7 +100,7 @@ export default function DataTable<T extends object>({
   const isEmpty = !loading && dataSource.length === 0
 
   return (
-    <Card className="adm-tablecard" variant="outlined">
+    <div className="adm-tablecard">
       <Table<T>
         {...rest}
         className={className ? `adm-table ${className}` : 'adm-table'}
@@ -123,6 +123,6 @@ export default function DataTable<T extends object>({
               }
         }
       />
-    </Card>
+    </div>
   )
 }

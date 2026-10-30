@@ -22,7 +22,7 @@ export const TOOLTIP_BASE = {
   borderWidth: 1,
   padding: [8, 10] as [number, number],
   textStyle: { color: 'var(--app-text-2)', fontSize: 12 },
-  extraCssText: 'border-radius:10px;box-shadow:0 10px 26px rgba(15,23,42,.16);',
+  extraCssText: 'border-radius:8px;box-shadow:0 6px 16px rgba(18,19,20,.12);',
 } as const
 
 export const LEGEND_BASE = {

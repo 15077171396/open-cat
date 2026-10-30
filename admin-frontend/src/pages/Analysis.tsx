@@ -113,7 +113,7 @@ export default function Analysis() {
               {
                 key: 'pv',
                 name: '阅读量',
-                color: '#4263EB',
+                color: 'var(--app-primary)',
                 data: data.trend.map((point) => point.pv),
                 area: true,
               },
@@ -175,7 +175,7 @@ export default function Analysis() {
               {
                 key: 'new',
                 name: '新用户',
-                color: '#4263EB',
+                color: 'var(--app-primary)',
                 data: data.cohorts.map((point) => point.newUsers),
               },
               {

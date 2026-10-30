@@ -39,7 +39,7 @@ export default function StatusTag({ tone = 'neutral', children }: StatusTagProps
         height: 22,
         lineHeight: '20px',
         paddingInline: 8,
-        borderRadius: 'var(--app-radius-xs)',
+        borderRadius: 'var(--app-radius-pill)',
         border: 'none',
         fontSize: 12,
         color: c.color,

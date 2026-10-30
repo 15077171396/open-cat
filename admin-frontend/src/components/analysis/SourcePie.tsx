@@ -53,7 +53,7 @@ export default function SourcePie({ items, height = 208 }: SourcePieProps) {
             itemStyle: {
               borderColor: 'var(--app-card)',
               borderWidth: 2,
-              borderRadius: 6,
+              borderRadius: "var(--app-radius)",
             },
             label: { show: false },
             labelLine: { show: false },

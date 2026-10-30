@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Form, Input } from 'antd'
+import { MemoryRouter } from 'react-router-dom'
 import { DataTable, ListToolbar, ModalForm, PageHeader, SelectionBar, StatusTag, boolTone } from './index'
+import { usePageTitleStore } from '../../store/pageTitleStore'
 
 /**
  * 列表页骨架组件（M2）的守卫。
@@ -14,13 +16,15 @@ import { DataTable, ListToolbar, ModalForm, PageHeader, SelectionBar, StatusTag,
 describe('PageHeader', () => {
   it('标题、副标题、总数与操作区都渲染', () => {
     render(
-      <PageHeader
-        icon={<span>i</span>}
-        title="在线工具"
-        subtitle="AI 工具按提示词模板调用模型"
-        count={{ total: 42, unit: '个' }}
-        actions={<button type="button">新建工具</button>}
-      />,
+      <MemoryRouter initialEntries={['/tools']}>
+        <PageHeader
+          icon={<span>i</span>}
+          title="在线工具"
+          subtitle="AI 工具按提示词模板调用模型"
+          count={{ total: 42, unit: '个' }}
+          actions={<button type="button">新建工具</button>}
+        />
+      </MemoryRouter>,
     )
     expect(screen.getByText('在线工具')).toBeInTheDocument()
     expect(screen.getByText('AI 工具按提示词模板调用模型')).toBeInTheDocument()
@@ -30,8 +34,24 @@ describe('PageHeader', () => {
   })
 
   it('不传 count 时不渲染「共 N 条」', () => {
-    render(<PageHeader icon={<span>i</span>} title="积分流水" />)
+    render(
+      <MemoryRouter initialEntries={['/points']}>
+        <PageHeader icon={<span>i</span>} title="积分流水" />
+      </MemoryRouter>,
+    )
     expect(screen.queryByText(/共/)).not.toBeInTheDocument()
+  })
+
+  it('把标题注册到标签页标题表', async () => {
+    usePageTitleStore.getState().reset()
+    render(
+      <MemoryRouter initialEntries={['/users']}>
+        <PageHeader icon={<span>i</span>} title="用户管理" />
+      </MemoryRouter>,
+    )
+    await waitFor(() => {
+      expect(usePageTitleStore.getState().titles['/users']).toBe('用户管理')
+    })
   })
 })
 

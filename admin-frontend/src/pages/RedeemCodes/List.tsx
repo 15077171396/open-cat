@@ -251,7 +251,7 @@ export default function RedeemCodesList() {
       width: 80,
       align: 'right',
       render: (v: number) => (
-        <span className="adm-delta" style={{ color: '#52c41a' }}>
+        <span className="adm-delta" style={{ color: 'var(--app-success)' }}>
           +{v}
         </span>
       ),
@@ -567,7 +567,7 @@ export default function RedeemCodesList() {
               width: 110,
               align: 'right',
               render: (v: number) => (
-                <span className="adm-delta" style={{ color: '#52c41a' }}>
+                <span className="adm-delta" style={{ color: 'var(--app-success)' }}>
                   +{v}
                 </span>
               ),

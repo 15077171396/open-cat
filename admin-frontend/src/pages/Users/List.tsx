@@ -397,9 +397,9 @@ export default function UsersList() {
             <Icon
               style={{
                 color:
-                  cfg.color === 'success' ? '#52c41a'
-                    : cfg.color === 'processing' ? '#1677ff'
-                      : cfg.color === 'error' ? '#ff4d4f' : '#bfbfbf',
+                  cfg.color === 'success' ? 'var(--app-success)'
+                    : cfg.color === 'processing' ? 'var(--app-primary)'
+                      : cfg.color === 'error' ? 'var(--app-danger)' : 'var(--app-text-4)',
               }}
             />
             <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.text}</Tag>

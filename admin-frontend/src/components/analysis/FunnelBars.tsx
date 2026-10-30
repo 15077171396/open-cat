@@ -5,7 +5,12 @@ import { TOOLTIP_BASE, withAnimation } from './chartTheme'
 import { compactNumber } from './mockData'
 import type { FunnelStage } from './mockData'
 
-const STAGE_COLORS = ['#4263EB', '#6D5BFF', '#8B5CF6', '#A855F7'] as const
+const STAGE_COLORS = [
+  'var(--app-primary)',
+  'var(--app-primary-hover)',
+  '#8B5CF6',
+  '#A855F7',
+] as const
 
 interface FunnelBarsProps {
   stages: FunnelStage[]

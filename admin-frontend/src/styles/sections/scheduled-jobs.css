@@ -33,7 +33,7 @@
    用 grid 而不是 antd Table —— 分组标题要跨行、单元格要能多行说明，Table 反而更绕 */
 .jobs-table {
   border: 1px solid var(--app-border);
-  border-radius: 10px;
+  border-radius: var(--app-radius);
   overflow: hidden;
   background: var(--app-card);
 }
@@ -214,8 +214,8 @@
   margin-bottom: 16px;
   padding: 12px 14px;
   border: 1px solid var(--app-border);
-  border-left: 3px solid #faad14;
-  border-radius: 10px;
+  border-left: 3px solid var(--app-warning);
+  border-radius: var(--app-radius);
   background: var(--app-card);
 }
 

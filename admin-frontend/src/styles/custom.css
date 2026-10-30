@@ -36,6 +36,12 @@
 /* 基础与全局兜底：字体栈、滚动条、路由级加载指示器、错误边界兜底页 */
 @import './sections/base.css';
 
+/* 布局外壳：顶栏、侧栏 logo、内容页面卡、多标签页 */
+@import './sections/layout.css';
+
+/* 登录页 */
+@import './sections/login.css';
+
 /* 数据看板：pages/Dashboard + components/dashboard/* */
 @import './sections/dashboard.css';
 
@@ -99,6 +105,9 @@
 
 /* 暗色主题补充覆盖：antd 预设色标签 !important 兜底 + 少量装饰 badge 提亮 */
 @import './sections/theme-dark.css';
+
+/* antd 组件视觉对齐 gi-demo（须在 responsive 之前） */
+@import './sections/antd-overrides.css';
 
 /* 移动端布局：必须最后加载，才能覆盖桌面工具条/页头的固定宽度 */
 @import './sections/responsive.css';

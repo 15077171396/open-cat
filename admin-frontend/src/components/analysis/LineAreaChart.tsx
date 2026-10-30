@@ -83,17 +83,10 @@ function buildOption(
       itemStyle: { color: item.color },
       areaStyle: item.area
         ? {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: `${item.color}38` },
-                { offset: 1, color: `${item.color}03` },
-              ],
-            },
+            // 用 opacity 而不是拼接 alpha 十六进制：系列色现在是 CSS 变量，
+            // `${color}38` 会变成非法颜色（var(--x)38）
+            color: item.color,
+            opacity: 0.16,
           }
         : undefined,
       emphasis: { focus: 'series', lineStyle: { width: 3 } },
@@ -144,16 +137,22 @@ export default function LineAreaChart({
       })
     }
 
-    const resize = () => chart.resize()
+    const resize = () => {
+      const width = el.clientWidth
+      if (width > 0) chart.resize({ width, height })
+    }
+    // 首帧布局可能还没稳定（移动端尤其明显）：下一帧按真实容器宽度重算一次
+    const frame = window.requestAnimationFrame(resize)
     let observer: ResizeObserver | undefined
-    if (typeof ResizeObserver === 'undefined') {
-      window.addEventListener('resize', resize)
-    } else {
+    if (typeof ResizeObserver !== 'undefined') {
       observer = new ResizeObserver(resize)
       observer.observe(el)
     }
+    // 窗口尺寸变化始终兜底：ResizeObserver 在部分嵌入环境里不会触发
+    window.addEventListener('resize', resize)
 
     return () => {
+      window.cancelAnimationFrame(frame)
       timers.forEach((timer) => window.clearTimeout(timer))
       observer?.disconnect()
       window.removeEventListener('resize', resize)

@@ -216,7 +216,7 @@ export default function CommentsList() {
                     alt="评论配图"
                     width={48}
                     height={48}
-                    style={{ objectFit: 'cover', borderRadius: 6, border: '1px solid #e2e8f0' }}
+                    style={{ objectFit: 'cover', borderRadius: "var(--app-radius)", border: '1px solid #e2e8f0' }}
                   />
                 ))}
               </Space>

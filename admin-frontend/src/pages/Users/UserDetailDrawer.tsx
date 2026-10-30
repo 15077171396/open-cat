@@ -226,7 +226,7 @@ export default function UserDetailDrawer({
                   return (
                     <div
                       key={tx.id}
-                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid #f0f0f0' }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 0', borderBottom: '1px solid var(--app-border-light)' }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <Space size={8} wrap>
@@ -238,7 +238,7 @@ export default function UserDetailDrawer({
                         </Typography.Text>
                       </div>
                       <Space size={12} style={{ flexShrink: 0 }}>
-                        <Typography.Text strong style={{ color: isGain ? '#52c41a' : '#fa8c16', fontVariantNumeric: 'tabular-nums' }}>
+                        <Typography.Text strong style={{ color: isGain ? 'var(--app-success)' : 'var(--app-warning)', fontVariantNumeric: 'tabular-nums' }}>
                           {isGain ? `+${tx.points}` : tx.points}
                         </Typography.Text>
                         <Typography.Text type="secondary" style={{ fontSize: 12, fontVariantNumeric: 'tabular-nums' }}>

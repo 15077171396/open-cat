@@ -86,7 +86,7 @@ function DonutChartInner({
             cy={center}
             r={radius}
             fill="none"
-            stroke="#f5f5f5"
+            stroke="var(--app-fill)"
             strokeWidth={thickness}
           />
           {/* 从 12 点方向开始顺时针铺切片 */}
