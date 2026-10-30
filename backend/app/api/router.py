@@ -24,6 +24,7 @@ from app.api.settings import router as settings_router
 from app.api.feedbacks import router as feedbacks_router
 from app.api.reports import router as reports_router
 from app.api.comments import router as comments_router
+from app.api.content import content_router
 from app.api.payments import router as payments_router
 from app.api.setup import router as setup_router
 from app.schemas.admin import ActionAck
@@ -31,16 +32,23 @@ from app.schemas.admin import ActionAck
 api_router = APIRouter(prefix="/api/v1")
 
 # 注册各模块路由
+#
+# ⚠️ 教程 / 分类 / 首页 / 公告这四组**内容接口**现在有两处挂载：
+#   1. 旧的 `/api/v1/{tutorials,categories,home,announcements}` —— 保留兼容（标 deprecated），
+#      仓库外的用户端与小程序还在用，直接删会静默打断它们；
+#   2. 新的 `/api/v1/content/*`（见 app/api/content.py）—— 对外文档只讲这一份。
+# 下个大版本删旧路径时，把下面四行的 deprecated 连同 include 一起删掉即可。
 api_router.include_router(auth_router, prefix="/auth", tags=["认证"])
-api_router.include_router(tutorials_router, prefix="/tutorials", tags=["教程"])
+api_router.include_router(content_router)
+api_router.include_router(tutorials_router, prefix="/tutorials", tags=["教程"], deprecated=True)
 api_router.include_router(users_router, prefix="/users", tags=["用户中心"])
-api_router.include_router(categories_router, prefix="/categories", tags=["分类"])
+api_router.include_router(categories_router, prefix="/categories", tags=["分类"], deprecated=True)
 api_router.include_router(admin_router, prefix="/admin", tags=["管理后台"])
 api_router.include_router(admin_rbac_router, prefix="/admin", tags=["权限管理"])
 api_router.include_router(admin_audit_router, prefix="/admin", tags=["操作审计"])
 api_router.include_router(stats_router, prefix="/stats", tags=["统计"])
-api_router.include_router(home_router, prefix="/home", tags=["首页聚合"])
-api_router.include_router(announcements_router, prefix="/announcements", tags=["公告"])
+api_router.include_router(home_router, prefix="/home", tags=["首页聚合"], deprecated=True)
+api_router.include_router(announcements_router, prefix="/announcements", tags=["公告"], deprecated=True)
 api_router.include_router(uploads_router, prefix="/uploads", tags=["文件上传"])
 api_router.include_router(settings_router, prefix="/settings", tags=["系统设置"])
 api_router.include_router(feedbacks_router, prefix="/feedbacks", tags=["问题反馈"])

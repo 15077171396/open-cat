@@ -7,12 +7,15 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.openapi.docs import get_swagger_ui_html
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
 
 from app.config import settings
 # 导入即完成日志文件 sink 配置，必须在其它模块使用 logger 之前
 from app import logging as _logging  # noqa: F401
+from app.api.content import CONTENT_PREFIX, build_content_openapi
 from app.core.exceptions import register_exception_handlers, success_response
 from app.core.monitoring import init_monitoring
 from app.core.rate_limit import RateLimitMiddleware
@@ -115,6 +118,7 @@ def create_app() -> FastAPI:
 
     # 中间件注册顺序：后添加者在最外层。限流（内层）先注册、CORS（外层）后注册：
     # 预检 OPTIONS 由 CORS 直接消化不消耗限流配额；限流 429 响应也带 CORS 头
+
     app.add_middleware(RateLimitMiddleware)
 
     app.add_middleware(
@@ -139,6 +143,21 @@ def create_app() -> FastAPI:
 
     register_exception_handlers(app)
     app.include_router(api_router)
+
+    # 内容 API 的独立文档（`/api/v1/content/docs`）。
+    # 不复用默认 /docs：那份是「给本项目维护者看的全量接口」，把 122 个管理端接口
+    # 和 12 个内容接口混在一页，二次开发者根本分不清哪些能调。
+    # 两个路由都 include_in_schema=False —— 文档页本身不该出现在接口清单里。
+    @app.get(f"{CONTENT_PREFIX}/openapi.json", include_in_schema=False)
+    async def content_openapi():
+        return JSONResponse(build_content_openapi(app))
+
+    @app.get(f"{CONTENT_PREFIX}/docs", include_in_schema=False)
+    async def content_docs():
+        return get_swagger_ui_html(
+            openapi_url=f"{CONTENT_PREFIX}/openapi.json",
+            title="内容 API · 文档",
+        )
 
     # 本地存储驱动：把上传目录挂成静态资源，nginx 的 /uploads/ 反代到这里。
     # 这样「开源默认配置」不需要任何云账号也能显示正文配图；
