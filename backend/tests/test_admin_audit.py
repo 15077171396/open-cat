@@ -448,10 +448,10 @@ class TestSourceFieldWiring(unittest.TestCase):
         self.assertEqual(
             heads,
             # ⚠️ 每次新增迁移都要同步改这里：这里刻意写死而非「断言 head 唯一」，
-            # 2026-10-30 分类分组新增 category_groups 迁移。
+            # 2026-10-30 清理下线模块遗留表与历史分类（drop_legacy_content_tables）。
             # 因为只判唯一会漏掉「新迁移插错了位置、链仍能收敛成一个 head」的情况。
             # 代价是加迁移要改一处测试 —— 换来的是 head 漂移一定会被发现。
-            ["add_category_groups"],
+            ["drop_legacy_content_tables"],
             f"alembic head 不是最新迁移（当前 heads={heads}）—— 迁移链可能断开或挂错位置",
         )
 
