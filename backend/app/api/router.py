@@ -27,6 +27,7 @@ from app.api.comments import router as comments_router
 from app.api.content import content_router
 from app.api.payments import router as payments_router
 from app.api.setup import router as setup_router
+from app.api.admin_chat import chat_ws_router
 from app.schemas.admin import ActionAck
 
 api_router = APIRouter(prefix="/api/v1")
@@ -46,6 +47,8 @@ api_router.include_router(categories_router, prefix="/categories", tags=["分类
 api_router.include_router(admin_router, prefix="/admin", tags=["管理后台"])
 api_router.include_router(admin_rbac_router, prefix="/admin", tags=["权限管理"])
 api_router.include_router(admin_audit_router, prefix="/admin", tags=["操作审计"])
+# 站内聊天 WS：独立注册（不走 _admin_shared 的 HTTP 守卫，cookie 鉴权见 admin_chat）
+api_router.include_router(chat_ws_router, prefix="/admin", tags=["站内聊天"])
 api_router.include_router(stats_router, prefix="/stats", tags=["统计"])
 api_router.include_router(home_router, prefix="/home", tags=["首页聚合"], deprecated=True)
 api_router.include_router(announcements_router, prefix="/announcements", tags=["公告"], deprecated=True)

@@ -85,6 +85,12 @@
 /* AI 写作浮条与面板 */
 @import './sections/ai-writing.css';
 
+/* AI 对话调试台 */
+@import './sections/ai-playground.css';
+
+/* 站内聊天 */
+@import './sections/chat.css';
+
 /* 图片搜索弹窗 */
 @import './sections/image-search.css';
 

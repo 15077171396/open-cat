@@ -17,6 +17,9 @@ export default defineConfig({
       '/api': {
         target: 'http://127.0.0.1:8000',
         changeOrigin: true,
+        // 站内聊天 WebSocket（/api/v1/admin/ws/chat）走同一前缀：
+        // 不开 ws:true 的话升级请求会被当普通 HTTP 代理，握手直接失败
+        ws: true,
       },
       // 本地存储驱动的文件由后端 /uploads 静态提供。
       // 生产环境由 nginx 反代（见 nginx.conf），开发环境靠这条 ——

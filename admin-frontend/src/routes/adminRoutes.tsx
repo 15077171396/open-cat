@@ -50,6 +50,8 @@ const PaymentSettingsPage = lazy(() => import('../pages/PaymentSettings'))
 const MailSettingsPage = lazy(() => import('../pages/MailSettings'))
 const AiModelsPage = lazy(() => import('../pages/AiModels'))
 const AiWritingPage = lazy(() => import('../pages/AiWriting'))
+const AiPlaygroundPage = lazy(() => import('../pages/AiPlayground'))
+const ChatPage = lazy(() => import('../pages/Chat'))
 const PaymentProductsPage = lazy(() => import('../pages/PaymentProducts/List'))
 const PaymentOrdersPage = lazy(() => import('../pages/PaymentOrders/List'))
 const RolesList = lazy(() => import('../pages/Roles/List'))
@@ -120,6 +122,10 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/ai-models', element: <AiModelsPage />, perm: 'ai_model:view' },
   // AI 写作：提示词是 AI 行为配置，与模型管理共用 ai_model:view
   { path: '/ai-writing', element: <AiWritingPage />, perm: 'ai_model:view' },
+  // AI 对话调试台：配完模型当场验证；能对话 = 能消耗额度，独立授权面
+  { path: '/ai-playground', element: <AiPlaygroundPage />, perm: 'ai_playground:view' },
+  // 站内聊天：管理员间私聊/群聊（view 即读写）
+  { path: '/chat', element: <ChatPage />, perm: 'chat:view' },
   // 部署体检 / 定时任务：只读运维页，与「系统状态」卡同层级，复用 dashboard:view
   { path: '/readiness', element: <ReadinessPage />, perm: 'dashboard:view' },
   { path: '/scheduled-jobs', element: <ScheduledJobsPage />, perm: 'dashboard:view' },
