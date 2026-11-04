@@ -8,9 +8,10 @@ url = await storage.upload_bytes(data, folder="images", ext=".png", content_type
 
 驱动由 `STORAGE_DRIVER` 决定：
 - `local`（默认）：写本机磁盘，零配置，开源用户开箱可用；
-- `cos`：腾讯云对象存储，生产环境/CDN 场景用。
+- `cos`：腾讯云对象存储，生产环境/CDN 场景用；
+- `s3`：S3 兼容对象存储（AWS S3 / MinIO / 阿里云 OSS / 华为云 OBS 的 S3 兼容端点）。
 
-新增驱动（S3 / OSS / MinIO）只需再写一个模块并在 `_load_provider` 里登记，
+新增驱动只需再写一个模块并在 `_load_provider` 里登记，
 业务代码一行不用改——这是这一层存在的唯一理由。
 """
 
@@ -41,11 +42,13 @@ def _load_provider() -> ModuleType:
         from . import local_provider as provider
     elif name == "cos":
         from . import cos_provider as provider
+    elif name == "s3":
+        from . import s3_provider as provider
     else:
         # 拼错的驱动名不能静默回落到 local：那会把「配了 COS 却没生效」变成
         # 一个只有翻文件系统才能发现的隐性问题。
         raise StorageError(
-            f"未知的 STORAGE_DRIVER: {name!r}（可选 local / cos）"
+            f"未知的 STORAGE_DRIVER: {name!r}（可选 local / cos / s3）"
         )
     return provider
 

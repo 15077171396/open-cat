@@ -68,7 +68,7 @@ def _item(
 
 
 def _check_storage() -> dict:
-    """存储：local 需要目录可写（实测），cos 需要凭据三元组。"""
+    """存储：local 需要目录可写（实测），cos / s3 需要凭据齐备。"""
     driver = storage.driver
     if driver == "local":
         root = Path(settings.STORAGE_LOCAL_DIR)
@@ -97,20 +97,29 @@ def _check_storage() -> dict:
             status="ready",
             required=True,
             detail=f"local 驱动，写入 {root}（卷已挂载且可写）",
-            action="想用 CDN 时把 STORAGE_DRIVER 改成 cos 并填 COS_* 凭据",
+            action="想用 CDN 时把 STORAGE_DRIVER 改成 cos 或 s3 并填对应凭据",
             link="/settings",
             extra={"driver": driver},
         )
 
-    # cos
-    missing = [
-        name
-        for name, value in (
+    # cos / s3：凭据清单不同，收口同一份缺项提示
+    if driver == "s3":
+        credential_items = (
+            ("STORAGE_S3_ACCESS_KEY", settings.STORAGE_S3_ACCESS_KEY),
+            ("STORAGE_S3_SECRET_KEY", settings.STORAGE_S3_SECRET_KEY),
+            ("STORAGE_S3_BUCKET", settings.STORAGE_S3_BUCKET),
+        )
+        bucket_label = settings.STORAGE_S3_BUCKET
+    else:
+        credential_items = (
             ("COS_SECRET_ID", settings.COS_SECRET_ID),
             ("COS_SECRET_KEY", settings.COS_SECRET_KEY),
             ("COS_BUCKET", settings.COS_BUCKET),
         )
-        if not (value or "").strip()
+        bucket_label = settings.COS_BUCKET
+
+    missing = [
+        name for name, value in credential_items if not (value or "").strip()
     ]
     if missing:
         return _item(
@@ -118,8 +127,8 @@ def _check_storage() -> dict:
             label="文件存储",
             status="error",
             required=True,
-            detail=f"cos 驱动缺 {len(missing)} 项：{'、'.join(missing)}",
-            action="补齐 COS 凭据，或把 STORAGE_DRIVER 改回 local",
+            detail=f"{driver} 驱动缺 {len(missing)} 项：{'、'.join(missing)}",
+            action=f"补齐 {driver} 凭据，或把 STORAGE_DRIVER 改回 local",
             link="/settings",
             extra={"driver": driver, "missing": missing},
         )
@@ -128,7 +137,7 @@ def _check_storage() -> dict:
         label="文件存储",
         status="ready",
         required=True,
-        detail=f"cos 驱动，bucket={settings.COS_BUCKET}（未做网络连通测试）",
+        detail=f"{driver} 驱动，bucket={bucket_label}（未做网络连通测试）",
         action="上传一张图验证：正文配图能显示即通",
         link="/settings",
         extra={"driver": driver},

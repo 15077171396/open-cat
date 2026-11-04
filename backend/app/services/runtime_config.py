@@ -123,6 +123,14 @@ RUNTIME_KEYS: tuple[RuntimeKey, ...] = (
     RuntimeKey("cos_bucket", "COS_BUCKET", "str"),
     RuntimeKey("cos_region", "COS_REGION", "str"),
     RuntimeKey("cos_cdn_domain", "COS_CDN_DOMAIN", "str"),
+    # S3 兼容驱动（STORAGE_DRIVER=s3 时消费；驱动切换本身走 .env，不宜热改）
+    RuntimeKey("s3_access_key", "STORAGE_S3_ACCESS_KEY", "str", secret=True),
+    RuntimeKey("s3_secret_key", "STORAGE_S3_SECRET_KEY", "str", secret=True),
+    RuntimeKey("s3_bucket", "STORAGE_S3_BUCKET", "str"),
+    RuntimeKey("s3_endpoint", "STORAGE_S3_ENDPOINT", "str"),
+    RuntimeKey("s3_region", "STORAGE_S3_REGION", "str"),
+    RuntimeKey("s3_public_base", "STORAGE_S3_PUBLIC_BASE", "str"),
+    RuntimeKey("s3_addressing", "STORAGE_S3_ADDRESSING", "str"),
     # ---- 小程序 ----
     RuntimeKey("wechat_mini_appid", "WECHAT_MINI_APPID", "str"),
     RuntimeKey("wechat_mini_secret", "WECHAT_MINI_SECRET", "str", secret=True),

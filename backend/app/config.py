@@ -210,12 +210,27 @@ class Settings(BaseSettings):
     ENABLED_MODULES: str = ""
 
     # ---- 文件存储驱动 ----
-    # local = 落本机磁盘（开源默认，不需要任何云账号）；cos = 腾讯云对象存储（生产/CDN）
+    # local = 落本机磁盘（开源默认，不需要任何云账号）；cos = 腾讯云对象存储（生产/CDN）；
+    # s3 = S3 兼容对象存储（AWS S3 / MinIO / 阿里云 OSS / 华为云 OBS 的 S3 兼容端点）
     STORAGE_DRIVER: str = "local"
     # local 驱动的存放根目录。容器内是挂卷的 /app/uploads；本地开发默认 ./uploads
     STORAGE_LOCAL_DIR: str = "./uploads"
     # local 驱动对外访问前缀，留空则用 SITE_BASE_URL；产出形如 {base}/uploads/{key}
     STORAGE_PUBLIC_BASE: str = ""
+
+    # S3 兼容对象存储（STORAGE_DRIVER=s3 时生效；OSS/OBS/MinIO 都提供 S3 兼容端点）
+    # S3 兼容端点，含 https://（如 https://minio.example.com / https://oss-cn-hangzhou.aliyuncs.com）；
+    # 留空 = AWS 官方 S3
+    STORAGE_S3_ENDPOINT: str = ""
+    # 区域，如 us-east-1 / ap-beijing；自建端点通常不校验，留空回退 us-east-1
+    STORAGE_S3_REGION: str = ""
+    STORAGE_S3_ACCESS_KEY: str = ""
+    STORAGE_S3_SECRET_KEY: str = ""
+    STORAGE_S3_BUCKET: str = ""
+    # 公开访问前缀（CDN/自定义域名，含 https://）；留空按寻址风格拼默认域名
+    STORAGE_S3_PUBLIC_BASE: str = ""
+    # 寻址风格：auto（botocore 默认）/ path（MinIO、自建网关常用）/ virtual（AWS、OSS/OBS）
+    STORAGE_S3_ADDRESSING: str = "auto"
 
     # 对象存储 (腾讯云 COS)
     COS_SECRET_ID: str = ""

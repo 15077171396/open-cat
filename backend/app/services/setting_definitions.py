@@ -177,6 +177,13 @@ SETTING_GROUPS: tuple[SettingGroup, ...] = (
         surface=SURFACE_LOGIN,
     ),
     SettingGroup(
+        "auth_captcha", "登录人机验证",
+        "账号密码登录的图形验证码开关，防跨 IP 慢速撞库（IP 限流与账号锁定都拦不住的那条路）。"
+        "开启后登录必须先通过验证码；前台登录页按 /auth/capabilities 的 captcha_enabled 自动显示。"
+        "默认关闭：第三方自建登录页需按能力位自行适配",
+        surface=SURFACE_LOGIN,
+    ),
+    SettingGroup(
         "payment_general", "支付开关与订单",
         "在线支付总开关、Mock 模拟支付与订单有效期。总开关关闭时下单接口直接拒绝、"
         "前台不展示充值入口；Mock 只在非生产环境生效，正式环境请保持关闭",
@@ -608,6 +615,49 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         settings.COS_CDN_DOMAIN, public=False,
         help_text="可选。留空使用 COS 默认域名；配置后所有文件链接改走该域名（含 https://）",
     ),
+    # S3 兼容对象存储（STORAGE_DRIVER=s3 时生效）：AWS S3 / MinIO / OSS / OBS 共用一套
+    # S3 兼容 API，填各自端点即接入。驱动切换本身仍由 STORAGE_DRIVER（.env）决定，
+    # 这里只管凭据与端点 —— 运行期切驱动会让已生成的 URL 前缀集体失效，不宜热改。
+    SettingDefinition(
+        "s3_access_key", "S3 AccessKey", "password", "storage", "对象存储",
+        settings.STORAGE_S3_ACCESS_KEY, secret=True, public=False,
+        help_text="S3 兼容存储的访问密钥（MinIO/OSS/OBS 为对应控制台创建的 AK）",
+    ),
+    SettingDefinition(
+        "s3_secret_key", "S3 SecretKey", "password", "storage", "对象存储",
+        settings.STORAGE_S3_SECRET_KEY, secret=True, public=False,
+        help_text="与 AccessKey 配对。填错时上传会明确报错（不会静默失败）",
+    ),
+    SettingDefinition(
+        "s3_bucket", "S3 存储桶", "text", "storage", "对象存储",
+        settings.STORAGE_S3_BUCKET, public=False,
+        help_text="桶名。匿名可读靠桶策略（Allow s3:GetObject）或 ACL，二者配其一",
+    ),
+    SettingDefinition(
+        "s3_endpoint", "S3 端点", "text", "storage", "对象存储",
+        settings.STORAGE_S3_ENDPOINT, public=False,
+        help_text="含 https://。AWS 官方 S3 留空；MinIO/OSS/OBS 填各自 S3 兼容端点",
+    ),
+    SettingDefinition(
+        "s3_region", "S3 区域", "text", "storage", "对象存储",
+        settings.STORAGE_S3_REGION, public=False,
+        help_text="如 us-east-1 / ap-beijing；自建端点通常不校验，可留空",
+    ),
+    SettingDefinition(
+        "s3_public_base", "S3 公开访问前缀", "text", "storage", "对象存储",
+        settings.STORAGE_S3_PUBLIC_BASE, public=False,
+        help_text="可选。CDN/自定义域名（含 https://）；留空按寻址风格拼默认域名",
+    ),
+    SettingDefinition(
+        "s3_addressing", "S3 寻址风格", "select", "storage", "对象存储",
+        settings.STORAGE_S3_ADDRESSING, public=False,
+        options=[
+            {"value": "auto", "label": "自动（botocore 默认）"},
+            {"value": "path", "label": "path（MinIO / 自建网关常用）"},
+            {"value": "virtual", "label": "virtual（AWS / OSS / OBS）"},
+        ],
+        help_text="桶名进域名（virtual）还是进路径（path）。上传 404/403 时先查这里",
+    ),
 
     # 小程序
     SettingDefinition(
@@ -643,6 +693,11 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
     SettingDefinition(
         "wechat_mini_login_enabled", "微信小程序登录", "bool", "auth_wechat", "微信登录", "0", public=False,
         help_text="小程序登录总开关；关闭后 /auth/miniapp/login 直接拒绝",
+    ),
+    SettingDefinition(
+        "login_captcha_enabled", "登录图形验证码", "bool", "auth_captcha", "登录人机验证", "0", public=False,
+        help_text="开启后账号密码登录必须先通过图形验证码（一次性消费，5 分钟有效）；"
+        "登录前接口与密码校验无关，错码不计入账号失败锁定",
     ),
     SettingDefinition(
         "wechat_web_appid", "网站应用 AppID", "text", "auth_wechat", "微信登录", "", public=False,

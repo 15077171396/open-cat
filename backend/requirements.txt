@@ -46,6 +46,10 @@ aiosmtplib==3.0.2
 # 对象存储 (腾讯云 COS)
 cos-python-sdk-v5==1.9.32
 
+# 对象存储 (S3 兼容: AWS S3 / MinIO / 阿里云 OSS / 华为云 OBS 的 S3 兼容端点)
+# 仅 STORAGE_DRIVER=s3 时加载（驱动内延迟导入），作为声明依赖统一安装
+boto3==1.35.99
+
 # Scheduler
 apscheduler==3.10.4
 
