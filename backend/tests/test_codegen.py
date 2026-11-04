@@ -70,6 +70,7 @@ class CodegenRenderTests(unittest.TestCase):
                 "backend/app/schemas/sample_positions.py",
                 "backend/app/services/sample_positions_service.py",
                 "backend/app/api/admin_sample_positions.py",
+                "admin-frontend/src/pages/SamplePositions/List.tsx",
                 "INTEGRATION.md",
             ],
         )
@@ -79,8 +80,58 @@ class CodegenRenderTests(unittest.TestCase):
         self.assertIn("SamplePositionsCreate", files[1]["content"])
         self.assertIn("sort_order: int = 0", files[1]["content"])
         self.assertIn("record_admin_action", files[2]["content"])
-        self.assertIn("setting:view", files[4]["content"])
+        # 前后端权限码同源：INTEGRATION 与前端守卫都用模块命名空间（不再是 setting:*）
+        # files[4] = 前端列表页，files[5] = INTEGRATION.md
+        self.assertIn("sample_positions:view", files[5]["content"])
+        self.assertIn("sample_positions:edit", files[4]["content"])
         self.assertTrue(any("唯一约束" in warning for warning in warnings))
+
+    def test_frontend_page_renders_contract(self):
+        """前端骨架页：组件结构、权限守卫、条件导入与「无 Jinja 残留」。"""
+        config, _ = _validate_config(SCHEMA, _config())
+        page = next(
+            item["content"]
+            for item in _render(SCHEMA, config)
+            if item["path"].endswith("List.tsx")
+        )
+        self.assertIn("export default function SamplePositionsList", page)
+        self.assertIn("useCrudList<SamplePositionsRow>", page)
+        self.assertIn("paginated: false", page, "生成的后端列表不分页，前端必须对齐")
+        self.assertIn('perm="sample_positions:create"', page)
+        self.assertIn('perm="sample_positions:edit"', page)
+        self.assertIn('perm="sample_positions:delete"', page)
+        # is_enabled 是 bool → Switch 条件导入；description 是长文本名 → TextArea
+        self.assertIn("Switch", page)
+        self.assertIn("Input.TextArea", page)
+        self.assertIn("formatTime", page, "created_at 列渲染时间")
+        # Jinja 残留 / 嵌套花括号都不会产出可编译的 TSX
+        self.assertNotIn("{{", page)
+        self.assertNotIn("{%", page)
+        self.assertNotIn("setting:", page)
+        # DataTable 的 empty 必填三键（本断言来自真实 tsc 校验的一次翻车）
+        self.assertIn("hasFilter: false", page)
+        self.assertIn("filteredText:", page)
+
+    def test_frontend_imports_follow_field_kinds(self):
+        """没有 bool/数字字段时对应控件不应被导入（未使用导入过不了前端 tsc）。"""
+        plain = TableSchema(
+            name="plain",
+            comment="",
+            columns=(
+                ColumnSchema("id", "BIGINT", "BigInteger", "int", False, "", primary=True),
+                ColumnSchema("title", "VARCHAR(50)", "String(50)", "str", False, "标题"),
+            ),
+        )
+        config, _ = _validate_config(plain, _config(table="plain", module="plain", class_name="Plain"))
+        page = next(
+            item["content"]
+            for item in _render(plain, config)
+            if item["path"].endswith("List.tsx")
+        )
+        self.assertNotIn("Switch", page)
+        self.assertNotIn("InputNumber", page)
+        self.assertIn("Input", page)
+        self.assertNotIn("formatTime", page, "没有 created_at 时不引时间格式化")
 
     def test_selected_fields_limit_create_and_search(self):
         config, _ = _validate_config(SCHEMA, _config(fields=("name",)))
@@ -177,6 +228,7 @@ class CodegenRenderTests(unittest.TestCase):
         with zipfile.ZipFile(io.BytesIO(content)) as archive:
             names = archive.namelist()
             self.assertIn("backend/app/models/sample_positions.py", names)
+            self.assertIn("admin-frontend/src/pages/SamplePositions/List.tsx", names)
             self.assertIn("INTEGRATION.md", names)
         actions = [row["action"] for row in db.all_rows(AdminAuditLog)]
         self.assertEqual(actions, ["codegen_download"])

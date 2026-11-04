@@ -457,6 +457,25 @@ def _py_import_lines(columns: list[ColumnSchema]) -> list[str]:
     return lines
 
 
+_TS_TYPE_MAP = {
+    "str": "string",
+    "int": "number",
+    "float": "number",
+    "bool": "boolean",
+    "datetime": "string",  # API 序列化为 ISO 字符串
+}
+
+# 长文本字段名 → 表单用 TextArea（骨架的合理默认；接入者可改）
+_TEXTAREA_NAMES = frozenset(
+    {"content", "description", "note", "remark", "comment", "body", "text", "summary"}
+)
+
+
+def _ts_type(py_type: str) -> str:
+    """Python 类型 → TS 类型（行接口与表单值类型用）。"""
+    return _TS_TYPE_MAP.get(py_type, "unknown")
+
+
 def _render(schema: TableSchema, config: CodegenConfig) -> list[dict]:
     columns = list(schema.columns)
     selected = set(config.fields)
@@ -537,6 +556,19 @@ def _render(schema: TableSchema, config: CodegenConfig) -> list[dict]:
             "            )\n"
             "        )"
         )
+    fe_fields = [
+        {
+            **item,
+            "ts_type": _ts_type(item["py_type"]),
+            "input_kind": (
+                "switch" if item["py_type"] == "bool"
+                else "number" if item["py_type"] in ("int", "float")
+                else "textarea" if item["py_type"] == "str" and item["name"] in _TEXTAREA_NAMES
+                else "text"
+            ),
+        }
+        for item in editable_contexts
+    ]
     context = {
         "schema": schema,
         "config": config,
@@ -565,11 +597,22 @@ def _render(schema: TableSchema, config: CodegenConfig) -> list[dict]:
         "unique_text": "、".join("+".join(item) for item in schema.uniques),
         "table_label": f"{schema.name}（{schema.comment}）" if schema.comment else schema.name,
         "audit_prefix": config.module,
+        # 前端模板上下文：控件类型按字段推断（骨架默认，接入者按业务调整）
+        "fe_fields": fe_fields,
+        "fe_search_has": any(item["py_type"] == "str" for item in editable_contexts),
+        # created_at 常为 server_default（不可编辑），表格里的时间列单独判断全量列
+        "fe_has_created_at": any(column.name == "created_at" for column in columns),
+        # 条件导入：未使用导入会让生成物过不了前端的 tsc --noUnusedLocals
+        "fe_need_switch": any(item["input_kind"] == "switch" for item in fe_fields),
+        "fe_need_number": any(item["input_kind"] == "number" for item in fe_fields),
+        "fe_need_textarea": any(item["input_kind"] == "textarea" for item in fe_fields),
+        "fe_need_text": any(item["input_kind"] == "text" for item in fe_fields),
         "code_files": [
             f"backend/app/models/{config.module}.py",
             f"backend/app/schemas/{config.module}.py",
             f"backend/app/services/{config.module}_service.py",
             f"backend/app/api/admin_{config.module}.py",
+            f"admin-frontend/src/pages/{config.class_name}/List.tsx",
         ],
     }
 
@@ -589,6 +632,10 @@ def _render(schema: TableSchema, config: CodegenConfig) -> list[dict]:
         {
             "path": f"backend/app/api/admin_{config.module}.py",
             "content": _ENV.from_string(_API_TEMPLATE).render(**context),
+        },
+        {
+            "path": f"admin-frontend/src/pages/{config.class_name}/List.tsx",
+            "content": _ENV.from_string(_LIST_PAGE_TEMPLATE).render(**context),
         },
         {
             "path": "INTEGRATION.md",
@@ -897,6 +944,194 @@ async def delete_{{ config.module }}(
     return success_response({"ok": True})
 '''
 
+_LIST_PAGE_TEMPLATE = '''/**
+ * {{ config.title }}管理页骨架，由代码生成器产出（表 `{{ schema.name }}`）。
+ *
+ * 接入步骤（路由 / 菜单 / 权限码）见生成包内 INTEGRATION.md；
+ * 字段控件、列渲染与校验按业务调整 —— 这里给的是「能跑通 CRUD」的最小默认。
+ */
+
+import { useState } from 'react'
+import type { CSSProperties } from 'react'
+import { Button, Form,{% if fe_need_number %} InputNumber,{% endif %}{% if fe_need_text or fe_need_textarea or fe_search_has %} Input,{% endif %} Space{% if fe_need_switch %}, Switch{% endif %} } from 'antd'
+import type { TableProps } from 'antd'
+import {
+  DeleteOutlined,
+  EditOutlined,
+  PlusOutlined,
+  ReloadOutlined,
+  TableOutlined,
+} from '@ant-design/icons'
+import { apiPost, apiPut } from '../../api/client'
+import { useCrudList } from '../../hooks/useCrudList'
+import { PermGuard } from '../../components/PermGuard'
+import { getErrorMessage, isFormValidationError } from '../../utils/error'
+{% if fe_has_created_at %}import { formatTime } from '../../utils/datetime'
+{% endif %}
+import { toast } from '../../utils/toast'
+import PageHeader from '../../components/ui/PageHeader'
+import { DataTable, ListToolbar, ModalForm } from '../../components/ui'
+
+interface {{ config.class_name }}Row {
+  {{ pk.name }}: number
+{% for f in fe_fields %}  {{ f.name }}: {{ f.ts_type }}{% if not f.required %} | null{% endif %}
+
+{% endfor %}{% if fe_has_created_at %}  created_at: string | null
+{% endif %}}
+
+/** 表单值的宽松形态：新建时多数字段可空，校验交给后端 */
+type {{ config.class_name }}Form = Partial<Record<keyof {{ config.class_name }}Row, unknown>>
+
+// number 输入与搜索框的统一样式（对象字面量提升为常量，避免 JSX 里出现嵌套花括号）
+const numberStyle: CSSProperties = { width: '100%' }
+const searchStyle: CSSProperties = { width: 200 }
+// DataTable 的 empty 配置是必填对象（hasFilter/filteredText/emptyText 三键齐全）
+const emptyState = { hasFilter: false, filteredText: '没有符合条件的数据', emptyText: '暂无数据' }
+
+export default function {{ config.class_name }}List() {
+  const [keyword, setKeyword] = useState('')
+  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState<{{ config.class_name }}Row | null>(null)
+  const [formValues, setFormValues] = useState<{{ config.class_name }}Form>({})
+
+  const { items, loading, refresh, handleDelete } = useCrudList<{{ config.class_name }}Row>({
+    basePath: '/admin{{ config.route_prefix }}',
+    // 生成的后端骨架列表不分页；接入分页时改成 paginated: true 并给后端补 page/total
+    paginated: false,
+{% if fe_search_has %}    params: keyword.trim() ? { keyword: keyword.trim() } : undefined,
+{% endif %}    deleteTitle: '确认删除{{ config.title }}',
+  })
+
+  // 列定义在组件内：操作列要引用本组件的 openEdit / handleDelete
+  const columns: TableProps<{{ config.class_name }}Row>['columns'] = [
+{% for f in fe_fields %}    {
+      title: '{{ f.name }}',
+      dataIndex: '{{ f.name }}',
+      key: '{{ f.name }}',
+{% if f.py_type == 'bool' %}      render: (v: boolean) => (v ? '是' : '否'),
+{% else %}      render: (v: {{ f.ts_type }} | null) => (v ?? '—'),
+{% endif %}    },
+{% endfor %}{% if fe_has_created_at %}    {
+      title: '创建时间',
+      dataIndex: 'created_at',
+      key: 'created_at',
+      render: (v: string | null) => <span className="adm-muted">{formatTime(v)}</span>,
+    },
+{% endif %}    {
+      title: '操作',
+      key: 'action',
+      width: 160,
+      render: (_: unknown, row: {{ config.class_name }}Row) => (
+        <Space size={0}>
+          <PermGuard perm="{{ config.module }}:edit">
+            <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openEdit(row)}>
+              编辑
+            </Button>
+          </PermGuard>
+          <PermGuard perm="{{ config.module }}:delete">
+            <Button type="link" size="small" danger icon={<DeleteOutlined />} onClick={() => handleDelete(row.{{ pk.name }})}>
+              删除
+            </Button>
+          </PermGuard>
+        </Space>
+      ),
+    },
+  ]
+
+  const openCreate = () => {
+    setEditing(null)
+    setFormValues({})
+    setOpen(true)
+  }
+
+  const openEdit = (row: {{ config.class_name }}Row) => {
+    setEditing(row)
+    setFormValues({ ...row })
+    setOpen(true)
+  }
+
+  const handleSubmit = async (values: Record<string, unknown>) => {
+    try {
+      if (editing) {
+        await apiPut(`/admin{{ config.route_prefix }}/${editing.{{ pk.name }}}`, values)
+        toast.success('已保存')
+      } else {
+        await apiPost('/admin{{ config.route_prefix }}', values)
+        toast.success('已创建')
+      }
+      setOpen(false)
+      refresh()
+    } catch (err) {
+      if (isFormValidationError(err)) return
+      toast.error(getErrorMessage(err, '操作失败'))
+    }
+  }
+
+  return (
+    <div className="adm-page adm-page--responsive">
+      <PageHeader
+        icon={<TableOutlined />}
+        title="{{ config.title }}"
+        subtitle="由代码生成器产出的骨架页：字段控件与列展示请按业务调整"
+        actions={(
+          <>
+{% if fe_search_has %}            <Input.Search
+              allowClear
+              placeholder="搜索"
+              value={keyword}
+              onChange={(e) => setKeyword(e.target.value)}
+              style={searchStyle}
+            />
+{% endif %}            <Button icon={<ReloadOutlined />} onClick={refresh}>
+              刷新
+            </Button>
+          </>
+        )}
+      />
+
+      <ListToolbar hasFilter={false}>
+        <PermGuard perm="{{ config.module }}:create">
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            新建{{ config.title }}
+          </Button>
+        </PermGuard>
+      </ListToolbar>
+
+      <DataTable<{{ config.class_name }}Row>
+        dataSource={items}
+        columns={columns}
+        rowKey="{{ pk.name }}"
+        loading={loading}
+        empty={emptyState}
+      />
+
+      {/* 新建 / 编辑共用一个弹窗：editing 区分两种模式，formValues 负责回填 */}
+      <ModalForm
+        title={editing ? `编辑{{ config.title }}` : `新建{{ config.title }}`}
+        open={open}
+        onCancel={() => setOpen(false)}
+        onSubmit={handleSubmit}
+        initialValues={formValues}
+        width={560}
+      >
+{% for f in fe_fields %}{% if f.input_kind == 'textarea' %}        <Form.Item name="{{ f.name }}" label="{{ f.name }}">
+          <Input.TextArea rows={4} />
+        </Form.Item>
+{% elif f.input_kind == 'number' %}        <Form.Item name="{{ f.name }}" label="{{ f.name }}">
+          <InputNumber style={numberStyle} />
+        </Form.Item>
+{% elif f.input_kind == 'switch' %}        <Form.Item name="{{ f.name }}" label="{{ f.name }}" valuePropName="checked">
+          <Switch />
+        </Form.Item>
+{% else %}        <Form.Item name="{{ f.name }}" label="{{ f.name }}">
+          <Input />
+        </Form.Item>
+{% endif %}{% endfor %}      </ModalForm>
+    </div>
+  )
+}
+'''
+
 _INTEGRATION_TEMPLATE = '''# {{ config.title }} 代码生成结果
 
 - 来源表：`{{ table_label }}`
@@ -911,18 +1146,32 @@ _INTEGRATION_TEMPLATE = '''# {{ config.title }} 代码生成结果
 
 ## 接入步骤
 
-1. 把上面 4 个文件复制到仓库对应路径。
+1. 把上面 {{ code_files | length }} 个文件复制到仓库对应路径（后端 4 个 + 前端列表页 1 个）。
 2. 在 `backend/app/api/admin.py` 的 import 列表中加入 `admin_{{ config.module }}`。
-3. 在 `backend/app/core/rbac.py` 的 `_RULES` 中登记（未登记会被 fail-closed 拦成 403）：
+3. 在 `backend/app/services/rbac_catalog.py` 登记四个权限码（前后端生成物共用这套命名空间，
+   前端页面的 PermGuard 已经按这些码写好；**新增权限码必须配套补种迁移**，
+   照抄 `alembic/versions/20261103_0074_seed_feedback_reply_permission.py` 调
+   `rbac_seed_service.seed_permission_codes`，否则已有部署会 403）：
 
 ```python
-("GET", "/api/v1/admin{{ config.route_prefix }}", ["setting:view"]),
-("POST", "/api/v1/admin{{ config.route_prefix }}", ["setting:update"]),
-("PUT", "/api/v1/admin{{ route_items }}", ["setting:update"]),
-("DELETE", "/api/v1/admin{{ route_items }}", ["setting:update"]),
+PermissionDef("{{ config.module }}:view", "{{ config.title }}查看", "menu", "{{ config.module }}", "{{ config.title }}", 900),
+PermissionDef("{{ config.module }}:create", "新建", "button", "{{ config.module }}", "{{ config.title }}", 901),
+PermissionDef("{{ config.module }}:edit", "编辑", "button", "{{ config.module }}", "{{ config.title }}", 902),
+PermissionDef("{{ config.module }}:delete", "删除", "button", "{{ config.module }}", "{{ config.title }}", 903),
 ```
 
-4. 在 `backend/app/models/admin_audit_log.py` 登记三个动作码、目标类型与风险等级：
+   （sort 取 900 段请按目录现状顺延，避免与现有值撞车。）
+
+4. 在 `backend/app/core/rbac.py` 的 `_RULES` 中登记（未登记会被 fail-closed 拦成 403）：
+
+```python
+("GET", "/api/v1/admin{{ config.route_prefix }}", ["{{ config.module }}:view"]),
+("POST", "/api/v1/admin{{ config.route_prefix }}", ["{{ config.module }}:create"]),
+("PUT", "/api/v1/admin{{ route_items }}", ["{{ config.module }}:edit"]),
+("DELETE", "/api/v1/admin{{ route_items }}", ["{{ config.module }}:delete"]),
+```
+
+5. 在 `backend/app/models/admin_audit_log.py` 登记三个动作码、目标类型与风险等级：
 
 ```python
 # AUDIT_ACTIONS
@@ -937,14 +1186,18 @@ _INTEGRATION_TEMPLATE = '''# {{ config.title }} 代码生成结果
 "{{ config.module }}_delete": AUDIT_RISK_DANGER,
 ```
 
-5. 可选：在 `backend/app/services/admin_menu.py` 增加菜单项，并为 `MODULES` 登记路径前缀与菜单 key。
+6. 前端接线（`admin-frontend`）：
+   - `src/routes/adminRoutes.tsx` 加 `{ path: '/{{ config.module }}', element: <{{ config.class_name }}List />, perm: '{{ config.module }}:view' }`（组件 lazy 导入）；
+   - 可选：`backend/app/services/admin_menu.py` 增加菜单项，并为 `MODULES` 登记路径前缀与菜单 key
+     （三处必须同步，`backend/tests/test_admin_routes.py` 会跨语言校验，漏一处即红）；
+   - 前端测试：照抄 `src/pages/Positions/Positions.test.tsx` 打桩 api client。
 
 ## 生成边界
 
 - 代码生成器只读表结构，不会建表、不会改库；生成物是**骨架**，下载后由人决定是否接入。
 - 唯一约束未自动生成重复校验：{% if schema.uniques %}本表存在 `{{ unique_text }}`，请按业务补 400 提示。{% else %}本表未发现唯一约束。{% endif %}
 
-
 - 字段类型映射：未知类型会回退为 `Text`，请在模型里核对。
-- 前端页面未生成：本项目前端列表页与字段展示强相关，请参考 `admin-frontend/src/pages/Positions` 手写页面与权限守卫。
+- 前端页面是**骨架**：表单控件按字段类型给了默认（bool→Switch、数字→InputNumber、
+  长文本名→TextArea、其余→Input），分页、批量操作、状态流转等请按业务补充。
 '''
