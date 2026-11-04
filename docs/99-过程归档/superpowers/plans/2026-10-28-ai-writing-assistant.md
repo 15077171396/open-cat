@@ -8,7 +8,7 @@
 
 **Tech Stack:** FastAPI、SQLAlchemy、Alembic、Redis、httpx、Pydantic、React 18、Ant Design 6、Quill 2、marked、DOMPurify、vitest。
 
-**Spec:** `docs/superpowers/specs/2026-10-28-ai-writing-assistant-design.md`
+**Spec:** `docs/99-过程归档/superpowers/specs/2026-10-28-ai-writing-assistant-design.md`
 
 ## Global Constraints
 

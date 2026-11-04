@@ -16,8 +16,8 @@ from urllib.parse import unquote
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# 校验范围
-TARGETS = [REPO_ROOT / "docs", REPO_ROOT / "README.md"]
+# 校验范围（backend/README.md 也被 docs/README.md 引用，必须一并校验，否则死链会漏网）
+TARGETS = [REPO_ROOT / "docs", REPO_ROOT / "README.md", REPO_ROOT / "backend" / "README.md"]
 
 # Markdown 链接：[文本](目标)
 LINK_RE = re.compile(r"\[[^\]]*\]\(([^)\s]+)(?:\s+\"[^\"]*\")?\)")

@@ -6,6 +6,50 @@
 
 ### 新增
 
+- **站内聊天**：侧栏新增「系统 → 站内聊天」（权限 `chat:view`，view 即读写 —— 个人通信按按钮拆授权没有意义）。管理员之间的私聊（同一对幂等发起）与群聊（≥3 人，建群后成员固定）：纯文字 + WebSocket 实时推送 + 未读角标。
+  - **HTTP 写、WS 推**：发消息走 REST（落库即成功），服务端推给在线成员；断线者重连后用历史接口（游标分页）兜底，消息可靠性不依赖连接状态。
+  - **WS 鉴权**：复用登录时种下的 httpOnly cookie（同源握手自动携带），不提供 query token（URL 会进访问日志）；模块开关关闭时拒绝升级；close code 区分 4401 未认证 / 4403 非管理员 / 4404 模块关闭。
+  - **消息主键自增**：未读游标（`last_read_id`）与历史分页依赖单调 id，打破全库随机 id 惯例并写明理由（`models/chat.py`）；发消息即已读。
+  - 边界（与 FastapiAdmin chat 模块同口径）：不做文件传输/撤回/已读回执/多端同步/Redis 扇出；单实例部署下连接管理在进程内（`_connections`），横向扩展时接 Redis pub/sub，REST 契约不变。
+  - 配套：`chat_conversations/chat_messages/chat_members` 三张表 + `chat:view` 补种迁移；nginx 增设 `/api/v1/admin/ws/` 升级转发块；vite dev proxy 开 `ws: true`；聊天不走管理审计（消息表即台账，已在审计覆盖守卫显式豁免）。
+- **S3 兼容对象存储驱动**：`STORAGE_DRIVER=s3` 接入 AWS S3 / MinIO / 阿里云 OSS /
+  华为云 OBS（三家都提供 S3 兼容端点，一套驱动覆盖）。实现于 `storage/s3_provider.py`：
+  boto3 签名与重试、寻址风格可选（auto/path/virtual，MinIO 常用 path）、
+  公开 URL 优先 CDN 前缀否则按寻址风格拼默认域名；上传后尝试补 ACL=public-read
+  （ACL 禁用的桶只告警不阻断，匿名可读建议配桶策略）；异常只捕 SDK 的
+  `ClientError/BotoCoreError` 与 `OSError`。凭据（AK/SK/桶/端点/区域/寻址）进后台
+  「系统设置 → 对象存储」组并登记 `RUNTIME_KEYS`——客户端按配置指纹缓存，
+  运行期改密钥自动重建；部署体检补 s3 分支（缺项提示 + bucket 就绪态）。
+  `.env.example` 给四家的端点示例；新增依赖 `boto3==1.35.99`（驱动内延迟导入，
+  local/cos 用户不加载）。
+- **代码生成器补前端页面**：生成包从 4 个后端骨架扩为 5+1——新增
+  `admin-frontend/src/pages/<Class>/List.tsx`（antd DataTable + useCrudList +
+  新建/编辑 ModalForm，控件按字段类型给默认：bool→Switch、数字→InputNumber、
+  长文本名→TextArea、其余→Input；PermGuard 按 `<module>:create/edit/delete` 守卫；
+  分页/搜索骨架与生成端点对齐）。INTEGRATION.md 同步改版：权限码从占位的
+  `setting:*` 改为 `<module>:view/create/edit/delete` 独立命名空间（前后端生成物同源），
+  接入步骤覆盖 rbac_catalog 登记 + 补种迁移 + 路由/菜单三处同步 + 前端测试样板；
+  条件导入按字段类型裁剪（未使用导入过不了前端 tsc）。生成物经项目真实
+  `tsc -b` 验证可编译。
+- **登录图形验证码**：登录管理新增「登录人机验证」组。开启后（`login_captcha_enabled`，默认关闭）
+  账号密码登录必须先过 4 位 SVG 图形验证码 —— 答案只进 Redis（GETDEL 一次性消费、5 分钟 TTL），
+  错码不计入账号失败锁定；Redis 故障时签发与校验均 fail-closed（拒绝而非放行），
+  端点登记进敏感限流清单；能力位经 `GET /auth/capabilities` 的 `captcha_enabled` 下发，
+  管理端登录页据此渲染验证码框（图以 `<img>` 渲染不进 DOM，点图刷新），
+  第三方自建登录页按能力位自行适配。
+- **AI 对话调试台**：侧栏「系统」分组新增 `/ai-playground`。选模型（文本模态下拉）+ 可选系统提示词
+  与温度，与已配置模型直接流式对话，回复后显示 token 用量与估算成本 —— 模型管理页配完
+  Key / 单价当场验证连通性与计费。独立授权面 `ai_playground:view`（能对话 = 能消耗全站额度，
+  不随内容编辑下发）；按管理员小时限流 60 次（Redis 故障放行、全站成本护栏兜底）；
+  SSE 语义与 AI 写作一致（超时/断线/错误全部走 `event: error`，未产出内容归还额度）；
+  会话只在前端，服务端不留对话记录。迁移 `seed_ai_playground_permission` 补种权限码。
+- **反馈工单化**：用户反馈从「状态 + 内部备注」升级为可往返的工单闭环。
+  新增 `feedback_replies` 表（迁移 `add_feedback_replies`）与 `feedback:reply` 权限码
+  （迁移 `seed_feedback_reply_permission` 补种）：管理员在抽屉线程里回复（用户可见 +
+  站内通知，回复/通知/审计同事务），待处理自动流转处理中；用户可回复自己的工单
+  （已解决 → 自动重新拉起为处理中，已关闭拒收，命中敏感词拒绝入库并留痕）；
+  用户端 API 新增 `GET /feedbacks`（我的工单进度）与 `POST /feedbacks/{id}/replies`；
+  管理端列表聚合回复数，回复与内部备注（`admin_note`）职责分离。
 - **代码生成器**：系统下新增 `/codegen`。只读内省 MySQL 表结构，按模块名 / 类名 / 路由前缀 /
   可编辑字段生成 Model、Pydantic Schema、Service、API 四个后端骨架文件与 `INTEGRATION.md`；
   页面内多文件预览、ZIP 下载。表结构内省与生成物都属于数据外带，列表/预览/下载统一要求
@@ -120,7 +164,7 @@
 - 10 个标准表单弹窗迁到 `ModalForm`，并加覆盖率棘轮
 - 分类管理改为「左分组 / 右分类」双栏，两边都可增删改查
 - 新增暗色主题换肤与侧边 / 顶部布局切换
-- 许可定为 MIT（允许闭源商用与二次分发，换取最大采用率）
+- 许可定为 MIT（允许商用与二次分发，换取最大采用率）
 
 ### 修复
 

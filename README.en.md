@@ -37,7 +37,7 @@ Use it to run content and users; use its API to render your own site.
 | Menu entry exists, page returns 403 | Permission codes are declared **once** and derive menu / route / API / button — inconsistency is physically impossible |
 | A new endpoint ships without a permission check | Route rule table is **fail-closed**: unregistered requests get 403 |
 | Nobody can tell who changed what | Write operations **must** be audited; a missing audit record turns tests red |
-| Shared accounts, unclear accountability | 63 permission codes, 3 built-in roles, customizable down to the button |
+| Shared accounts, unclear accountability | 67 permission codes, 3 built-in roles, customizable down to the button |
 | Third-party keys stored in plain text | Keys are **encrypted with Fernet** in the DB, only a masked value is returned |
 | The editor is dumb, images are found by hand | Quill 2 + AI rewrite/continue/illustrate + image library search |
 
@@ -82,7 +82,7 @@ already has real content unless you pass `--yes`.
 | **Editing** | Quill 2 rich text (tables, code blocks, captions, TOC, Markdown paste), AI rewrite/continue/illustrate, image library search, draft preview |
 | **Moderation** | Machine-review trail, user reports, comment governance (deletable and restorable, never editable) |
 | **Users** | CRUD, ban, soft delete and restore, points adjustment, role assignment, real-name review |
-| **Permissions** | Roles / permission tree / departments / positions, 63 permission codes, button-level |
+| **Permissions** | Roles / permission tree / departments / positions, 67 permission codes, button-level |
 | **Audit** | Every write is recorded; high-risk actions keep a **field-level diff** (old → new, secrets masked, long values truncated), searchable by module / actor / time / result |
 | **Experience** | Global command palette (Ctrl/Cmd + K): jump to pages, search users / tutorials, switch theme / layout; results land on filtered lists or edit pages. Below 767px the menu becomes a drawer, and comments / moderation / feedback prioritize content columns |
 | **Workplace** | Aggregated page under Overview: permission-aware quick actions, pending to-dos, today's signups / total users, recent audit events and tutorials |
@@ -104,7 +104,7 @@ already has real content unless you pass `--yes`.
 **Deploy** Docker Compose · nginx · optional Sentry
 
 ```
-backend/         FastAPI app (271 operations, 160 admin; content API at /api/v1/content/docs)
+backend/         FastAPI app (285 operations, 171 admin; content API at /api/v1/content/docs)
 admin-frontend/  Admin SPA (base=/admin/)
 docs/            Documentation (Chinese)
 ```
@@ -117,7 +117,7 @@ The thing worth reviewing in an open-source project is discipline, not feature c
 
 | Capability | This project | Typical open-source admin |
 |------|------|-------------------|
-| Backend tests | **156 files / 1848 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
+| Backend tests | **161 files / 1914 cases**, fully offline (no MySQL/Redis needed) | 0 – dozens |
 | Architecture guards | Permission coverage / audit coverage / menu consistency / task registry, all covered by tests | Rare |
 | Secret storage | Fernet-encrypted in DB + mask sentinel | Plain text in DB or config |
 | Audit | Mandatory for writes; missing record fails tests | Logs exist, no coverage guarantee |
@@ -157,11 +157,16 @@ Issues and PRs are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md) first — th
 2. New admin endpoints **must** be registered in the route rule table, otherwise 403;
 3. New permission codes **must** be synced to menu items, otherwise tests fail.
 
+Please follow the [Code of Conduct](CODE_OF_CONDUCT.md) in all discussions.
+
 ---
 
 ## License
 
-[MIT](LICENSE).
+[MIT](LICENSE), copyright GEfish.
+
+All features are open source: the backend, the admin console, and every business module are released under the MIT license. There is no closed-source commercial edition and no module requires a paid unlock.
+Commercial use, modification, and redistribution (including in closed-source form) are permitted, provided the copyright and license notices are retained.
 
 ---
 

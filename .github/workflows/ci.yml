@@ -1,5 +1,5 @@
 # =============================================================================
-# CI（对应缺口台账 P0-2）
+# CI
 # =============================================================================
 # 目标：push / PR 自动跑测试 + 构建镜像，替代「发版时才靠人工 ./deploy.sh rebuild」。
 #
@@ -15,8 +15,8 @@
 #     这样「某个用例偷偷连了真实服务」会立刻失败，而不是静默跳过或被本地
 #     开发环境掩盖 —— 本地能过、CI 不能过的测试等于没有测试。
 #
-#  3. 前端两个工程都要过类型检查 + 生产构建
-#     用户端额外跑错误监控脱敏回归（含「两端 monitoring.ts 必须逐字一致」守卫）。
+#  3. 管理端要过 lint + 类型检查 + 生产构建 + vitest
+#     开源版不含用户端、小程序与预渲染服务，也不再跑「两端 monitoring.ts 一致性」守卫。
 #
 #  4. 镜像构建复用 docker-compose.yml，不在这里重复 context / dockerfile / build-args
 #     否则 CI 校验的构建口径会与 deploy.sh 慢慢漂移。
@@ -26,9 +26,11 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    # 开源版只剩管理后台，但功能分支同样要过 CI：
+    # 只在 main/master 触发会让 feat/* 上的改动「合并前零验证」。
+    branches: [main, master, "feat/**"]
   pull_request:
-    branches: [master, main]
+    branches: [main, master, "feat/**"]
   workflow_dispatch:
 
 # 同一分支连续 push 时取消上一次未跑完的任务，避免排队堆积与浪费额度
@@ -275,10 +277,9 @@ jobs:
         working-directory: ${{ matrix.app }}
         run: npm run build
 
-      # 两端都跑 vitest（第五轮审查 MNT-01）：
-      # - admin-frontend：编辑器纯逻辑与编辑页字段往返（QuillEditor 曾长期零测试覆盖）；
-      # - frontend：登录态 store / 内存缓存 / 富文本清洗的纯函数守卫（2026-10-20 补齐，
-      #   此前 17k 行用户端 0 单测，登录态与「换号串数据」这类问题只能靠手测）。
+      # 跑 vitest（第五轮审查 MNT-01）：
+      # - admin-frontend：编辑器纯逻辑与编辑页字段往返（QuillEditor 曾长期零测试覆盖）。
+      # 开源版只保留管理端；用户端与小程序测试已随代码移出。
       - name: 单元测试（vitest）
         working-directory: ${{ matrix.app }}
         run: npm test

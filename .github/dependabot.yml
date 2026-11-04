@@ -1,6 +1,6 @@
 # 依赖更新与安全公告自动化（2026-10-27 新增）
 #
-# 为什么需要它：本仓库有 5 份依赖清单（1 份 pip + 4 份 npm lockfile），
+# 为什么需要它：本仓库有 2 份依赖清单（1 份 pip + 1 份 npm lockfile，见 README），
 # 但**没有任何自动化的漏洞/版本跟踪** —— 上游发 CVE 时只能靠人偶尔想起去查。
 # 依赖漏洞是「不修也不报错、只在某天被人利用」的典型风险，靠记忆管不住。
 #
@@ -32,22 +32,6 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 
-  # ---------- 用户端 ----------
-  - package-ecosystem: npm
-    directory: /frontend
-    schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-    groups:
-      frontend-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
   # ---------- 管理端 ----------
   - package-ecosystem: npm
     directory: /admin-frontend
@@ -61,40 +45,6 @@ updates:
       prefix: "chore(deps)"
     groups:
       admin-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  # ---------- 小程序 ----------
-  # 纯增量目录，但仍要跟版本：它的构建工具与 Web 端不共享，单独升级不会影响 Web
-  - package-ecosystem: npm
-    directory: /miniprogram
-    schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    groups:
-      miniprogram-minor-patch:
-        patterns: ["*"]
-        update-types: ["minor", "patch"]
-
-  # ---------- 预渲染服务 ----------
-  # 容器内跑 Chromium，历史上多次出 CVE，最需要跟踪
-  - package-ecosystem: npm
-    directory: /prerender
-    schedule:
-      interval: weekly
-      day: monday
-      time: "09:00"
-      timezone: Asia/Shanghai
-    open-pull-requests-limit: 3
-    commit-message:
-      prefix: "chore(deps)"
-    groups:
-      prerender-minor-patch:
         patterns: ["*"]
         update-types: ["minor", "patch"]
 

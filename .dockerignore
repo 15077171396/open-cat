@@ -10,15 +10,14 @@
 #   密钥一旦被 COPY 进镜像层，后续任何 `RUN rm` 都删不掉（仍在历史层），
 #   任何能 `docker save` 或拉取该镜像的人都能读出。
 #
-#   同时 `frontend/node_modules`（数百 MB）会让每次构建都上传全量上下文，
+#   同时 `admin-frontend/node_modules`（数百 MB）会让每次构建都上传全量上下文，
 #   在 2 核 4G 机器上直接表现为构建更慢、更易 OOM。
 #
 # ⚠️ 注意：Docker 只读取**构建上下文根目录**的 .dockerignore。
 #   - context `.`            → 本文件（nginx 服务）
 #   - context `./backend`    → backend/.dockerignore
-#   - context `./prerender`  → prerender/.dockerignore
-#   所以 frontend/ 与 admin-frontend/ **不需要**各自的 .dockerignore
-#   （它们没有独立 context，是从根上下文里 COPY 的）。
+#   开源版只托管管理后台：admin-frontend 没有独立 context，是从根上下文里 COPY 的，
+#   因此**不需要**自己的 .dockerignore。
 
 # ---- 密钥与环境文件（最高优先级，放最前便于一眼看到）----
 .env
@@ -29,7 +28,7 @@
 !**/.env.example
 
 # Umami Basic Auth 口令文件（含密码哈希）。
-# 当前 Dockerfile.nginx 只 COPY frontend/ admin-frontend/ nginx.conf，**不会**碰到它；
+# 当前 Dockerfile.nginx 只 COPY admin-frontend/ nginx.conf，**不会**碰到它；
 # 此处排除是纵深防御 —— 防止将来有人改成 `COPY . .` 时把口令烤进镜像层
 # （与 P0-1「构建上下文未隔离」同一类事故）。
 nginx/.htpasswd
@@ -53,17 +52,6 @@ logs
 **/tunnel.log
 *.tar.gz
 
-# ---- 未被代码引用的设计源图（约 4.8MB）----
-# 这些 PNG 只是生成 `.webp` 的**源文件**，运行时真正被引用的是同名 `.webp`
-# （见 backend/app/services/setting_definitions.py 里 hero_* / star_auth_qrcode 的默认值）。
-# Vite 会把 public/ 原样拷进 dist/，不排除就会让镜像和构建上下文白背 4.8MB。
-# ⚠️ 新增 hero 图时：先生成 webp，再把 png 加到这里。
-frontend/public/hero_home.png
-frontend/public/hero_tutorials.png
-frontend/public/hero_resources.png
-frontend/public/hero_tools.png
-frontend/public/hero_nodes.png
-frontend/public/hero_plugins.png
-frontend/public/shenqing.png
-# 管理端 index.html 用的是从它派生的 7.4KB 小图标，原图 2MB 不参与构建
+# ---- 未被代码引用的设计源图 ----
+# 管理端 index.html 用的是从 logo 原图派生的 7.4KB 小图标，2MB 原图不参与构建
 admin-frontend/public/logo.png

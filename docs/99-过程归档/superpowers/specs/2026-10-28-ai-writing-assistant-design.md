@@ -1,7 +1,7 @@
 # AI 写作助手设计方案
 
 - 日期：2026-10-28
-- 状态：已评审；实施计划见 `docs/superpowers/plans/2026-10-28-ai-writing-assistant.md`
+- 状态：已评审；实施计划见 `docs/99-过程归档/superpowers/plans/2026-10-28-ai-writing-assistant.md`
 - 适用版本：v1（后台运营端）
 - 涉及端：`admin-frontend`、`backend`
 

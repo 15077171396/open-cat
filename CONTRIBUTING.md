@@ -41,7 +41,7 @@ async def delete_something(db, target_id: int, actor: User) -> None:
 只加权限码不加菜单项，会出现「有权限但没入口」；反过来会出现「有入口但点进去 403」。两种都有测试守着。
 
 > 加一个完整业务模块的八步流程见[开发文档 §五](docs/07-开源文档/05-开发文档.md)。
-> 前五份样板文件可以用 `python scripts/new_module.py <模块名> --label <中文名>` 生成。
+> 前五份样板文件可以用 `python backend/scripts/new_module.py <模块名> --label <中文名>` 生成（在仓库根目录执行）。
 
 ### 补充：写操作幂等（可选，**不是**硬约定）
 
@@ -168,7 +168,7 @@ Review 时被问得最多的三个问题，提前想好答案：
 ## 八、行为准则
 
 讨论对事不对人。技术分歧用基准测试或复现步骤说话，不用音量。
-骚扰、人身攻击、歧视性言论一律请出。
+骚扰、人身攻击、歧视性言论一律请出。完整约定见 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)。
 
 ---
 

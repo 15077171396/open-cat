@@ -8,7 +8,7 @@
 
 **Tech Stack:** FastAPI、SQLAlchemy async、Alembic、Redis、httpx、Pillow、React 18、Ant Design 6、Quill 2、Vitest。
 
-**Spec:** `docs/superpowers/specs/2026-10-29-image-search-design.md`
+**Spec:** `docs/99-过程归档/superpowers/specs/2026-10-29-image-search-design.md`
 
 ## Global Constraints
 

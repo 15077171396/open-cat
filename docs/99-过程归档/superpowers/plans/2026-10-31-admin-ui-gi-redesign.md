@@ -8,7 +8,7 @@
 
 **Tech Stack:** React 18、TypeScript 5.5、Vite 5、Ant Design 6、Zustand 4、Vitest 2、react-router-dom 6。
 
-**Spec:** `docs/superpowers/specs/2026-10-31-admin-ui-gi-design.md`
+**Spec:** `docs/99-过程归档/superpowers/specs/2026-10-31-admin-ui-gi-design.md`
 
 > **执行状态（2026-10-31）：** 全部任务已完成。`npm test` 438 passed；`npm run build`、`npm run lint` 通过。亮/暗色、桌面/移动端、标签页关闭/刷新、编辑页标题、ECharts 移动端宽度均已核对。未创建 git 提交（等待用户确认）。
 

@@ -5,7 +5,7 @@ FastAPI + SQLAlchemy 2.0（异步）+ MySQL 8 + Redis 7 + Alembic + APScheduler�
 > ⚠️ **本文只写「在 `backend/` 里怎么干活」**：路由清单、表结构、字段口径、业务规则等**清单类信息一律以
 > [项目说明](../docs/03-开发/项目说明.md) 为唯一来源**，本文不复制（曾各自维护一份接口表，两份都过期且互相矛盾）。
 >
-> 相关文档：[技术架构](../docs/02-架构/技术架构.md)（分层与决策依据）· [部署说明书](../docs/04-运维/部署说明书.md)（生产运行）· [缺口台账](../docs/06-待办/缺口台账.md)（待办与已知限制）
+> 相关文档：[技术架构](../docs/02-架构/技术架构.md)（分层与决策依据）· [部署说明书](../docs/04-运维/部署说明书.md)（生产运行）· [开源就绪评估与功能路线](../docs/99-过程归档/06-开源/开源就绪评估与功能路线.md)（历史评估与已知限制）
 
 ---
 
@@ -17,7 +17,8 @@ python -m venv venv
 .\venv\Scripts\pip.exe install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple   # Windows
 # venv/bin/pip install -r requirements.txt                                                        # Linux / macOS
 
-copy .env.example .env        # Windows；Linux/macOS 用 cp。填 DB_* / REDIS_* / SECRET_KEY / DEEPSEEK_API_KEY
+copy .env.example .env        # Windows；Linux/macOS 用 cp。填 SECRET_KEY / DB_PASSWORD / REDIS_PASSWORD；
+                              # 其余可选键（AI / 对象存储 / 邮件 / 支付）见根目录 ../.env.example，或直接在后台「系统设置」配
 .\venv\Scripts\alembic.exe upgrade head
 .\venv\Scripts\python.exe seed_data.py      # 建管理员与基础数据
 .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
