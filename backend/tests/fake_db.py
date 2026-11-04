@@ -669,6 +669,27 @@ class MemorySession:
             await asyncio.sleep(0)
         return result
 
+    async def scalars(self, stmt, *args, **kwargs):
+        """AsyncSession.scalars 的替身：与 execute 同一条语句路径，解包出实体/标量列。
+
+        feedback_service（工单回复）等新代码用这个 SQLAlchemy 2.0 便捷 API；
+        与 execute 共享同一实现，行为差异为零，不存在「替身放行、真库报错」的面。
+        """
+        await asyncio.sleep(0)  # 让出事件循环，制造并发交错
+        try:
+            result = self._execute(stmt, args)
+        finally:
+            await asyncio.sleep(0)
+        return result.scalars()
+
+    async def scalar(self, stmt, *args, **kwargs):
+        await asyncio.sleep(0)
+        try:
+            result = self._execute(stmt, args)
+        finally:
+            await asyncio.sleep(0)
+        return result.scalar()
+
     def _execute(self, stmt, args=()):
         if isinstance(stmt, _DeleteStmt):
             return self._do_delete(stmt)
@@ -724,14 +745,63 @@ class MemorySession:
         table = self._table(entity)
         criteria = list(getattr(stmt, "_where_criteria", []) or [])
 
-        # 聚合查询：func.count(...)
+        # 聚合查询：func.count / min / max / sum（chat_service 的已读游标与
+        # has_more 用 min/max；此前只认 count，min 会被静默当成 count —— 假值）。
+        # ⚠️ 只截获真聚合；coalesce 这类**逐行**函数表达式有 clauses 但不是聚合，
+        # 必须落回下面的普通求值路径（在这里 raise 会把既有用例全部打断）。
         expr = first_col.get("expr")
-        if expr is not None and hasattr(expr, "clauses") and not _is_column(expr):
-            matched = [
-                rid for rid, row in table.rows.items()
+        fname = getattr(expr, "name", "") if expr is not None else ""
+        if fname == "coalesce" and any(
+            getattr(c, "name", "") in ("min", "max", "sum", "count")
+            for c in getattr(expr, "clauses", ())
+        ):
+            # select(coalesce(agg(col), default))：先对内层聚合求值，再做 coalesce
+            # （category_service.create_group 的「下一个 sort_order」就是这一形态；
+            # 旧替身把它当 count 处理，凑巧在 sort_order 连续时结果一致 —— 别依赖巧合）
+            matched_rows = [
+                row for rid, row in table.rows.items()
                 if all(_eval(c, row) for c in criteria)
             ]
-            return _Result([(len(matched),)], "count")
+            parts = []
+            for clause in expr.clauses:
+                cname = getattr(clause, "name", "")
+                if cname in ("min", "max", "sum", "count") and hasattr(clause, "clauses"):
+                    target = next(iter(clause.clauses))
+                    vals = [_eval(target, row) for row in matched_rows]
+                    vals = [v for v in vals if v is not None]
+                    if cname == "count":
+                        parts.append(len(matched_rows))
+                    elif not vals:
+                        parts.append(None)
+                    elif cname == "min":
+                        parts.append(min(vals))
+                    elif cname == "max":
+                        parts.append(max(vals))
+                    else:
+                        parts.append(sum(vals))
+                else:
+                    parts.append(_eval(clause, matched_rows[0]) if matched_rows else None)
+            value = next((p for p in parts if p is not None), None)
+            return _Result([(value,)], "coalesce")
+        if fname in ("count", "min", "max", "sum"):
+            matched_rows = [
+                row for rid, row in table.rows.items()
+                if all(_eval(c, row) for c in criteria)
+            ]
+            if fname == "count":
+                return _Result([(len(matched_rows),)], fname)
+            target = next(iter(expr.clauses))
+            values = [
+                _eval(target, row) for row in matched_rows
+            ]
+            values = [v for v in values if v is not None]
+            if not values:
+                return _Result([(None,)], fname)
+            if fname == "min":
+                return _Result([(min(values),)], fname)
+            if fname == "max":
+                return _Result([(max(values),)], fname)
+            return _Result([(sum(values),)], fname)
 
         # 实体查询时 name 就是类名；单列查询时 name 是列名
         single_column = first_col.get("name") != entity.__name__

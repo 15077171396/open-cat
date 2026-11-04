@@ -125,6 +125,8 @@ class DefinitionTests(unittest.TestCase):
                 # 对象存储 / 小程序 / 邮件
                 "cos_secret_id",
                 "cos_secret_key",
+                "s3_access_key",
+                "s3_secret_key",
                 "wechat_mini_secret",
                 "smtp_password",
                 # 登录 / 短信 / 支付（2026-10-27）

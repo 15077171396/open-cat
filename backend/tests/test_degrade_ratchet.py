@@ -98,7 +98,14 @@ APP = os.path.join(REPO, 'app')
 # 方向是**放行**：幂等是安全网，不是准入门槛，缓存不可用不该让写操作失败。
 # 同批次的「下游抛异常要清占位符再重抛」改用 `except BaseException`，未计入基线
 # （那处必须重抛，不属于降级；用 BaseException 还能顺带覆盖客户端断开）。
-BROAD_EXCEPT_BASELINE = 140
+# 140 → 141（2026-11-03，AI 对话调试台）：`api/admin_ai_playground.py` 的 SSE 流 **1 处**，
+# 与 admin_ai_writing.py 同款 —— 流开始后状态码已无法修改，未知异常必须翻译成
+# `event: error`（方向**拒绝**，degrade_closed 记录），不能让 worker 半途断链。
+# 同批次的 captcha_service 捕获已收窄为 `except RedisError`，未计入基线。
+# 141 → 142（2026-11-04，站内聊天）：`api/admin_chat.py` 的 WS 扇出 **1 处** ——
+# 逐连接 send 的失败（对端断开/缓冲满）只能就地摘除该连接，单个坏连接不该
+# 阻断给其他成员的推送，也不能让 REST 发消息接口 500（消息已落库，实时性降级）。
+BROAD_EXCEPT_BASELINE = 142
 
 
 def _count_broad_except() -> int:

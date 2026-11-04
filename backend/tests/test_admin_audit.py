@@ -455,8 +455,11 @@ class TestSourceFieldWiring(unittest.TestCase):
             # ⚠️ 每次新增迁移都要同步改这里：这里刻意写死而非「断言 head 唯一」，
             # 因为只判唯一会漏掉「新迁移插错了位置、链仍能收敛成一个 head」的情况。
             # 代价是加迁移要改一处测试 —— 换来的是 head 漂移一定会被发现。
-            # 2026-10-31 新增岗位表，接在 add_dictionaries 之后。
-            ["add_positions"],
+            # 2026-11-03 反馈工单化 + AI 对话调试：add_feedback_replies（表）
+            # → seed_feedback_reply_permission（feedback:reply 补种）
+            # → seed_ai_playground_permission（ai_playground:view 补种）
+            # 2026-11-04 站内聊天：add_chat_tables（三张表）→ seed_chat_permission（chat:view 补种）
+            ["seed_chat_permission"],
             f"alembic head 不是最新迁移（当前 heads={heads}）—— 迁移链可能断开或挂错位置",
         )
 

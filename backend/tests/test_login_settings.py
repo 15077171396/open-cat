@@ -44,14 +44,17 @@ class LoginGroupTests(unittest.TestCase):
     """① 登录管理页只下发自己的分组（跨界面的键集合守卫见 test_setting_surfaces.py）"""
 
     def test_login_payload_only_has_login_groups(self):
-        """四个区块的顺序即页面区块顺序：手机号 → 微信扫码 → 小程序凭据 → 短信通道
+        """五个区块的顺序即页面区块顺序：手机号 → 微信扫码 → 小程序凭据 → 短信通道 → 人机验证
 
         `miniapp` 自 2026-10-27 从「系统设置 → 小程序」归位到此：这两个键的唯一消费方
         是 `miniapp_service.code_to_session`（登录 / 绑定），留在系统设置会让
         「页面说缺凭据、却要跳菜单才能填」。
+        `auth_captcha` 为跨 IP 撞库的人机挑战开关（auth_service 预留方向的落地）。
         """
         groups = [g["key"] for g in login_settings_service.groups()]
-        self.assertEqual(groups, ["auth_phone", "auth_wechat", "miniapp", "auth_sms"])
+        self.assertEqual(
+            groups, ["auth_phone", "auth_wechat", "miniapp", "auth_sms", "auth_captcha"]
+        )
 
     def test_login_keys_are_consumed_by_auth_config(self):
         """登录管理页写下的键，必须真的在登录链路的读取清单里

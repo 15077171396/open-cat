@@ -8,7 +8,7 @@
 """
 
 import unittest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 
 from app.models.admin_audit_log import AdminAuditLog
@@ -25,6 +25,26 @@ from app.services import (
 from tests.fake_db import MemorySession
 
 
+def _days_ago(n: int, anchor: datetime | None = None) -> datetime:
+    """n 天前的 naive UTC（倒计时按「现在 - 删除时间」算，必须相对当前时刻取值）。
+
+    早期版本硬编码 2026-10-30，期望值只在当天成立 —— 换个日期跑就红。
+    remaining_days = 保留期 - 已过天数（整数天），相对时刻种子让断言与运行日期无关。
+    同一 n 记忆化为同一时刻：「与父评论同时被连带删除」这类断言比较的是精确相等，
+    每次现算会差出微秒。PurgeTests 冻结 now 时传入 anchor 对齐基准。
+    """
+    key = (n, anchor)
+    cached = _DAYS_AGO_CACHE.get(key)
+    if cached is None:
+        base = anchor or datetime.now(timezone.utc).replace(tzinfo=None)
+        cached = base - timedelta(days=n)
+        _DAYS_AGO_CACHE[key] = cached
+    return cached
+
+
+_DAYS_AGO_CACHE: dict[tuple[int, datetime | None], datetime] = {}
+
+
 def _admin() -> User:
     return User(id=1, account="admin@test", password_hash="x", role="admin")
 
@@ -36,7 +56,7 @@ def _user(uid: int, deleted_days_ago: int | None = None) -> User:
         password_hash="x",
         role="user",
         deleted_at=(
-            datetime(2026, 10, 30) - timedelta(days=deleted_days_ago)
+            _days_ago(deleted_days_ago)
             if deleted_days_ago is not None
             else None
         ),
@@ -51,7 +71,7 @@ def _tutorial(tid: int, deleted_days_ago: int | None) -> Tutorial:
         category="AI",
         content="正文",
         deleted_at=(
-            datetime(2026, 10, 30) - timedelta(days=deleted_days_ago)
+            _days_ago(deleted_days_ago)
             if deleted_days_ago is not None
             else None
         ),
@@ -68,7 +88,7 @@ def _comment(cid: int, *, content: str = "评论", parent_id: int | None = None,
         parent_id=parent_id,
         content=content,
         deleted_at=(
-            datetime(2026, 10, 30) - timedelta(days=deleted_days_ago)
+            _days_ago(deleted_days_ago)
             if deleted_days_ago is not None
             else None
         ),
@@ -234,6 +254,13 @@ class PurgeTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.now = datetime(2026, 10, 30)
         self.db = MemorySession()
+        # purge 传入冻结的 now：种子必须相对同一基准，否则「91 天前」相对真实时刻
+        # 与「now - 90 天」的过期线错位，断言随运行日期漂移
+        self._orig_days_ago = _days_ago
+        globals()["_days_ago"] = lambda n: self._orig_days_ago(n, anchor=self.now)
+
+    async def tearDown(self):
+        globals()["_days_ago"] = self._orig_days_ago
 
     async def _run(self):
         result = await recycle_bin_service.purge_expired(self.db, now=self.now)

@@ -31,11 +31,22 @@ AUDIT_EXEMPT = {
     "app.services.ai_usage_service.get_quota_config",
     "app.services.ai_writing.service.check_hourly_limit",
     "app.services.ai_writing.service.is_enabled",
+    # AI 对话调试台（POST /ai/playground/run）：与写作同一取舍 —— 生成结果只回给
+    # 调试台，不落任何业务数据；涉及的全是额度与用量计量（消耗由用量看板负责）。
+    "app.services.ai_playground.service.check_hourly_limit",
     # 仅同级交换 sort，正文与可见性都不变
     "app.services.tutorial_node_service.admin_move_node",
     # 素材使用计数只是浏览/复用的计量，不改内容与权益；
     # 素材入库本身由上传/导入接口负责，这里不重复写审计。
     "app.services.materials_service.touch_material",
+    # 站内聊天（2026-11-04）：个人通信不是业务数据变更 —— 消息表本身就是台账
+    # （谁在什么时候对谁说了什么，全量可查），逐条再写审计只会双份留痕。
+    "app.services.chat_service.get_or_create_direct",
+    "app.services.chat_service.create_group",
+    "app.services.chat_service.send_message",
+    "app.services.chat_service.mark_read",
+    # 发消息后的成员查询只用于 WS 扇出目标（读操作），消息写入本身已豁免如上
+    "app.services.chat_service._member_ids",
 }
 
 # 捕获**完整点号路径**（不是最后一个标识符）。

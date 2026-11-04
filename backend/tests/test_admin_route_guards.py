@@ -44,6 +44,13 @@ def _walk(router, prefix: str = "", inherited: tuple = ()):
 
 ADMIN_PREFIX = "/api/v1/admin"
 
+# WebSocket 路由豁免 HTTP 双守卫（2026-11-04，站内聊天）：
+# check_route_permission 的失败路径是 403 JSON 响应，在 websocket scope 里无法返回；
+# require_admin 的 Authorization 头模式也不适用。WS 在 admin_chat._authenticate_ws
+# 里自行收口（httpOnly cookie → 解 token → 撤销校验 → 必须 admin → 模块开关），
+# 与 REST 的 fail-closed 同方向；这条豁免有 test_chat.py 的 WS 鉴权用例钉着。
+WS_EXEMPT_PATHS = {"/api/v1/admin/ws/chat"}
+
 
 class AdminRouteGuardTests(unittest.TestCase):
     """每条 /api/v1/admin 路由都必须同时挂 require_admin 与 check_route_permission"""
@@ -67,7 +74,10 @@ class AdminRouteGuardTests(unittest.TestCase):
         )
 
     def test_every_admin_route_has_require_admin(self):
-        missing = [path for path, _, deps in self.rows if not any("require_admin" in d for d in deps)]
+        missing = [
+            path for path, _, deps in self.rows
+            if not any("require_admin" in d for d in deps) and path not in WS_EXEMPT_PATHS
+        ]
         self.assertEqual(missing, [], f"以下管理端路由缺少 require_admin 角色门槛: {sorted(set(missing))}")
 
     def test_every_admin_route_has_check_route_permission(self):
@@ -76,6 +86,7 @@ class AdminRouteGuardTests(unittest.TestCase):
             path
             for path, _, deps in self.rows
             if not any("check_route_permission" in d for d in deps)
+            and path not in WS_EXEMPT_PATHS
         ]
         self.assertEqual(
             missing,
