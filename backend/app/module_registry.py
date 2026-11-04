@@ -8,7 +8,7 @@
 「菜单还在但接口 403」或「接口能被调用但没有任何入口」。
 
 现在的分工是：
-- **权限码**仍由 `services/rbac_catalog.py` 声明（80 个，含按钮级）；
+- **权限码**仍由 `services/rbac_catalog.py` 声明（67 个，含按钮级）；
   本表只引用其模块前缀，不重复定义码。
 - **菜单结构**仍由 `services/admin_menu.py` 声明（分组/顺序/图标）；
   本表只登记「哪个菜单项属于哪个模块」，用于过滤。
@@ -154,10 +154,22 @@ MODULES: tuple[ModuleDef, ...] = (
     ),
     ModuleDef(
         key="ai",
-        label="AI 模型与 AI 写作",
+        label="AI 模型 / AI 写作 / AI 对话调试",
         default_enabled=True,
-        path_prefixes=("/api/v1/admin/ai-models", "/api/v1/admin/ai/writing"),
-        menu_keys=("/ai-models", "/ai-writing"),
+        path_prefixes=(
+            "/api/v1/admin/ai-models",
+            "/api/v1/admin/ai/writing",
+            "/api/v1/admin/ai/playground",
+        ),
+        menu_keys=("/ai-models", "/ai-writing", "/ai-playground"),
+    ),
+    ModuleDef(
+        key="chat",
+        label="站内聊天（管理员间私聊/群聊）",
+        default_enabled=True,
+        # ws 前缀一并纳入：模块关闭时实时推送与 REST 一同失效
+        path_prefixes=("/api/v1/admin/chat", "/api/v1/admin/ws/chat"),
+        menu_keys=("/chat",),
     ),
     # ---------- 商业化（默认关闭：内容站多数用不上） ----------
     ModuleDef(

@@ -157,6 +157,9 @@ _RULES: list[tuple[str, str, list[str]]] = [
 
     # 用户反馈
     ("GET", "/api/v1/admin/feedbacks", ["feedback:view"]),
+    # 详情含完整回复线程；回复是面向用户的动作，授权单独成码（见 rbac_catalog 注释）
+    ("GET", "/api/v1/admin/feedbacks/{feedback_id}", ["feedback:view"]),
+    ("POST", "/api/v1/admin/feedbacks/{feedback_id}/replies", ["feedback:reply"]),
     ("PUT", "/api/v1/admin/feedbacks/{feedback_id}", ["feedback:review"]),
     ("DELETE", "/api/v1/admin/feedbacks/{feedback_id}", ["feedback:review"]),
 
@@ -243,9 +246,23 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("PUT", "/api/v1/admin/ai/writing/prompts/{operation}", ["ai_model:edit"]),
     ("POST", "/api/v1/admin/ai/writing/prompts/{operation}/reset", ["ai_model:edit"]),
 
+    # AI 对话调试台：能对话 = 能消耗全站 AI 额度，独立授权面（不随内容编辑下发）
+    ("GET", "/api/v1/admin/ai/playground/options", ["ai_playground:view"]),
+    ("POST", "/api/v1/admin/ai/playground/run", ["ai_playground:view"]),
+
     # 管理操作审计：审计日志本身是敏感数据（记录谁对谁做了什么），
     # 刻意不授予「只读管理员」内置角色，默认扩大可见面反而不利
     ("GET", "/api/v1/admin/audit-logs", ["audit:view"]),
+
+    # 站内聊天（管理员间私聊/群聊）：view 即读写 —— 个人通信按按钮拆授权没有意义；
+    # 消息本身就是台账（谁在什么时候说了什么可查），不走管理操作审计（见 AUDIT_EXEMPT）
+    ("GET", "/api/v1/admin/chat/conversations", ["chat:view"]),
+    ("POST", "/api/v1/admin/chat/direct/{user_id}", ["chat:view"]),
+    ("POST", "/api/v1/admin/chat/group", ["chat:view"]),
+    ("GET", "/api/v1/admin/chat/conversations/{conversation_id}/messages", ["chat:view"]),
+    ("POST", "/api/v1/admin/chat/conversations/{conversation_id}/messages", ["chat:view"]),
+    ("POST", "/api/v1/admin/chat/conversations/{conversation_id}/read", ["chat:view"]),
+    ("GET", "/api/v1/admin/chat/unread", ["chat:view"]),
 
     # 侧边菜单（任何 admin 可读）：菜单结构不含业务数据，可见性由前端按权限过滤。
     # 若在这里加权限码，低权限角色将整条菜单链拿不到 → 侧边栏空白。

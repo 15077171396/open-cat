@@ -69,9 +69,11 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     PermissionDef("auth_request:view", "审核列表查看", "menu", "auth_request", "实名审核", 110),
     PermissionDef("auth_request:review", "审核处理", "button", "auth_request", "实名审核", 111),
 
-    # 用户反馈
+    # 用户反馈（工单化：回复进入用户可见线程并发通知）
+    # reply 单独成码：能看反馈 ≠ 能代表平台向用户发言（面向全量用户的触达面）
     PermissionDef("feedback:view", "反馈查看", "menu", "feedback", "用户反馈", 120),
     PermissionDef("feedback:review", "反馈处理", "button", "feedback", "用户反馈", 121),
+    PermissionDef("feedback:reply", "回复反馈", "button", "feedback", "用户反馈", 122),
 
     # 内容审核（台账 P0-5：机审留痕复核 + 人工举报处理）
     # 只保留一个 menu 级权限（moderation:view）——管理端是同一个「内容审核」页的
@@ -125,6 +127,12 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     PermissionDef("ai_model:create", "新增模型", "button", "ai_model", "模型管理", 139),
     PermissionDef("ai_model:edit", "编辑模型", "button", "ai_model", "模型管理", 140),
     PermissionDef("ai_model:delete", "删除模型", "button", "ai_model", "模型管理", 141),
+
+    # AI 对话调试台：能对话 = 能消耗全站 AI 额度，独立授权面（查看级即可发起对话）
+    PermissionDef("ai_playground:view", "对话调试", "menu", "ai_playground", "AI 对话调试", 171),
+
+    # 站内聊天（管理员间私聊/群聊）：view 即读写 —— 个人通信不该按按钮拆授权
+    PermissionDef("chat:view", "站内聊天", "menu", "chat", "站内聊天", 172),
 
     # 角色管理（RBAC）
     PermissionDef("role:view", "角色查看", "menu", "role", "角色管理", 142),
@@ -190,6 +198,8 @@ MODULE_NAMES_EN: dict[str, str] = {
     "payment_setting": "Payment Channel",
     "mail_setting": "Email Setting",
     "ai_model": "AI Model",
+    "ai_playground": "AI Playground",
+    "chat": "Chat",
     "scheduler": "Scheduled Job",
     "audit": "Audit Log",
     "report": "Report",
@@ -205,6 +215,7 @@ ACTION_NAMES_EN: dict[str, str] = {
     "restore": "Restore",
     "handle": "Handle",
     "review": "Review",
+    "reply": "Reply",
     "send": "Send",
     "manage": "Manage",
 }

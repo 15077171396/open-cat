@@ -156,6 +156,8 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
             MenuItem("/ai-models", "模型管理", "robot", perm="ai_model:view"),
             # AI 写作：操作级提示词与生成参数，与模型管理同属「AI 行为配置」，复用 ai_model:view
             MenuItem("/ai-writing", "AI 写作", "robot", perm="ai_model:view"),
+            # AI 对话调试台：配完模型当场对话验证连通性与计费（独立授权面：能对话 = 能消耗额度）
+            MenuItem("/ai-playground", "AI 对话调试", "robot", perm="ai_playground:view"),
             # 定时任务：只读运维页（周期/上次执行/是否超期）。
             # 复用 dashboard:view —— 与「数据看板 → 系统状态」卡同一份数据、同一层级权限
             # 部署体检放在定时任务之前：首次部署时先看「还差什么」，再看「任务跑没跑」
@@ -172,6 +174,8 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
             ),
             # 审计与「内容审核」图标刻意区分（同一图标会让两个菜单看起来是同一件事）
             MenuItem("/audit-logs", "操作审计", "file-search", perm="audit:view"),
+            # 站内聊天：管理员之间的私聊/群聊（个人通信，view 即读写）
+            MenuItem("/chat", "站内聊天", "message", perm="chat:view"),
         ),
     ),
 )
@@ -232,12 +236,14 @@ MENU_LABELS_EN: dict[str, str] = {
     "/mail-settings": "Email",
     "/ai-models": "AI Models",
     "/ai-writing": "AI Writing",
+    "/ai-playground": "AI Playground",
     "/readiness": "Deployment Check",
     "/scheduled-jobs": "Scheduled Jobs",
     "/codegen": "Code Generator",
     "/backups": "Backups",
     "/recycle-bin": "Recycle Bin",
     "/audit-logs": "Audit Log",
+    "/chat": "Chat",
     # 分组之外
     "/profile": "Profile",
 }

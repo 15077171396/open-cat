@@ -68,6 +68,8 @@ AUDIT_ACTIONS: dict[str, str] = {
     # 问题反馈（用户提交的 UGC 处置）
     "feedback_update": "处理问题反馈",
     "feedback_delete": "删除问题反馈",
+    # 反馈工单化（2026-11-03）：回复进入用户可见线程并发站内通知
+    "feedback_reply": "回复问题反馈",
     # 站内消息（2026-10-28）：群发系统通知是**面向全体用户**的触达能力，
     # 发错一次就是全站可见事故，必须能回答「谁在什么时候发了什么、发给多少人」
     "message_send": "发送系统通知",
@@ -263,6 +265,8 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     # 问题反馈
     "feedback_update": AUDIT_RISK_NORMAL,
     "feedback_delete": AUDIT_RISK_NORMAL,
+    # 回复反馈：面向单个用户的触达（非群发），风险与状态流转同级
+    "feedback_reply": AUDIT_RISK_NORMAL,
     # 站内消息：群发是面向全体用户的触达，发错一次就是全站可见事故 —— 与公告同级
     "message_send": AUDIT_RISK_DANGER,
     # 内容

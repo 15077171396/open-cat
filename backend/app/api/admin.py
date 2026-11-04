@@ -49,6 +49,8 @@ from app.api import (  # noqa: F401
     admin_image_search,
     # AI 写作：SSE 执行流 + 提示词配置（权限复用内容编辑 / 模型管理，见 core/rbac.py）
     admin_ai_writing,
+    # AI 对话调试台：管理端直接与已配置模型对话（独立授权面 ai_playground:view）
+    admin_ai_playground,
     # 登录管理：从「系统设置 → 登录与短信」抽出的独立模块（读写范围与权限码都独立）
     admin_login_settings,
     # 法律文档：从「系统设置 → 法律文档」抽出的独立模块（对外合规文本，单独授权）
@@ -59,6 +61,8 @@ from app.api import (  # noqa: F401
     admin_payment_settings,
     admin_payments,
     admin_comments,
+    # 站内聊天：管理员间私聊/群聊（REST 部分；WS 端点在 api/router.py 独立注册）
+    admin_chat,
 )
 
 __all__ = ["router"]
