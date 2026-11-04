@@ -15,12 +15,14 @@ from app.utils.time import parse_iso_to_naive_utc
 from app.api._admin_shared import router
 
 from app.services.admin_feedback_service import (
+    admin_add_reply,
+    admin_get_feedback,
     admin_list_feedbacks,
     admin_update_feedback,
     admin_delete_feedback,
 )
 from app.schemas.content import PageResult
-from app.schemas.admin import FeedbackItem
+from app.schemas.admin import FeedbackDetailItem, FeedbackItem, FeedbackReplyItem
 
 
 # 用户反馈管理
@@ -28,6 +30,11 @@ from app.schemas.admin import FeedbackItem
 class FeedbackUpdateRequest(BaseModel):
     status: Optional[str] = Field(None, description="pending/processing/resolved/closed")
     admin_note: Optional[str] = Field(None, max_length=2000)
+
+
+class FeedbackReplyRequest(BaseModel):
+    # 上限与 feedback_service.REPLY_MAX_LENGTH 对齐，超限请求 422 而不是落库时炸
+    content: str = Field(..., min_length=1, max_length=1000, description="回复内容（用户可见）")
 
 
 @router.get("/feedbacks", response_model=ApiResponse[PageResult[FeedbackItem]])
@@ -72,6 +79,32 @@ async def admin_update_feedback_api(
     """审阅反馈：更新处理状态 / 管理员备注"""
     await admin_update_feedback(db, admin, feedback_id, req.model_dump(exclude_unset=True))
     return success_response(message="反馈已更新")
+
+
+@router.get("/feedbacks/{feedback_id}", response_model=ApiResponse[FeedbackDetailItem])
+async def admin_get_feedback_api(
+    feedback_id: int,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """反馈详情：本体 + 完整回复线程（工单化处理视图）"""
+    return success_response(await admin_get_feedback(db, feedback_id))
+
+
+@router.post("/feedbacks/{feedback_id}/replies", response_model=ApiResponse[FeedbackReplyItem])
+async def admin_add_feedback_reply_api(
+    feedback_id: int,
+    req: FeedbackReplyRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """回复反馈：用户站内信收到通知；待处理状态自动流转为处理中。
+
+    回复是**面向用户**的动作（与 admin_note 的内部备注相对），授权单独成码
+    `feedback:reply` —— 能看反馈不等于能代表平台向用户发言。
+    """
+    reply = await admin_add_reply(db, admin, feedback_id, req.content)
+    return success_response(reply, "回复已发送")
 
 
 @router.delete("/feedbacks/{feedback_id}", response_model=ApiResponse[None])

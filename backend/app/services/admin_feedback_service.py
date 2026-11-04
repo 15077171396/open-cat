@@ -9,7 +9,12 @@ from app.core.exceptions import AppException
 from app.models.feedback import FEEDBACK_STATUSES, Feedback
 from app.models.user import User
 from app.services.admin_audit_service import audit_changes, record_admin_action
-from app.services.feedback_service import to_dict
+from app.services.feedback_service import (
+    add_reply,
+    list_replies,
+    reply_counts_for,
+    to_dict,
+)
 from app.utils.sanitize import escape_like, sanitize_content
 
 
@@ -56,15 +61,60 @@ async def admin_list_feedbacks(
             .limit(page_size)
         )
     ).all()
+    items = [
+        to_dict(f, {"account": account, "nickname": nickname})
+        for f, account, nickname in rows
+    ]
+    # 回复数一次聚合：列表页能直接看出哪些反馈已经跟进过（不做逐行 N+1）
+    if items:
+        counts = await reply_counts_for(db, [item["id"] for item in items])
+        for item in items:
+            item["reply_count"] = counts.get(item["id"], 0)
     return {
-        "items": [
-            to_dict(f, {"account": account, "nickname": nickname})
-            for f, account, nickname in rows
-        ],
+        "items": items,
         "total": total,
         "page": page,
         "page_size": page_size,
     }
+
+
+async def admin_get_feedback(db: AsyncSession, feedback_id: int) -> dict:
+    """反馈详情：本体 + 完整回复线程（时间升序），供管理端对话式处理。"""
+    f = (
+        await db.scalars(select(Feedback).where(Feedback.id == feedback_id))
+    ).first()
+    if not f:
+        raise AppException(code=404, message="反馈不存在")
+    data = to_dict(f)
+    data["replies"] = await list_replies(db, feedback_id)
+    return data
+
+
+async def admin_add_reply(
+    db: AsyncSession, admin: User, feedback_id: int, content: str
+) -> dict:
+    """管理员回复（用户可见 + 站内通知 + 同事务审计）。
+
+    审计与回复必须同一事务：先按 commit=False 走统一入口（校验、状态流转、
+    通知、回复都在事务里），再补审计记录，最后由这里显式提交。
+    """
+    reply = await add_reply(
+        db,
+        feedback_id=feedback_id,
+        sender="admin",
+        sender_id=admin.id,
+        content=content,
+        notify_user=True,
+        commit=False,
+    )
+    record_admin_action(
+        db, admin, "feedback_reply",
+        target_type="feedback", target_id=feedback_id,
+        summary=f"回复反馈 #{feedback_id}",
+        detail={"content": reply["content"]},
+    )
+    await db.commit()
+    return reply
 
 
 async def admin_update_feedback(

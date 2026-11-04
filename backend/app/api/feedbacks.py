@@ -1,9 +1,11 @@
 """用户反馈路由
 
 - POST /feedbacks  提交问题反馈（需登录）
+- GET  /feedbacks  我的反馈列表（含回复线程，工单进度）
+- POST /feedbacks/{id}/replies  补充说明（已解决的工单会被重新拉起）
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,8 +15,9 @@ from app.core.exceptions import success_response
 from app.core.rate_limit import check_user_daily_quota
 from app.models.user import User
 from app.schemas.common import ApiResponse
-from app.services.feedback_service import submit_feedback
-from app.schemas.admin import CreatedResult
+from app.schemas.admin import CreatedResult, FeedbackDetailItem, FeedbackReplyItem
+from app.schemas.content import PageResult
+from app.services.feedback_service import add_reply, list_my_feedbacks, submit_feedback
 
 router = APIRouter()
 
@@ -49,3 +52,49 @@ async def create_feedback(
     )
     result = await submit_feedback(db, current_user.id, req.content, req.contact, req.images)
     return success_response(result, "反馈已提交，感谢您的支持")
+
+
+# 用户侧回复的日配额：比提交反馈宽松（回复是已有工单内的补充说明，不是新开单），
+# 但仍要有界 —— 防止单账号把管理端通知与线程刷爆
+MAX_FEEDBACK_REPLIES_PER_USER_PER_DAY = 50
+
+
+class FeedbackReplyCreateRequest(BaseModel):
+    content: str = Field(..., min_length=1, max_length=1000, description="补充说明")
+
+
+@router.get("", response_model=ApiResponse[PageResult[FeedbackDetailItem]])
+async def list_my_feedbacks_api(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """我的反馈列表（含回复线程）：前台「意见反馈」页的工单进度视图。"""
+    result = await list_my_feedbacks(db, current_user.id, page, page_size)
+    return success_response(result)
+
+
+@router.post("/{feedback_id}/replies", response_model=ApiResponse[FeedbackReplyItem])
+async def add_feedback_reply_api(
+    feedback_id: int,
+    req: FeedbackReplyCreateRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """补充说明：只能回复自己的反馈；已解决 → 重新拉起为处理中，已关闭拒收。"""
+    await check_user_daily_quota(
+        current_user.id,
+        scope="feedback_reply",
+        limit=MAX_FEEDBACK_REPLIES_PER_USER_PER_DAY,
+        message=f"今日回复次数已达上限（{MAX_FEEDBACK_REPLIES_PER_USER_PER_DAY} 次），请明天再试",
+    )
+    reply = await add_reply(
+        db,
+        feedback_id=feedback_id,
+        sender="user",
+        sender_id=current_user.id,
+        content=req.content,
+        notify_user=False,
+    )
+    return success_response(reply, "已提交，我们会尽快跟进")

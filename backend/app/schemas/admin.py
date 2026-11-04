@@ -129,8 +129,27 @@ class FeedbackItem(_Item):
     images: Optional[Any] = None
     status: Optional[str] = None
     admin_note: Optional[str] = None
+    # 工单化（2026-11-03）：已跟进的回复条数（列表聚合），0/缺失 = 还没回过
+    reply_count: Optional[int] = None
     created_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+
+class FeedbackReplyItem(_Item):
+    """反馈回复（工单线程中的一条发言，`/admin/feedbacks/{id}`、`/feedbacks/{id}/replies`）。"""
+
+    id: Optional[int] = None
+    feedback_id: Optional[int] = None
+    # admin=管理员回复（用户可见）；user=用户补充说明
+    sender: Optional[str] = None
+    content: Optional[str] = None
+    created_at: Optional[str] = None
+
+
+class FeedbackDetailItem(FeedbackItem):
+    """反馈详情（`GET /admin/feedbacks/{id}`）：本体 + 完整回复线程（时间升序）。"""
+
+    replies: Optional[list[FeedbackReplyItem]] = None
 
 
 class MessageBatchItem(_Item):

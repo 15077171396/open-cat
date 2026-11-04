@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, DatePicker, Form, Grid, Image, Input, Modal, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Drawer, Form, Grid, Image, Input, Modal, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
-import { CommentOutlined, DeleteOutlined, EditOutlined, ReloadOutlined } from '@ant-design/icons'
-import { apiGet, apiPut } from '../../api/client'
+import { CommentOutlined, DeleteOutlined, EditOutlined, MessageOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
+import { apiGet, apiPost, apiPut } from '../../api/client'
 import { useCrudList } from '../../hooks/useCrudList'
 import { PermGuard } from '../../components/PermGuard'
 import { getErrorMessage, isFormValidationError } from '../../utils/error'
@@ -14,7 +14,7 @@ import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
 import { DataTable, ListToolbar } from '../../components/ui'
 /**
- * 用户反馈：用户在前台右侧工具栏提交，后台审阅（改状态 / 写内部备注 / 删除）。
+ * 用户反馈（工单化）：用户在前台右侧工具栏提交，后台审阅与回复。
  *
  * ⚠️ 状态中文名取接口返回的 `status_label`，筛选下拉取 `status_options` ——
  * 本文件**不保留**「代码 → 中文名」的映射表。理由见 `app/models/feedback.py`：
@@ -35,6 +35,15 @@ interface Option {
   label: string
 }
 
+/** 回复线程中的一条发言（sender 区分谁说的；与 admin_note 的内部备注相对） */
+interface FeedbackReply {
+  id: number
+  feedback_id: number
+  sender: 'admin' | 'user'
+  content: string
+  created_at: string | null
+}
+
 /** /admin/feedbacks 列表项 */
 interface FeedbackItem {
   id: number
@@ -48,6 +57,7 @@ interface FeedbackItem {
   status: FeedbackStatus
   status_label?: string
   admin_note?: string | null
+  reply_count?: number
   created_at: string | null
   updated_at: string | null
 }
@@ -66,6 +76,13 @@ export default function FeedbackList() {
   const [detail, setDetail] = useState<FeedbackItem | null>(null)
   const [saving, setSaving] = useState(false)
   const [form] = Form.useForm()
+
+  // 回复抽屉（工单化）：线程 + 发送；发送成功后局部更新行状态
+  const [replyTarget, setReplyTarget] = useState<FeedbackItem | null>(null)
+  const [replies, setReplies] = useState<FeedbackReply[]>([])
+  const [repliesLoading, setRepliesLoading] = useState(false)
+  const [replyText, setReplyText] = useState('')
+  const [replySending, setReplySending] = useState(false)
 
   const listParams: Record<string, string | number | boolean> = {}
   if (statusFilter) listParams.status = statusFilter
@@ -147,6 +164,50 @@ export default function FeedbackList() {
     }
   }
 
+  /** 打开回复抽屉：拉取完整线程（详情接口含本体 + replies 升序） */
+  const openReply = async (record: FeedbackItem) => {
+    setReplyTarget(record)
+    setReplies([])
+    setReplyText('')
+    setRepliesLoading(true)
+    try {
+      const data = await apiGet<FeedbackItem & { replies: FeedbackReply[] }>(
+        `/admin/feedbacks/${record.id}`,
+      )
+      setReplies(data.replies || [])
+    } catch (err) {
+      toast.error(getErrorMessage(err, '加载回复失败'))
+      setReplyTarget(null)
+    } finally {
+      setRepliesLoading(false)
+    }
+  }
+
+  /** 发送回复：用户站内信收到通知；待处理自动流转为处理中（后端行为，这里同步界面） */
+  const sendReply = async () => {
+    const content = replyText.trim()
+    if (!replyTarget || !content) return
+    setReplySending(true)
+    try {
+      const reply = await apiPost<FeedbackReply>(
+        `/admin/feedbacks/${replyTarget.id}/replies`,
+        { content },
+      )
+      setReplies((prev) => [...prev, reply])
+      setReplyText('')
+      toast.success('回复已发送，用户将收到站内通知')
+      // 待处理 → 处理中：就地更新，不打断正在看的线程
+      if (replyTarget.status === 'pending') {
+        setReplyTarget({ ...replyTarget, status: 'processing', status_label: '处理中' })
+      }
+      refresh()
+    } catch (err) {
+      toast.error(getErrorMessage(err, '回复失败'))
+    } finally {
+      setReplySending(false)
+    }
+  }
+
   const columns: TableProps<FeedbackItem>['columns'] = [
     {
       title: '提交人',
@@ -210,13 +271,22 @@ export default function FeedbackList() {
     {
       title: '操作',
       key: 'mobile_action',
-      width: 80,
+      width: 120,
       render: (_: unknown, row: FeedbackItem) => (
-        <PermGuard perm="feedback:review">
-          <Button type="link" size="small" onClick={() => openDetail(row)}>
-            审阅
-          </Button>
-        </PermGuard>
+        <Space size={0}>
+          {row.status !== 'closed' && (
+            <PermGuard perm="feedback:reply">
+              <Button type="link" size="small" onClick={() => void openReply(row)}>
+                回复
+              </Button>
+            </PermGuard>
+          )}
+          <PermGuard perm="feedback:review">
+            <Button type="link" size="small" onClick={() => openDetail(row)}>
+              审阅
+            </Button>
+          </PermGuard>
+        </Space>
       ),
     },
     {
@@ -237,7 +307,7 @@ export default function FeedbackList() {
       title: '状态',
       dataIndex: 'status',
       key: 'status',
-      width: 90,
+      width: 110,
       render: (_: unknown, row: FeedbackItem) => {
         const tag = (
           <Tag color={STATUS_COLOR[row.status] ?? 'default'} style={{ margin: 0 }}>
@@ -245,10 +315,17 @@ export default function FeedbackList() {
           </Tag>
         )
         // 内部备注在列表里不占一列（多数为空），挂到状态标签的 tooltip 上
-        return row.admin_note ? (
-          <Tooltip title={`内部备注：${row.admin_note}`}>{tag}</Tooltip>
-        ) : (
-          tag
+        const tagged = row.admin_note ? <Tooltip title={`内部备注：${row.admin_note}`}>{tag}</Tooltip> : tag
+        // 回复数一眼可见：>0 说明已经跟进过（工单化后最常问的就是「回过没有」）
+        return (
+          <Space size={4}>
+            {tagged}
+            {!!row.reply_count && (
+              <Tooltip title={`${row.reply_count} 条回复`}>
+                <Tag style={{ margin: 0 }} icon={<MessageOutlined />}>{row.reply_count}</Tag>
+              </Tooltip>
+            )}
+          </Space>
         )
       },
     },
@@ -263,10 +340,17 @@ export default function FeedbackList() {
     {
       title: '操作',
       key: 'action',
-      width: 220,
+      width: 280,
       fixed: 'right',
       render: (_: unknown, row: FeedbackItem) => (
         <Space size={0}>
+          {row.status !== 'closed' && (
+            <PermGuard perm="feedback:reply">
+              <Button type="link" size="small" icon={<MessageOutlined />} onClick={() => void openReply(row)}>
+                回复
+              </Button>
+            </PermGuard>
+          )}
           <PermGuard perm="feedback:review">
             <Button type="link" size="small" icon={<EditOutlined />} onClick={() => openDetail(row)}>
               审阅
@@ -365,7 +449,7 @@ export default function FeedbackList() {
         })}
         rowKey="id"
         loading={loading}
-        scrollX={isMobile ? 360 : 1130}
+        scrollX={isMobile ? 400 : 1200}
         pagination={{ page: page, pageSize: pageSize, total: total, onPageChange: setPage }}
         empty={{ hasFilter: hasFilter, filteredText: "没有符合筛选条件的反馈", emptyText: "暂无用户反馈", onReset: handleResetFilters }}
       />
@@ -438,6 +522,87 @@ export default function FeedbackList() {
           </Form>
         </div>
       </Modal>
+
+      {/* 回复抽屉（工单对话）：线程按时间升序，管理员靠右。
+          与审阅弹框分工：回复是「对用户说什么」（发出去 + 通知），
+          审阅是「内部怎么记」（状态 + 备注，用户不可见）。
+          不用 destroyOnHidden：抽屉关闭时线程常驻，重开时局部刷新不打断滚动位置 */}
+      <Drawer
+        title={`回复反馈 #${replyTarget?.id ?? ''}`}
+        open={!!replyTarget}
+        onClose={() => setReplyTarget(null)}
+        width={520}
+        forceRender
+      >
+        {replyTarget && (
+          <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+            <Typography.Text type="secondary" style={{ fontSize: 12, marginBottom: 12 }}>
+              {replyTarget.user_nickname || replyTarget.user_account || `用户 ${replyTarget.user_id}`}
+              {' · '}
+              <Tag color={STATUS_COLOR[replyTarget.status] ?? 'default'} style={{ margin: 0 }}>
+                {replyTarget.status_label || replyTarget.status}
+              </Tag>
+            </Typography.Text>
+
+            <div className="fb-thread" style={{ flex: 1, overflowY: 'auto', marginBottom: 12 }}>
+              {/* 用户原帖作为线程首条 */}
+              <div className="fb-thread__item fb-thread__item--user">
+                <div className="fb-thread__bubble">{replyTarget.content || '（仅截图）'}</div>
+                <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                  {formatTime(replyTarget.created_at)}
+                </Typography.Text>
+              </div>
+              {replies.map((reply) => (
+                <div
+                  key={reply.id}
+                  className={`fb-thread__item fb-thread__item--${reply.sender}`}
+                >
+                  <div className="fb-thread__bubble">
+                    {reply.content}
+                    {reply.sender === 'admin' && (
+                      <Typography.Text
+                        type="secondary"
+                        style={{ fontSize: 12, display: 'block', marginTop: 4 }}
+                      >
+                        （用户已收到站内通知）
+                      </Typography.Text>
+                    )}
+                  </div>
+                  <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+                    {reply.sender === 'admin' ? '管理员' : '用户'} · {formatTime(reply.created_at)}
+                  </Typography.Text>
+                </div>
+              ))}
+              {repliesLoading && <Typography.Text type="secondary">加载中…</Typography.Text>}
+            </div>
+
+            <div>
+              <Input.TextArea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="回复内容（用户可见，发送后发站内通知）；已解决的单被用户回复会自动重新拉起"
+                autoSize={{ minRows: 3, maxRows: 6 }}
+                maxLength={1000}
+                showCount
+                disabled={replyTarget.status === 'closed'}
+              />
+              <div style={{ marginTop: 8, textAlign: 'right' }}>
+                <PermGuard perm="feedback:reply">
+                  <Button
+                    type="primary"
+                    icon={<SendOutlined />}
+                    loading={replySending}
+                    disabled={!replyText.trim() || replyTarget.status === 'closed'}
+                    onClick={() => void sendReply()}
+                  >
+                    发送回复
+                  </Button>
+                </PermGuard>
+              </div>
+            </div>
+          </div>
+        )}
+      </Drawer>
     </div>
   )
 }

@@ -26,3 +26,47 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* ============================================================
+   回复抽屉（工单对话线程）：管理员靠右、用户靠左
+   ============================================================ */
+
+.fb-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 2px;
+}
+
+.fb-thread__item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 85%;
+}
+
+.fb-thread__item--user {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.fb-thread__item--admin {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.fb-thread__bubble {
+  padding: 8px 12px;
+  border-radius: var(--app-radius);
+  background: var(--app-subtle);
+  border: 1px solid var(--app-border);
+  font-size: 14px;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.fb-thread__item--admin .fb-thread__bubble {
+  background: var(--app-primary-weak);
+  border-color: var(--app-primary-border, var(--app-border));
+}
+
