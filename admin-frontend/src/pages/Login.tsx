@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Form, Input, Button, Typography, Alert, Segmented } from 'antd'
+import { Form, Input, Button, Typography, Alert, Segmented, Tooltip } from 'antd'
 import {
   BulbOutlined,
   LockOutlined,
   MobileOutlined,
+  ReloadOutlined,
   SafetyOutlined,
   UserOutlined,
 } from '@ant-design/icons'
@@ -18,6 +19,18 @@ interface LoginFormValues {
   account: string
   password: string
   totpCode?: string
+  captchaCode?: string
+}
+
+interface LoginCaptcha {
+  captcha_id: string
+  svg: string
+  expires_in: number
+}
+
+/** 服务端 SVG → data URI：用 <img> 渲染而不注入 DOM（SVG 内容不进文档，无脚本执行面） */
+function svgToDataUrl(svg: string): string {
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`
 }
 
 /**
@@ -46,6 +59,19 @@ export default function Login() {
   // 二次验证是**第二步**：后端在密码正确但缺码时回 401 + data.totp_required，
   // 这里据此展开验证码输入框（不能靠匹配 message 文案，文案一改就静默失效）
   const [totpRequired, setTotpRequired] = useState(false)
+  // 图形验证码：能力位（capabilities.captcha_enabled）决定是否渲染；图随提交失败刷新
+  const [captchaEnabled, setCaptchaEnabled] = useState(false)
+  const [captcha, setCaptcha] = useState<LoginCaptcha | null>(null)
+
+  const loadCaptcha = useCallback(async () => {
+    try {
+      const data = await apiGet<LoginCaptcha>('/auth/captcha')
+      setCaptcha(data)
+    } catch {
+      // 拉不到图（后端未开/服务异常）就不阻塞登录表单：提交时后端会给出明确报错
+      setCaptcha(null)
+    }
+  }, [])
 
   // 空库时把用户直接送到安装向导：否则第一个管理员永远进不来
   // （后端 /setup/init 一旦有管理员就 409，所以这里只在 needs_setup 时跳）
@@ -64,8 +90,27 @@ export default function Login() {
     }
   }, [navigate])
 
+  // 图形验证码开关随能力位下发：开启时先取一张图，避免用户提交后才被打回
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const caps = await apiGet<{ captcha_enabled?: boolean }>('/auth/capabilities')
+        if (alive && caps.captcha_enabled) {
+          setCaptchaEnabled(true)
+          await loadCaptcha()
+        }
+      } catch {
+        // capabilities 拉不到按未开启处理（提交时后端兜底）
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [loadCaptcha])
+
   const handleSubmit = async (values: LoginFormValues) => {
-    const { account, password, totpCode } = values
+    const { account, password, totpCode, captchaCode } = values
     if (!account || !password) {
       setError(t('login.missing'))
       return
@@ -77,11 +122,24 @@ export default function Login() {
     setLoading(true)
     setError('')
     try {
-      await login(account, password, totpRequired ? totpCode : undefined)
+      await login(
+        account,
+        password,
+        totpRequired ? totpCode : undefined,
+        captchaEnabled && captcha && captchaCode
+          ? { id: captcha.captcha_id, code: captchaCode }
+          : undefined,
+      )
       navigate('/')
     } catch (err) {
-      const data = getErrorData<{ totp_required?: boolean }>(err)
+      const data = getErrorData<{ totp_required?: boolean; captcha_required?: boolean }>(err)
       if (data?.totp_required) setTotpRequired(true)
+      if (data?.captcha_required) {
+        setCaptchaEnabled(true)
+        // 验证码一次性消费：无论错码还是过期，都要换新图并清空输入
+        await loadCaptcha()
+        form.setFieldValue('captchaCode', '')
+      }
       setError(getErrorMessage(err, t('login.failed')))
     } finally {
       setLoading(false)
@@ -187,6 +245,46 @@ export default function Login() {
                 autoComplete="current-password"
               />
             </Form.Item>
+
+            {captchaEnabled && (
+              <Form.Item
+                label={t('login.captcha')}
+                name="captchaCode"
+                rules={[{ required: true, message: t('login.captchaRequired') }]}
+              >
+                {/* 图放在 suffix：Form.Item 只向直接子元素注入 value/onChange，
+                    包一层 div 会断开绑定（校验值永远读不到输入） */}
+                <Input
+                  prefix={<SafetyOutlined />}
+                  placeholder={t('login.captchaPlaceholder')}
+                  autoComplete="off"
+                  maxLength={8}
+                  suffix={
+                    captcha ? (
+                      <Tooltip title={t('login.captchaRefresh')}>
+                        <img
+                          src={svgToDataUrl(captcha.svg)}
+                          alt={t('login.captcha')}
+                          width={96}
+                          height={32}
+                          style={{ cursor: 'pointer', borderRadius: 4, display: 'block' }}
+                          onClick={() => void loadCaptcha()}
+                        />
+                      </Tooltip>
+                    ) : (
+                      <Button
+                        size="small"
+                        type="text"
+                        icon={<ReloadOutlined />}
+                        onClick={() => void loadCaptcha()}
+                      >
+                        {t('login.captchaRefresh')}
+                      </Button>
+                    )
+                  }
+                />
+              </Form.Item>
+            )}
 
             {totpRequired && (
               <Form.Item

@@ -50,6 +50,20 @@ class LoginRequest(BaseModel):
     # TOTP 二次验证码（启用二次验证的账号必填）。
     # 长度上限 12 而不是 6：恢复码形如 ABCDE-FGHJK（11 字符），同一个字段两用。
     totp_code: Optional[str] = Field(None, max_length=12, description="二次验证码或恢复码")
+    # 图形验证码（login_captcha_enabled 开启时必填，关闭时忽略）。
+    # 两个字段都带上限：captcha_id 会拼进 Redis key（见 LoginRequest.account 注释的
+    # 超大 key 风险），captcha_code 上限 8 兼容 4 位码 + 前后空白。
+    captcha_id: Optional[str] = Field(None, max_length=64, description="图形验证码 id")
+    captcha_code: Optional[str] = Field(None, max_length=8, description="图形验证码")
+
+
+class LoginCaptchaData(BaseModel):
+    """登录图形验证码（默认关闭；能力位经 /auth/capabilities 下发）"""
+
+    captcha_id: str
+    # SVG 字符串：前端以 <img src="data:image/svg+xml,..."> 渲染，不进 DOM
+    svg: str
+    expires_in: int
 
 
 class SendCodeRequest(BaseModel):
@@ -106,6 +120,8 @@ class AuthCapabilitiesData(BaseModel):
     wechat_web_login: bool = False
     wechat_mini_login: bool = False
     sms_provider: str = "mock"
+    # 图形验证码开关：开启时登录必须携带 captcha_id/captcha_code
+    captcha_enabled: bool = False
 
 
 # 响应模型

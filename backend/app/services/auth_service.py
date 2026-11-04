@@ -27,6 +27,7 @@ from app.core.session_store import (
 from app.core.exceptions import AppException, AuthenticationError
 from app.models.user import User
 from app.schemas.auth import RegisterRequest, LoginRequest
+from app.services import captcha_service
 from app.utils.verification import verify_code, mask_account, is_phone
 from app.redis import log_redis_degraded, redis_client
 from app.services.timer_service import get_free_time_status
@@ -382,6 +383,10 @@ async def login(
     二次验证是**第二道门**，不是替代品：密码仍然要正确，且验证码错误会计入
     独立的失败计数（5 次锁 15 分钟）—— 只靠密码那次计数锁不住「密码已泄露后猜码」。
     """
+    # 人机挑战前置：密码校验之前先过图形验证码（开关关闭时直接放行）。
+    # 放在 verify_account_password 之前 —— 让跨 IP 撞库的成本落在请求侧，
+    # 而不是先把失败计数与 dummy bcrypt 烧完才拦。
+    await captcha_service.enforce_login_captcha(req.captcha_id, req.captcha_code)
     # 账号级失败锁定 + 时序均衡，统一在 verify_account_password 内实现
     user = await verify_account_password(db, req.account, req.password, client_ip=client_ip)
     await enforce_totp_if_enabled(

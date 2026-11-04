@@ -18,7 +18,12 @@ interface AuthState {
   /** RBAC 权限码（动态菜单/按钮渲染依据；null=尚未加载） */
   permissions: string[] | null
   isSuper: boolean
-  login: (account: string, password: string, totpCode?: string) => Promise<AdminUser>
+  login: (
+    account: string,
+    password: string,
+    totpCode?: string,
+    captcha?: { id: string; code: string },
+  ) => Promise<AdminUser>
   logout: () => Promise<void>
   fetchUser: () => Promise<FetchUserResult>
   /** 角色被变更后重新拉取 RBAC 档案 */
@@ -41,10 +46,20 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   permissions: null,
   isSuper: false,
 
-  login: async (account: string, password: string, totpCode?: string) => {
+  login: async (
+    account: string,
+    password: string,
+    totpCode?: string,
+    captcha?: { id: string; code: string },
+  ) => {
     // totp_code 仅在启用二次验证时携带（后端缺码会回 401 + data.totp_required，前端据此补一步输入）
     const body: Record<string, string> = { account, password }
     if (totpCode) body.totp_code = totpCode
+    // 图形验证码仅在后台开启 login_captcha_enabled 时携带（能力位经 /auth/capabilities 下发）
+    if (captcha) {
+      body.captcha_id = captcha.id
+      body.captcha_code = captcha.code
+    }
     const data = await apiPost<{ access_token: string; refresh_token: string }>('/auth/login', body)
     sessionStorage.setItem(AUTH_TOKEN_KEY, data.access_token)
     // refresh_token **刻意不落 storage**（SEC-12）：后端同时下发 httpOnly cookie，

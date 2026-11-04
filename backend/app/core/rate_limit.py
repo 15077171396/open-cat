@@ -37,6 +37,8 @@ SENSITIVE_PATHS = {
     # 微信 state 存 Redis；Redis 异常时应 fail-closed，而不是退化成无 state 登录
     "/api/v1/auth/wechat/web/start",
     "/api/v1/auth/wechat/web/callback",
+    # 登录图形验证码：签发即写 Redis（TTL 有界但仍需防灌），Redis 异常时不签发
+    "/api/v1/auth/captcha",
 }
 
 # 默认可信代理网段：回环 + RFC1918 私网（容器部署 nginx 位于 docker 私网）

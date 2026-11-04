@@ -40,6 +40,7 @@ from app.schemas.auth import (
     PhoneBindRequest,
     WechatStartData,
     AuthCapabilitiesData,
+    LoginCaptchaData,
 )
 from app.services.auth_service import (
     register,
@@ -49,6 +50,7 @@ from app.services.auth_service import (
     logout_all,
     build_user_profile,
 )
+from app.services.captcha_service import generate_captcha
 from app.services import totp_service
 from app.services.audit_service import submit_auth_request, get_auth_status
 from app.services.miniapp_service import miniapp_login, miniapp_bind, miniapp_unbind
@@ -95,6 +97,17 @@ async def send_verification_code(req: SendCodeRequest, request: Request):
 async def auth_capabilities_api():
     """登录页能力位：只告诉前端哪些入口可用，不泄露任何 AppID/Secret。"""
     return success_response(auth_capabilities(await get_auth_config()))
+
+
+@router.get("/captcha", response_model=ApiResponse[LoginCaptchaData])
+async def get_login_captcha():
+    """登录图形验证码（`login_captcha_enabled` 开启时登录必带）。
+
+    答案只进 Redis（一次性消费 + 5 分钟 TTL），SVG 由服务端自绘 —— 前端以
+    `<img>` 渲染，不进 DOM。端点在 `SENSITIVE_PATHS` 里：防刷 + Redis 故障
+    fail-closed（拿不到存储就不签发）。
+    """
+    return success_response(await generate_captcha())
 
 
 @router.post("/phone/send-code", response_model=ApiResponse[None])

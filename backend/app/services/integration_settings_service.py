@@ -58,6 +58,8 @@ AUTH_KEYS = (
     "sms_aliyun_template_code",
     "sms_aliyun_region",
     "sms_aliyun_template_param_key",
+    # 登录图形验证码开关：enforce_login_captcha 与 /auth/capabilities 共同消费
+    "login_captcha_enabled",
 )
 
 PAYMENT_KEYS = (
@@ -125,6 +127,8 @@ _DEFAULTS: dict[str, str] = {
     "sms_aliyun_template_code": "",
     "sms_aliyun_region": "cn-hangzhou",
     "sms_aliyun_template_param_key": "code",
+    # 默认关闭：内容 API 的交付面包含第三方自建登录页，开关打开前它们不会渲染验证码框
+    "login_captcha_enabled": "0",
     "payment_enabled": "0",
     "payment_mock_enabled": "1",
     "payment_order_expire_minutes": "30",
@@ -276,6 +280,7 @@ def auth_capabilities(config: IntegrationConfig) -> dict[str, Any]:
         "wechat_mini_login": config.bool("wechat_mini_login_enabled")
         and bool(config.str("wechat_mini_appid") and config.secret("wechat_mini_secret")),
         "sms_provider": config.str("sms_provider"),
+        "captcha_enabled": config.bool("login_captcha_enabled"),
     }
 
 
