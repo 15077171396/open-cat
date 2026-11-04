@@ -1,0 +1,95 @@
+/**
+ * AI 对话调试台布局：左配置栏 + 右聊天区。
+ * 颜色一律走 token（--app-*），亮暗主题自动跟随 —— 不写裸色值（tokens.test.ts 守卫）。
+ */
+
+.ai-playground {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: var(--app-gap, 16px);
+  align-items: stretch;
+  min-height: 0;
+}
+
+.ai-playground__config {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: var(--app-gap, 16px);
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-card);
+}
+
+.ai-playground__chat {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border: 1px solid var(--app-border);
+  border-radius: var(--app-radius);
+  background: var(--app-card);
+  padding: var(--app-gap, 16px);
+  min-height: 0;
+}
+
+.ai-playground__messages {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px;
+  min-height: 240px;
+  max-height: 56vh;
+}
+
+.ai-playground__empty {
+  margin: auto;
+  color: var(--app-text-2);
+}
+
+.ai-playground__bubble {
+  max-width: 82%;
+  border-radius: var(--app-radius-lg, 10px);
+  padding: 8px 12px;
+  line-height: 1.6;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.ai-playground__bubble--user {
+  align-self: flex-end;
+  background: var(--app-primary-weak);
+  color: var(--app-text);
+}
+
+.ai-playground__bubble--assistant {
+  align-self: flex-start;
+  background: var(--app-tint);
+  color: var(--app-text);
+}
+
+.ai-playground__content {
+  font-size: 14px;
+}
+
+.ai-playground__composer {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+}
+
+.ai-playground__composer .ant-input {
+  flex: 1;
+  resize: vertical;
+}
+
+@media (max-width: 900px) {
+  .ai-playground {
+    grid-template-columns: 1fr;
+  }
+
+  .ai-playground__messages {
+    max-height: 48vh;
+  }
+}
