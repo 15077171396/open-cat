@@ -55,7 +55,11 @@ class PaymentOrderData(BaseModel):
     points: Optional[int] = None
     vip_days: Optional[int] = None
     channel: Optional[str] = None
+    provider: Optional[str] = None
     status: Optional[str] = None
+    currency: Optional[str] = None
+    provider_session_id: Optional[str] = None
+    session_id: Optional[str] = None
     paid_at: Optional[str] = None
     expires_at: Optional[str] = None
     created_at: Optional[str] = None
@@ -82,7 +86,47 @@ class PaymentOrderListData(BaseModel):
 
 class CreatePaymentOrderRequest(BaseModel):
     product_code: str = Field(..., min_length=1, max_length=64)
-    channel: str = Field(..., pattern="^(mock|wechat|alipay)$")
+    # 留空 = 使用默认渠道（DEFAULT_PAYMENT_PROVIDER，默认 stripe）
+    channel: Optional[str] = Field(None, pattern="^(mock|wechat|alipay|stripe)$")
+
+
+class MembershipPlanData(BaseModel):
+    model_config = _PASSTHROUGH
+    code: str
+    name: str
+    description: str = ""
+    amount_cents: int = 0
+    amount: str = "0.00"
+    vip_days: int = 0
+    badge: str = ""
+    currency: str = "CNY"
+
+
+class MembershipPlansData(BaseModel):
+    model_config = _PASSTHROUGH
+    items: list[MembershipPlanData] = Field(default_factory=list)
+    currency: str = "CNY"
+    default_channel: Optional[str] = None
+    channels: list[PaymentChannelItem] = Field(default_factory=list)
+
+
+class MembershipStateData(BaseModel):
+    model_config = _PASSTHROUGH
+    user_id: Optional[int] = None
+    role: Optional[str] = None
+    is_vip: bool = False
+    vip_expire_time: Optional[str] = None
+
+
+class MembershipCheckoutData(BaseModel):
+    model_config = _PASSTHROUGH
+    order: PaymentOrderData
+    membership: MembershipStateData
+
+
+class CreateMembershipCheckoutRequest(BaseModel):
+    product_code: str = Field(..., min_length=1, max_length=64)
+    channel: Optional[str] = Field(None, pattern="^(mock|wechat|alipay|stripe)$")
 
 
 class PaymentProductWriteRequest(BaseModel):

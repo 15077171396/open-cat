@@ -15,6 +15,7 @@ from app.services.admin_menu import (
     MENU_FOOTER,
     MENU_GROUPS,
     MENU_LABELS_EN,
+    MENU_TOP,
     menu_tree,
 )
 from app.services.rbac_catalog import (
@@ -64,7 +65,8 @@ class PickTests(unittest.TestCase):
 class MenuTranslationTests(unittest.TestCase):
     def test_every_menu_key_has_english(self):
         """漏翻不会报错，只会在英文界面里露出一条中文 —— 所以用测试兜住"""
-        keys = [item.key for group in MENU_GROUPS for item in group.items]
+        keys = [item.key for item in MENU_TOP]
+        keys += [item.key for group in MENU_GROUPS for item in group.items]
         keys += [item.key for item in MENU_FOOTER]
         keys += [group.key for group in MENU_GROUPS]
         missing = sorted({key for key in keys if key not in MENU_LABELS_EN})
@@ -73,6 +75,7 @@ class MenuTranslationTests(unittest.TestCase):
     def test_english_tree_has_no_chinese(self):
         tree = menu_tree(locale="en")
         labels = [g["label"] for g in tree["groups"]]
+        labels += [i["label"] for i in tree["top"]]
         labels += [i["label"] for g in tree["groups"] for i in g["items"]]
         labels += [i["label"] for i in tree["footer"]]
         self.assertTrue(labels)

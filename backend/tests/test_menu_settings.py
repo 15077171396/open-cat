@@ -37,6 +37,8 @@ class MenuSettingsTests(unittest.TestCase):
         data = _run(menu_setting_service.settings_tree(db))
         self.assertGreaterEqual(len(data["groups"]), 5)
         self.assertEqual(data["custom_count"], 0)
+        # 首页「工作台」是顶级独立项，不在任何分组里
+        self.assertEqual([item["key"] for item in data["top"]], ["/"])
         system = next(group for group in data["groups"] if group["key"] == "system")
         keys = {item["key"] for item in system["items"]}
         self.assertIn("/menu-settings", keys)
@@ -48,18 +50,18 @@ class MenuSettingsTests(unittest.TestCase):
             menu_setting_service.update_override(
                 db,
                 admin,
-                "/",
+                "/dashboard",
                 {"label_zh": "首页", "label_en": "Homepage", "icon": "home"},
             )
         )
         overrides = _run(menu_setting_service.load_overrides(db))
         tree = admin_menu.menu_tree(locale="zh-CN", overrides=overrides)
-        dashboard = next(item for item in _overview(tree)["items"] if item["key"] == "/")
+        dashboard = next(item for item in _overview(tree)["items"] if item["key"] == "/dashboard")
         self.assertEqual(dashboard["label"], "首页")
         self.assertEqual(dashboard["icon"], "home")
 
         tree_en = admin_menu.menu_tree(locale="en", overrides=overrides)
-        dashboard_en = next(item for item in _overview(tree_en)["items"] if item["key"] == "/")
+        dashboard_en = next(item for item in _overview(tree_en)["items"] if item["key"] == "/dashboard")
         self.assertEqual(dashboard_en["label"], "Homepage")
 
     def test_hide_item_and_group(self):
@@ -82,13 +84,13 @@ class MenuSettingsTests(unittest.TestCase):
                 admin,
                 [
                     {"key": "/analysis", "sort_order": 0},
-                    {"key": "/", "sort_order": 1},
+                    {"key": "/dashboard", "sort_order": 1},
                 ],
             )
         )
         tree = admin_menu.menu_tree(overrides=_run(menu_setting_service.load_overrides(db)))
         keys = [item["key"] for item in _overview(tree)["items"]]
-        self.assertEqual(keys[:2], ["/analysis", "/"])
+        self.assertEqual(keys[:2], ["/analysis", "/dashboard"])
 
     def test_reset_one_and_all(self):
         db = MemorySession()
@@ -104,7 +106,7 @@ class MenuSettingsTests(unittest.TestCase):
         self.assertEqual(removed, 1)
         self.assertEqual(_run(menu_setting_service.settings_tree(db))["custom_count"], 0)
         tree = admin_menu.menu_tree(overrides=_run(menu_setting_service.load_overrides(db)))
-        dashboard = next(item for item in _overview(tree)["items"] if item["key"] == "/")
+        dashboard = next(item for item in _overview(tree)["items"] if item["key"] == "/dashboard")
         self.assertEqual(dashboard["label"], "数据看板")
 
     def test_unknown_key_and_long_label_are_rejected(self):

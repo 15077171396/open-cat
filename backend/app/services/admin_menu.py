@@ -15,7 +15,8 @@
 - 菜单结构本身不含业务数据，接口对任何 admin 开放（`rbac.py` 规则表登记为空权限列表）；
   **可见性过滤在前端按 `permissions` 做**，这样权限被撤销后无需重拉菜单即时生效。
 
-层级：目前是「分组（父级）→ 菜单项（子级）」两层。若将来某页需要三级，
+层级：目前是「顶级独立项 / 分组（父级）→ 菜单项（子级）」两层（独立项不归属分组，
+渲染在分组之上，如首页「工作台」）。若将来某页需要三级，
 把 `MenuItem` 换成带 `children` 的递归结构，并同步前端 `utils/menu.ts` 的构建函数。
 """
 
@@ -59,6 +60,13 @@ class MenuOverride(NamedTuple):
     sort_order: int | None = None
 
 
+# 分组**之上**的顶级独立项：不属于任何分组，直接渲染在侧边栏最前。
+# 2026-11：工作台从「概览」移出成为首页，路由 `/`（数据看板迁到 /dashboard）。
+MENU_TOP: tuple[MenuItem, ...] = (
+    MenuItem("/", "工作台", "workplace", perm="dashboard:view"),
+)
+
+
 # ⚠️ 分组顺序 = 侧边栏展示顺序。按「日常使用频率」排：
 # 概览 → 内容（示例模块） → 运营 → 用户与权限 → 系统（最低频，压在最下面）
 MENU_GROUPS: tuple[MenuGroup, ...] = (
@@ -67,9 +75,8 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
         label="概览",
         icon="home",
         items=(
-            MenuItem("/", "数据看板", "dashboard", perm="dashboard:view"),
-            # 工作台：快捷入口 + 待办 + 最近动态，复用现有接口
-            MenuItem("/workplace", "工作台", "workplace", perm="dashboard:view"),
+            # 数据看板：原首页，2026-11 首页改为工作台后迁到 /dashboard
+            MenuItem("/dashboard", "数据看板", "dashboard", perm="dashboard:view"),
             # 数据分析：前端本地假数据演示页，不新增接口；权限与数据看板同层级
             MenuItem("/analysis", "数据分析", "chart", perm="dashboard:view"),
         ),
@@ -197,9 +204,10 @@ MENU_LABELS_EN: dict[str, str] = {
     "monitor": "Monitoring",
     "users": "Users & Permissions",
     "system": "System",
+    # 顶级独立项
+    "/": "Workplace",
     # 概览
-    "/": "Dashboard",
-    "/workplace": "Workplace",
+    "/dashboard": "Dashboard",
     "/analysis": "Analytics",
     # 内容
     "/tutorials": "Tutorials",
@@ -315,6 +323,18 @@ def menu_tree(
     def keeps(item: MenuItem) -> bool:
         return not only_enabled or module_registry.menu_visible(item.key)
 
+    top_rows: list[tuple[tuple[int, int], dict]] = []
+    for item_index, item in enumerate(MENU_TOP):
+        item_override = overrides.get(item.key)
+        if item_override and item_override.visible is False:
+            continue
+        if not keeps(item):
+            continue
+        top_rows.append(
+            (_sort_key(item_index, item_override), _item_to_dict(item, locale, item_override))
+        )
+    top_rows.sort(key=lambda row: row[0])
+
     group_rows: list[tuple[tuple[int, int], dict]] = []
     for group_index, group in enumerate(MENU_GROUPS):
         group_override = overrides.get(group.key)
@@ -361,13 +381,14 @@ def menu_tree(
     footer_rows.sort(key=lambda row: row[0])
 
     return {
+        "top": [row[1] for row in top_rows],
         "groups": [row[1] for row in group_rows],
         "footer": [row[1] for row in footer_rows],
     }
 
 
 def all_menu_keys() -> set[str]:
-    """可被菜单管理覆盖的全部 key（分组 + 叶子 + 页脚）"""
+    """可被菜单管理覆盖的全部 key（分组 + 顶级项 + 叶子 + 页脚）"""
     keys = {group.key for group in MENU_GROUPS}
     keys.update(item.key for item in iter_menu_items())
     return keys
@@ -379,7 +400,7 @@ def menu_key_exists(key: str) -> bool:
 
 def iter_menu_items() -> list[MenuItem]:
     """扁平化全部叶子节点（守卫测试与工具脚本用）"""
-    items: list[MenuItem] = []
+    items: list[MenuItem] = list(MENU_TOP)
     for group in MENU_GROUPS:
         items.extend(group.items)
     items.extend(MENU_FOOTER)

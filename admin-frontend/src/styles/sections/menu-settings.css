@@ -1,12 +1,30 @@
 /* 管理后台样式 · 菜单管理
- * pages/MenuSettings：树形表格里的名称、路由/权限、图标与排序控件。
+ * pages/MenuSettings：树形表格、筛选行标签、路由/权限单元格与行内图标操作。
  */
 
+/* 筛选项：标签 + 控件（下拉统一 140px，由页面传 style） */
+.ms-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.ms-filter__label {
+  flex: none;
+  font-size: 12px;
+  color: var(--app-text-2);
+  white-space: nowrap;
+}
+
+/* 名称列：单行紧凑（英文标题单独占一列，不再用副行占高度）。
+   必须 inline-flex：树形展开箭头与名称在同一个单元格里，flex 会换行 */
 .ms-name {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  max-width: 100%;
+  vertical-align: middle;
 }
 
 .ms-name__icon {
@@ -17,19 +35,28 @@
   color: var(--app-text-2);
 }
 
-.ms-name__text {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
 .ms-name__label {
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.ms-warn {
+  flex: none;
+  font-size: 12px;
+  color: var(--app-warning);
+}
+
+.ms-name__text {
+  flex: 0 1 auto;
+  min-width: 40px;
+  overflow: hidden;
   font-size: 13px;
   color: var(--app-text);
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 .ms-name--group .ms-name__label {
@@ -37,39 +64,36 @@
 }
 
 .ms-name__label .ant-tag {
+  flex: none;
   margin-inline-end: 0;
   padding-inline: 5px;
   font-size: 10px;
   line-height: 16px;
 }
 
-.ms-name__sub {
-  margin-top: 2px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: 11px;
-  color: var(--app-text-3);
+.ms-index {
+  font-size: 12px;
+  color: var(--app-text-2);
+  font-variant-numeric: tabular-nums;
 }
 
-.ms-route {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+.ms-title {
+  font-size: 12px;
+  color: var(--app-text-2);
 }
 
-.ms-route code {
-  width: fit-content;
+.ms-code {
+  display: inline-block;
   max-width: 100%;
   overflow: hidden;
   padding: 1px 5px;
   border: 1px solid var(--app-border-light);
-  border-radius: 4px;
+  border-radius: 0;
   background: var(--app-subtle);
   font-size: 12px;
   color: var(--app-text-2);
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ms-perms {
@@ -86,22 +110,92 @@
   color: var(--app-text-3);
 }
 
+.ms-type .ant-tag {
+  margin-inline-end: 0;
+  font-size: 11px;
+  line-height: 18px;
+}
+
+/* 树形展开箭头：替换 antd 默认的方框加号，避免与「新增子菜单」混淆，也贴合全局直角体系 */
+.ms-expand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  font-size: 11px;
+  color: var(--app-text-3);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.ms-expand:hover {
+  color: var(--app-primary);
+}
+
+.ms-expand:focus-visible {
+  outline: 1px solid var(--app-primary);
+  outline-offset: 1px;
+}
+
+.ms-expand--leaf {
+  cursor: default;
+  pointer-events: none;
+}
+
+/* 状态开关沿用直角体系 */
+.ms-status .ant-switch,
+.ms-status .ant-switch .ant-switch-handle,
+.ms-status .ant-switch .ant-switch-handle::before {
+  border-radius: 0;
+}
+
 .ms-muted {
   font-size: 12px;
   color: var(--app-text-3);
+}
+
+.ms-order {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.ms-order__num {
+  min-width: 18px;
+  font-size: 12px;
+  color: var(--app-text-2);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .ms-order .ant-btn {
   color: var(--app-text-3);
 }
 
-/* 分组行轻微压暗，和可点击的页面项区分开 */
-.ms-group-row > td {
-  background: var(--app-subtle) !important;
+/* 行内图标操作：与演示站一致，编辑/查看/更多用图标而不是文字按钮 */
+.ms-ops {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
 }
 
-@media (max-width: 640px) {
-  .ms-name__sub {
-    display: none;
-  }
+.ms-ops .ant-btn {
+  color: var(--app-text-3);
+}
+
+.ms-ops .ant-btn:not(:disabled):hover {
+  color: var(--app-primary);
+}
+
+.ms-action {
+  display: inline-flex;
+}
+
+/* 目录行轻微压暗，和可点击的页面项区分开 */
+.ms-group-row > td {
+  background: var(--app-subtle) !important;
 }

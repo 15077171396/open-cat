@@ -145,7 +145,7 @@
 
 .image-search-section__badge {
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--app-tint);
   color: var(--app-primary);
   font-size: 11px;
@@ -167,7 +167,7 @@
 /* 「已过滤 N 张」用更淡的色，避免和正常张数抢注意力。 */
 .image-search-section__hidden {
   padding: 1px 6px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--app-tint);
   color: var(--app-text-2);
   font-size: 11px;

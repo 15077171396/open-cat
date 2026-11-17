@@ -18,7 +18,7 @@ export const STATIC_EDITOR_CSS = `
     min-width: 0;
     position: relative;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 0;
   }
   .quill-editor-wrapper .ql-toolbar {
     position: sticky;
@@ -33,7 +33,7 @@ export const STATIC_EDITOR_CSS = `
     top: 0;
     overflow-y: auto;
     background: #fafafa;
-    border-radius: 8px;
+    border-radius: 0;
     padding: 16px;
     border: 1px solid var(--app-border-light);
   }
@@ -73,7 +73,7 @@ export const STATIC_EDITOR_CSS = `
   .quill-toc-item:focus-visible {
     outline: 2px solid var(--app-primary);
     outline-offset: 2px;
-    border-radius: 2px;
+    border-radius: 0;
     color: var(--app-primary);
   }
   /* 编辑器正文排版：覆盖 Quill snow 主题对块级元素的 margin:0 重置，
@@ -138,7 +138,7 @@ export const STATIC_EDITOR_CSS = `
     background: #1e293b;
     color: #f8fafc;
     padding: 0.9em 1em;
-    border-radius: 8px;
+    border-radius: 0;
     overflow-x: auto;
     font-size: 0.875em;
     line-height: 1.6;
@@ -149,7 +149,7 @@ export const STATIC_EDITOR_CSS = `
   .quill-editor-wrapper .ql-editor code {
     background: #f1f5f9;
     padding: 0.15em 0.4em;
-    border-radius: 4px;
+    border-radius: 0;
     font-size: 0.875em;
   }
   .quill-editor-wrapper .ql-editor pre code {
@@ -160,7 +160,7 @@ export const STATIC_EDITOR_CSS = `
   .quill-editor-wrapper .ql-editor img {
     max-width: 100%;
     height: auto;
-    border-radius: 8px;
+    border-radius: 0;
     margin: 0.4em 0;
   }
   .quill-editor-wrapper .ql-editor a {
@@ -195,7 +195,7 @@ export const STATIC_EDITOR_CSS = `
     z-index: 20;
     pointer-events: none;
     border: 1.5px dashed var(--app-primary);
-    border-radius: 2px;
+    border-radius: 0;
     box-sizing: border-box;
   }
   /* 手动尺寸面板：选框上方悬浮（bottom:100% 使其向上生长，内容换行时不会被裁掉），
@@ -211,7 +211,7 @@ export const STATIC_EDITOR_CSS = `
     max-width: min(620px, 88vw);
     background: #fff;
     border: 1px solid #e2e8f0;
-    border-radius: 6px;
+    border-radius: 0;
     padding: 4px 8px;
     box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
     pointer-events: auto;
@@ -221,7 +221,7 @@ export const STATIC_EDITOR_CSS = `
     width: 54px;
     height: 24px;
     border: 1px solid #d9d9d9;
-    border-radius: 4px;
+    border-radius: 0;
     text-align: center;
     font-size: 12px;
     line-height: 22px;
@@ -250,7 +250,7 @@ export const STATIC_EDITOR_CSS = `
     color: var(--app-primary);
     padding: 2px 3px;
     line-height: 18px;
-    border-radius: 4px;
+    border-radius: 0;
   }
   .quill-img-resize-btn:hover {
     color: var(--app-primary-hover);

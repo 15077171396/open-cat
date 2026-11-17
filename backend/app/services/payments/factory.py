@@ -11,6 +11,7 @@ from app.services.integration_settings_service import (
 from app.services.payments.alipay import AlipayProvider
 from app.services.payments.base import PaymentError, PaymentProvider
 from app.services.payments.mock import MockPaymentProvider
+from app.services.payments.stripe import StripeProvider
 from app.services.payments.wechat import WechatPayProvider
 
 #: 各渠道的**必需配置**（唯一事实来源）。
@@ -33,6 +34,12 @@ _CHANNEL_REQUIRED: dict[str, tuple[str, ...]] = {
         "alipay_private_key",
         "alipay_public_key",
     ),
+    # webhook_secret 不列入必需项：本地没有公网地址时依靠前端回跳后主动查单完成开通，
+    # 但配置了 webhook 后验签才有意义，所以只在 channel_overview 里给出提示。
+    "stripe": (
+        "stripe_secret_key",
+        "stripe_publishable_key",
+    ),
 }
 
 #: 渠道中文名（管理端展示与错误提示共用）
@@ -40,6 +47,7 @@ CHANNEL_LABELS: dict[str, str] = {
     "mock": "模拟支付（演示）",
     "wechat": "微信扫码支付",
     "alipay": "支付宝",
+    "stripe": "Stripe（银行卡 / Checkout）",
 }
 
 
@@ -73,6 +81,26 @@ def alipay_ready(config: IntegrationConfig) -> bool:
     return config.bool("alipay_enabled") and not missing_requirements("alipay", config)
 
 
+def stripe_ready(config: IntegrationConfig) -> bool:
+    return config.bool("stripe_enabled") and not missing_requirements("stripe", config)
+
+
+def default_payment_channel(config: IntegrationConfig) -> str:
+    """默认支付渠道：优先 DEFAULT_PAYMENT_PROVIDER，不可用时回退首个可用渠道。
+
+    「不可用」包括总开关关闭、渠道被关闭、凭据缺失。回退而不是报错，
+    避免运营把默认渠道改成未配置的 Stripe 后所有下单直接 400。
+    """
+    channels = available_channels(config)
+    if not channels:
+        return ""
+    preferred = (settings.DEFAULT_PAYMENT_PROVIDER or "").strip().lower()
+    for item in channels:
+        if item["value"] == preferred:
+            return preferred
+    return channels[0]["value"]
+
+
 def available_channels(config: IntegrationConfig) -> list[dict]:
     """前端渠道选择器：只返回可用渠道，不暴露任何凭据。"""
     if not config.bool("payment_enabled"):
@@ -84,6 +112,8 @@ def available_channels(config: IntegrationConfig) -> list[dict]:
         channels.append({"value": "wechat", "label": CHANNEL_LABELS["wechat"]})
     if alipay_ready(config):
         channels.append({"value": "alipay", "label": CHANNEL_LABELS["alipay"]})
+    if stripe_ready(config):
+        channels.append({"value": "stripe", "label": CHANNEL_LABELS["stripe"]})
     return channels
 
 
@@ -108,4 +138,8 @@ async def get_payment_provider(
         if require_enabled and not config.bool("alipay_enabled"):
             raise PaymentError("支付宝支付未开启")
         return AlipayProvider(config)
+    if channel == "stripe":
+        if require_enabled and not config.bool("stripe_enabled"):
+            raise PaymentError("Stripe 支付未开启")
+        return StripeProvider(config)
     raise PaymentError(f"未知的支付渠道: {channel}")

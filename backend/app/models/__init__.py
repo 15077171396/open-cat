@@ -32,6 +32,7 @@ from app.models.system_setting import SystemSetting
 from app.models.tutorial import Tutorial, TutorialNetdiskLink, TutorialPurchase
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
+from app.models.user_ui_preference import UserUiPreference
 
 __all__ = [
     "AdminAuditLog",
@@ -78,4 +79,5 @@ __all__ = [
     "TutorialPurchase",
     "TutorialNode",
     "User",
+    "UserUiPreference",
 ]

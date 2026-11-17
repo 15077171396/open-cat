@@ -397,7 +397,7 @@ async def check_tutorial_read_access(
     hint = f"或使用 {price} 积分购买后永久阅读" if price > 0 else ""
     raise AppException(
         code=403,
-        message=f"会员专享教程：认证知识星球成为会员即可阅读{hint}",
+        message=f"会员专享教程：开通会员后即可阅读（支持在线支付开通）{hint}",
         data={"tutorial_locked": True, "points_price": price, "can_purchase": price > 0},
     )
 

@@ -51,6 +51,59 @@
   white-space: nowrap;
 }
 
+/* ---- 侧栏菜单区独立滚动 ----
+   antd 只把 <Sider> 的 style 挂在 .app-sider 上，真正装子节点的是 .ant-layout-sider-children，
+   它默认是 block：菜单外层写的 flex:1 拿不到高度，菜单会把侧栏撑出 100vh 再被外壳裁掉
+   （小屏下最后几项直接看不见，且没有滚动条）。这里把它改成纵向 flex 容器。 */
+.app-sider .ant-layout-sider-children {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.app-sider-menu {
+  min-height: 0;
+  overscroll-behavior: contain;
+}
+
+/* 细窄、直角，与全局直角体系一致 */
+.app-sider-menu::-webkit-scrollbar,
+.app-group-rail::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.app-sider-menu::-webkit-scrollbar-thumb,
+.app-group-rail::-webkit-scrollbar-thumb {
+  background: var(--app-border-strong);
+  border-radius: 0;
+}
+
+.app-sider-menu::-webkit-scrollbar-thumb:hover,
+.app-group-rail::-webkit-scrollbar-thumb:hover {
+  background: var(--app-text-3);
+}
+
+/* 深色菜单：浅灰 thumb 压在 #001529 上不够显眼，换半透明白 */
+.app-shell--menu-dark .app-sider-menu::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.24);
+}
+
+.app-shell--menu-dark .app-sider-menu::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.42);
+}
+
+/* 移动端抽屉：菜单占满剩余高度并独立滚动，末项不会被抽屉下沿压住 */
+.app-drawer-menu {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
 /* 顶部导航布局：logo 在 header 内，不再叠加一层左右内边距 */
 .app-header .app-logo {
   height: 56px;
@@ -141,3 +194,332 @@
 .page-tabs__actions {
   flex: none;
 }
+
+/* ---- 界面设置：盒子样式 / 容器宽度 ---- */
+
+/* 阴影盒子：页面卡与 antd 卡片统一改用浮层阴影（边框样式保持默认） */
+.app-shell--box-shadow .app-content,
+.app-shell--box-shadow .ant-card {
+  box-shadow: var(--app-shadow-float);
+}
+
+.app-shell--box-shadow .app-content {
+  border: 1px solid var(--app-border-light);
+}
+
+/* 定宽容器：内容区居中，避免超宽屏一行铺到 2560px */
+.app-shell--fixed-width .app-content {
+  width: 100%;
+  max-width: 1440px;
+  margin-right: auto;
+  margin-left: auto;
+}
+
+/* ---- 界面设置：深色菜单风格（亮色页面 + 深色侧栏/顶栏） ---- */
+
+.app-shell--menu-dark .app-logo__text {
+  color: #fff;
+}
+
+.app-shell--menu-dark .app-header .ant-btn,
+.app-shell--menu-dark .app-header .ant-typography,
+.app-shell--menu-dark .app-header .anticon {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.app-shell--menu-dark .app-header .ant-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* ---- 双列布局：左列分组栏 + 右列当前分组菜单 ---- */
+
+.app-group-rail {
+  flex: none;
+  width: 88px;
+  padding: 8px 4px;
+  overflow-y: auto;
+  border-right: 1px solid var(--app-border-light);
+}
+
+.app-group-rail__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 8px 2px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--app-text-2);
+  text-align: center;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--app-radius);
+}
+
+.app-group-rail__item:hover {
+  color: var(--app-link);
+  background: var(--app-fill);
+}
+
+.app-group-rail__item.is-active {
+  color: var(--app-link);
+  background: var(--app-primary-weak);
+}
+
+.app-group-rail__icon {
+  font-size: 16px;
+}
+
+/* 混合布局：侧栏顶部显示当前一级分组名 */
+.app-mixed-title {
+  flex: none;
+  padding: 8px 16px 4px;
+  font-size: 12px;
+  color: var(--app-text-3);
+}
+
+/* ---- 演示站对齐：标签页三种风格（胶囊 / 卡片 / 谷歌） ---- */
+
+.page-tabs--google .page-tabs__item {
+  border-radius: 0;
+}
+
+.page-tabs--google .page-tabs__item.is-active {
+  color: var(--app-primary);
+  background: transparent;
+  box-shadow: inset 0 -2px 0 var(--app-primary);
+}
+
+.page-tabs--capsule .page-tabs__item {
+  padding: 0 10px;
+  border-radius: 0;
+}
+
+.page-tabs--capsule .page-tabs__item.is-active {
+  color: var(--app-primary);
+  background: var(--app-primary-weak);
+}
+
+.page-tabs--card .page-tabs__item {
+  height: 26px;
+  padding: 0 10px;
+  background: var(--app-fill);
+  border: 1px solid var(--app-border-light);
+  border-radius: var(--app-radius);
+}
+
+.page-tabs--card .page-tabs__item.is-active {
+  color: var(--app-primary);
+  background: var(--app-card);
+  border-color: var(--app-primary-border);
+}
+
+.page-tabs__pin {
+  margin-right: 4px;
+  font-size: 11px;
+  color: var(--app-primary);
+}
+
+/* ---- 页面切换动画（无 / 淡入 / 左滑 / 下滑 / 上滑） ---- */
+
+.app-page-transition {
+  min-height: 100%;
+}
+
+.app-page-transition--fade {
+  animation: app-page-fade 0.24s ease-out;
+}
+
+.app-page-transition--slide-left {
+  animation: app-page-slide-left 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-page-transition--slide-bottom {
+  animation: app-page-slide-bottom 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.app-page-transition--slide-top {
+  animation: app-page-slide-top 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+@keyframes app-page-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes app-page-slide-left {
+  from {
+    opacity: 0;
+    transform: translateX(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes app-page-slide-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes app-page-slide-top {
+  from {
+    opacity: 0;
+    transform: translateY(-18px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-page-transition {
+    animation: none !important;
+  }
+}
+
+/* ---- 顶部进度条（每次切路由/刷新重播一次） ---- */
+
+.app-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1100;
+  width: 0;
+  height: 2px;
+  background: var(--app-primary);
+  animation: app-progress 0.55s ease-out forwards;
+  pointer-events: none;
+}
+
+@keyframes app-progress {
+  0% {
+    width: 0;
+    opacity: 1;
+  }
+  60% {
+    width: 72%;
+    opacity: 1;
+  }
+  100% {
+    width: 100%;
+    opacity: 0;
+  }
+}
+
+/* ---- 全局水印 / 灰色模式 / 色弱模式 ---- */
+
+.app-watermark {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  pointer-events: none;
+  background-repeat: repeat;
+  opacity: 0.12;
+}
+
+html[data-gray='true'] body {
+  filter: grayscale(100%);
+}
+
+html[data-color-weak='true'] body {
+  filter: invert(80%);
+}
+
+/* ---- 快速入口 8 宫格 ---- */
+
+.app-quick-entry {
+  display: grid;
+  grid-template-columns: repeat(4, 72px);
+  gap: 8px;
+  padding: 4px 0;
+}
+
+.app-quick-entry__item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 2px;
+  font-size: 12px;
+  color: var(--app-text-2);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--app-radius);
+}
+
+.app-quick-entry__item:hover {
+  color: var(--app-primary);
+  background: var(--app-fill);
+}
+
+.app-quick-entry__icon {
+  font-size: 18px;
+  color: var(--app-primary);
+}
+
+.app-quick-entry__label {
+  max-width: 72px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- AI 助手浮动入口 ---- */
+
+.app-ai-float {
+  position: fixed;
+  right: 28px;
+  bottom: 32px;
+  z-index: 20;
+  box-shadow: var(--app-shadow-float);
+}
+
+/* 浮动入口是控件（不是圆形语义元素），直角体系下跟随全局圆角档位 */
+.app-ai-float.ant-btn.ant-btn-circle {
+  border-radius: var(--app-radius);
+}
+
+/* ---- 锁屏遮罩 ---- */
+
+.app-lock-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--app-canvas);
+}
+
+.app-lock-screen__card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 320px;
+  max-width: calc(100vw - 32px);
+  padding: 28px 24px 16px;
+  text-align: center;
+  background: var(--app-card);
+  border: 1px solid var(--app-border-light);
+  border-radius: var(--app-radius-lg);
+  box-shadow: var(--app-shadow-float);
+}
+

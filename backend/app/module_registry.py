@@ -124,7 +124,7 @@ MODULES: tuple[ModuleDef, ...] = (
             "/api/v1/admin/scheduled-jobs",
             "/api/v1/admin/search-keywords",
         ),
-        menu_keys=("/", "/workplace", "/analysis", "/search-keywords", "/scheduled-jobs", "/readiness"),
+        menu_keys=("/", "/dashboard", "/analysis", "/search-keywords", "/scheduled-jobs", "/readiness"),
     ),
     ModuleDef(
         key="announcement",

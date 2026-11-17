@@ -8,7 +8,7 @@ set -u
 : "${ADMIN_ACCOUNT:?需要设置 ADMIN_ACCOUNT}"
 : "${ADMIN_PASSWORD:?需要设置 ADMIN_PASSWORD}"
 
-BASE="http://localhost:5174/admin"
+BASE="http://localhost:5175/admin"
 
 agent-browser open "${BASE}/" >/dev/null 2>&1
 sleep 5

@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Input, Modal, Segmented, Select, Space, Tag, Typography } from 'antd'
+import { Button, Input, Modal, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { BookOutlined, CloudDownloadOutlined, CloudUploadOutlined, DeleteOutlined, EditOutlined, EyeOutlined, PushpinFilled, StarFilled, UndoOutlined } from '@ant-design/icons'
 import client, { apiPost } from '../../api/client'
@@ -26,7 +26,7 @@ const PUBLISH_FILTER_OPTIONS = [
   { value: 'draft', label: '草稿' },
 ]
 
-/** 回收站视图（正常内容 / 回收站）—— 视图切换，不是筛选条件 */
+/** 数据范围筛选（正常内容 / 回收站） */
 const RECYCLE_VIEW_OPTIONS = [
   { value: 'active', label: '正常内容' },
   { value: 'deleted', label: '回收站' },
@@ -491,13 +491,14 @@ export default function TutorialsList() {
           </Space>
         )}
       >
-        <Segmented
+        <Select
           value={recycleView}
           onChange={(v) => {
             setRecycleView(String(v))
             handleFilterChange()
           }}
           options={RECYCLE_VIEW_OPTIONS}
+          style={{ width: 140 }}
         />
         <Select
           value={category}
@@ -517,13 +518,14 @@ export default function TutorialsList() {
           options={[{ value: '', label: '全部更新状态' }, ...TUTORIAL_STATUSES]}
           style={{ width: 140 }}
         />
-        <Segmented
+        <Select
           value={publishFilter}
           onChange={(v) => {
             setPublishFilter(String(v))
             handleFilterChange()
           }}
           options={PUBLISH_FILTER_OPTIONS}
+          style={{ width: 140 }}
         />
         <Select
           value={accessMode}

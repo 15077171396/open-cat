@@ -959,8 +959,10 @@ export interface MenuGroup {
   items: MenuLeaf[]
 }
 
-/** 侧边菜单树：分组 + 分组外的独立项 */
+/** 侧边菜单树：顶级独立项 + 分组 + 分组外的页脚项 */
 export interface MenuTree {
+  /** 分组之上的独立入口（如首页「工作台」），不属于任何分组 */
+  top: MenuLeaf[]
   groups: MenuGroup[]
   footer: MenuLeaf[]
 }

@@ -282,6 +282,21 @@ async def _clear_login_failures(account: str, client_ip: str | None = None) -> N
         log_redis_degraded("auth._clear_login_failures", "清除登录失败计数失败（Redis 不可用）")
 
 
+async def is_credential_locked(scope: str, client_ip: str | None = None) -> bool:
+    """通用凭据作用域是否被锁定（登录 / 锁屏口令复用同一套 Redis 锁定键）。"""
+    return await _is_login_locked(scope, client_ip)
+
+
+async def record_credential_failure(scope: str, client_ip: str | None = None) -> None:
+    """通用凭据失败计数（登录 / 锁屏口令复用同一阈值与锁定时长）。"""
+    await _record_login_failure(scope, client_ip)
+
+
+async def clear_credential_failures(scope: str, client_ip: str | None = None) -> None:
+    """凭据校验成功后清除失败计数与锁定。"""
+    await _clear_login_failures(scope, client_ip)
+
+
 async def verify_account_password(
     db: AsyncSession, account: str, password: str, *, client_ip: str | None = None
 ) -> User:

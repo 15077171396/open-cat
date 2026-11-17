@@ -1,4 +1,4 @@
-"""支付与渠道：支付开关 / 微信支付 / 支付宝配置（2026-10-27 从系统设置抽出）。
+"""支付与渠道：支付开关 / Stripe / 微信支付 / 支付宝配置（2026-10-27 从系统设置抽出）。
 
 抽出的理由与登录管理、法律文档同源，但这里的「信息面」尤其重要 —— 支付配置有两种
 **不会报错、只会静默失效**的状态：
@@ -27,8 +27,10 @@ from app.services.integration_settings_service import IntegrationConfig, get_pay
 from app.services.payments.factory import (
     CHANNEL_LABELS,
     alipay_ready,
+    default_payment_channel,
     missing_requirements,
     mock_allowed,
+    stripe_ready,
     wechat_ready,
 )
 from app.services.setting_definitions import SURFACE_PAYMENT
@@ -40,7 +42,7 @@ from app.services.setting_service import (
     update_settings,
 )
 
-#: 本模块负责的设置键（= 三个 payment_* 分组的全部定义）
+#: 本模块负责的设置键（= 四个 payment_* 分组的全部定义）
 PAYMENT_SETTING_KEYS: frozenset[str] = frozenset(keys_for_surface(SURFACE_PAYMENT))
 
 
@@ -69,6 +71,7 @@ def _channel(
     ready: bool,
     detail: str,
     issues: list[str],
+    is_default: bool = False,
 ) -> dict[str, Any]:
     return {
         "key": key,
@@ -77,6 +80,7 @@ def _channel(
         "ready": ready,
         "detail": detail,
         "issues": issues,
+        "default": is_default,
     }
 
 
@@ -89,6 +93,7 @@ def channel_overview(config: IntegrationConfig) -> list[dict[str, Any]]:
     总开关关闭导致的不可用会写进 `issues`，避免只看到一个黄条却不知道为什么。
     """
     total = config.bool("payment_enabled")
+    default_channel = default_payment_channel(config)
     channels: list[dict[str, Any]] = []
 
     def gate(enabled: bool, ok: bool, issues: list[str]) -> tuple[bool, list[str]]:
@@ -158,6 +163,42 @@ def channel_overview(config: IntegrationConfig) -> list[dict[str, Any]]:
         )
     )
 
+    # Stripe（默认渠道）：密钥状态只给「是否配置 + 模式前缀是否匹配」，不回显任何片段
+    stripe_enabled = config.bool("stripe_enabled")
+    stripe_missing = missing_requirements("stripe", config)
+    stripe_issues = (
+        ["还缺 Secret Key / Publishable Key，渠道不可用"]
+        if stripe_enabled and stripe_missing
+        else []
+    )
+    stripe_secret = config.secret("stripe_secret_key")
+    stripe_mode = (config.str("stripe_mode") or "test").lower()
+    if stripe_secret and stripe_mode == "test" and stripe_secret.startswith("sk_live_"):
+        stripe_issues.append("当前模式为 test，但配置的是 live Secret Key")
+    if stripe_secret and stripe_mode == "live" and stripe_secret.startswith("sk_test_"):
+        stripe_issues.append("当前模式为 live，但配置的是 test Secret Key")
+    if stripe_enabled and not config.secret("stripe_webhook_secret"):
+        stripe_issues.append(
+            "未配置 Webhook Secret：公网回调无法验签；本地依赖支付成功回跳后的主动查单"
+        )
+    stripe_ready_now, stripe_issues = gate(
+        stripe_enabled, stripe_ready(config), stripe_issues
+    )
+    channels.append(
+        _channel(
+            "stripe",
+            enabled=stripe_enabled,
+            ready=stripe_ready_now,
+            detail=(
+                f"Stripe Checkout（{stripe_mode} 模式，币种 "
+                f"{(config.str('stripe_currency') or 'cny').upper()}）；"
+                "Secret Key / Webhook Secret 仅在服务端使用"
+            ),
+            issues=stripe_issues,
+            is_default=default_channel == "stripe",
+        )
+    )
+
     return channels
 
 
@@ -224,5 +265,6 @@ async def overview(db: AsyncSession) -> dict[str, Any]:
         "enabled": config.bool("payment_enabled"),
         "env": settings.APP_ENV,
         "channels": channels,
+        "default_channel": default_payment_channel(config),
         "warnings": warnings_of(config, channels),
     }

@@ -13,28 +13,53 @@
    提高特异性 —— antd 6 样式是 CSS-in-JS 运行时注入，注入顺序不可控。
    ============================================================ */
 
-/* ---- 页头：页面卡卡头（全宽、底部细线） ---- */
+/* ---- 页头：标题仅对读屏可见，无分隔线。
+   列表页的操作区会由 PageHeader 运行期挂进工具条（与「刷新」同一行），
+   此时页头只剩读屏标题，不占任何高度；没有工具条的页面才在页头里内联显示。 ---- */
 .adm-header {
+  position: relative;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  justify-content: flex-end;
+  gap: 8px;
   flex-wrap: wrap;
-  min-height: 52px;
-  margin: calc(var(--app-page-pad, 16px) * -1) calc(var(--app-page-pad, 16px) * -1) 16px;
-  padding: 0 var(--app-page-pad, 16px);
-  border-bottom: 1px solid var(--app-border-light);
+  /* 与按钮同高的一行：操作项按行垂直居中，不把行撑成「贴顶的一条」 */
+  min-height: 32px;
+  /* 下方与筛选条/列表保持 16px */
+  margin: 0 0 16px;
+  padding: 0;
+  border-bottom: 0;
 }
 
-.app-content--edit .adm-header {
-  margin-top: 0;
+/* 没有操作区时不占位，避免页面顶部多出一条空白 */
+.adm-header[data-empty='true'] {
+  min-height: 0;
+  margin-bottom: 0;
+}
+
+/* 操作区已挂进工具条：页头不占位，避免在页签下方多出一条空白 */
+.adm-header[data-in-toolbar='true'] {
+  min-height: 0;
+  margin: 0;
+  padding: 0;
 }
 
 .adm-header__main {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* 编辑页内容区上下内边距为 0（让编辑器工具栏贴顶），页头也不再额外留白 */
+.app-content--edit .adm-header {
+  margin-top: 0;
+  padding-top: 0;
 }
 
 .adm-header__icon {
@@ -82,8 +107,68 @@
 .adm-header__actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   flex-wrap: wrap;
+  max-width: 100%;
+  margin-left: auto;
+}
+
+/* 每个操作项包一层，方便按项测量与收起；本身不改变原有排版 */
+.adm-header__action-item {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  min-width: 0;
+}
+
+/* 有溢出时不再换行：换行会把「更多」挤到第二行，失去收起意义 */
+.adm-header__actions[data-managed='true'] {
+  flex-wrap: nowrap;
+}
+
+.adm-header__more.ant-btn {
+  flex: none;
+}
+
+.adm-header__more-list {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 160px;
+  max-width: 320px;
+}
+
+.adm-header__more-item {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+}
+
+/* 隐藏测量行：与实际操作区同 gap、同控件，只用于量宽度 */
+.adm-header__measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: max-content;
+  height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.adm-header__measure-inner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: max-content;
+}
+
+.adm-header__measure-item {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
 }
 
 /* ---- 工具条：扁平一行，不再套卡片外框 ---- */
@@ -99,12 +184,36 @@
   flex-wrap: wrap;
 }
 
+/* 右侧区：操作组 + 刷新/批量操作 同处一行，整体靠右。
+   basis 取内容宽度：与筛选并排放不下时整组换到下一行（而不是把操作组压成 0 宽后竖排溢出）；
+   换行后 flex-grow 让整组占满该行，操作组仍有足够宽度做「更多」收缩。 */
+.adm-toolbar__right {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 1 1 max-content;
+  min-width: 0;
+  margin-left: auto;
+}
+
+/* 页头操作区挂载点：占满右侧剩余宽度，内部仍靠右对齐；定位上下文给隐藏测量层用 */
+.adm-toolbar__actions {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+
 .adm-selinfo {
   display: inline-flex;
   align-items: center;
   gap: 2px;
   padding: 2px 4px 2px 10px;
-  border-radius: var(--app-radius-pill);
+  border-radius: var(--app-radius);
   font-size: 12px;
   color: var(--app-primary);
   background: var(--app-primary-weak);
@@ -239,7 +348,7 @@
 
 .adm-minitag {
   padding: 0 6px;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 11px;
   line-height: 18px;
   color: var(--app-text-2);
@@ -254,7 +363,7 @@
   align-items: center;
   gap: 4px;
   padding: 0 8px;
-  border-radius: 4px;
+  border-radius: 0;
   font-size: 12px;
   line-height: 22px;
   white-space: nowrap;

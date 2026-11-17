@@ -7,6 +7,7 @@ import {
   InputNumber,
   Popconfirm,
   Segmented,
+  Select,
   Skeleton,
   Switch,
   Tag,
@@ -16,7 +17,6 @@ import {
 } from 'antd'
 import {
   CheckCircleFilled,
-  ClockCircleOutlined,
   CloseCircleFilled,
   InfoCircleFilled,
   EditOutlined,
@@ -27,6 +27,7 @@ import {
   SyncOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
+import PageHeader from '../../components/ui/PageHeader'
 import { apiGet, apiPost, apiPut } from '../../api/client'
 import { getErrorMessage } from '../../utils/error'
 import { toast } from '../../utils/toast'
@@ -190,28 +191,20 @@ export default function ScheduledJobsPage() {
 
   return (
     <div>
-      <div className="dash-header">
-        <div>
-          <Typography.Title level={4} style={{ margin: 0 }}>
-            <ClockCircleOutlined style={{ marginRight: 8, color: 'var(--app-primary)' }} />
-            定时任务
-          </Typography.Title>
-          <div className="dash-header__sub">
-            <span>{updatedAt ? `更新于 ${updatedAt}` : '正在加载…'}</span>
-            <span className="dash-header__dot">·</span>
-            <span>周期按{data.timezone} · 心跳保留 {data.heartbeatTtlHours} 小时</span>
-            {data.apply.appliedAt ? (
-              <>
-                <span className="dash-header__dot">·</span>
-                <span>调度器最后一次对齐 {formatCst(data.apply.appliedAt)}</span>
-              </>
-            ) : null}
-          </div>
-        </div>
-        <Button icon={<ReloadOutlined />} onClick={load} loading={loading} disabled={loading}>
-          刷新
-        </Button>
-      </div>
+      <PageHeader
+        icon={<SyncOutlined />}
+        title="定时任务"
+        subtitle={[
+          updatedAt ? `更新于 ${updatedAt}` : '正在加载…',
+          `周期按${data.timezone} · 心跳保留 ${data.heartbeatTtlHours} 小时`,
+          data.apply.appliedAt ? `调度器最后一次对齐 ${formatCst(data.apply.appliedAt)}` : '',
+        ].filter(Boolean)}
+        actions={
+          <Button icon={<ReloadOutlined />} onClick={load} loading={loading} disabled={loading}>
+            刷新
+          </Button>
+        }
+      />
 
       {failed ? (
         <Banner
@@ -327,14 +320,14 @@ export default function ScheduledJobsPage() {
       </div>
 
       <div className="jobs-toolbar">
-        <Segmented
-          size="small"
+        <Select
           value={filter}
           onChange={(value) => setFilter(value as Filter)}
           options={[
             { label: `全部 ${data.summary.total}`, value: 'all' },
             { label: `仅异常 ${data.summary.attention}`, value: 'bad' },
           ]}
+          style={{ width: 140 }}
         />
         <span className="jobs-toolbar__hint">
           {canManage

@@ -25,13 +25,13 @@ describe('tokens.css 与 theme.ts 同步', () => {
     expect(themeSource).toContain('#f5f7fd')
     expect(themeSource).toContain('#121314')
     expect(themeSource).toContain('#e5e6eb')
-    expect(themeSource).toContain('borderradius: 4')
+    expect(themeSource).toContain('borderradius: 0')
 
     expect(lightSource).toContain('--app-primary: #165dff')
     expect(lightSource).toContain('--app-canvas: #f5f7fd')
     expect(lightSource).toContain('--app-text: #121314')
     expect(lightSource).toContain('--app-border: #e5e6eb')
-    expect(lightSource).toContain('--app-radius: 4px')
+    expect(lightSource).toContain('--app-radius: 0px')
     expect(lightSource).toContain('--app-tabs-h: 32px')
   })
 

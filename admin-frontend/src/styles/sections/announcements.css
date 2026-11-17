@@ -18,7 +18,7 @@
 .ann-cell__bar {
   flex: none;
   width: 4px;
-  border-radius: 2px;
+  border-radius: 0;
 }
 
 .ann-cell__body {

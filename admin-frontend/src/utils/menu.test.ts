@@ -4,6 +4,7 @@ import {
   collectMenuLabels,
   externalLeafKeys,
   filterMenuTree,
+  flattenLeaves,
   groupMenuKey,
   nextOpenKeys,
   resolveOpenGroupKey,
@@ -22,13 +23,15 @@ import type { MenuTree } from '../types'
  */
 
 const TREE: MenuTree = {
+  // 顶级独立项：首页「工作台」不在任何分组里
+  top: [{ key: '/', label: '工作台', icon: 'workplace', perm: 'dashboard:view' }],
   groups: [
     {
       key: 'overview',
       label: '概览',
       icon: 'home',
       items: [
-        { key: '/', label: '数据看板', icon: 'dashboard', perm: 'dashboard:view' },
+        { key: '/dashboard', label: '数据看板', icon: 'dashboard', perm: 'dashboard:view' },
         {
           key: 'umami-stats',
           label: '访问统计',
@@ -70,6 +73,7 @@ const groupKeys = (tree: MenuTree) => tree.groups.map((g) => g.key)
 describe('filterMenuTree', () => {
   it('super_admin 全量可见', () => {
     const visible = filterMenuTree(TREE, [], true)
+    expect(visible.top.map((i) => i.key)).toEqual(['/'])
     expect(groupKeys(visible)).toEqual(['overview', 'content', 'operations'])
     expect(visible.footer).toHaveLength(1)
   })
@@ -78,11 +82,13 @@ describe('filterMenuTree', () => {
     const visible = filterMenuTree(TREE, null, false)
     // 所有分组内的项都带权限码 → 分组全部消失，只剩个人中心
     expect(visible.groups).toEqual([])
+    expect(visible.top).toEqual([])
     expect(visible.footer.map((i) => i.key)).toEqual(['/profile'])
   })
 
   it('按 perm 单码过滤，子项全被裁掉的分组整组不渲染', () => {
     const visible = filterMenuTree(TREE, ['tutorial:view'], false)
+    expect(visible.top).toEqual([])
     expect(groupKeys(visible)).toEqual(['content'])
     expect(leafKeys(visible)).toEqual(['/tutorials'])
     expect(visible.footer.map((i) => i.key)).toEqual(['/profile'])
@@ -95,6 +101,32 @@ describe('filterMenuTree', () => {
 
   it('不带任何权限码的项对所有人可见', () => {
     expect(filterMenuTree(TREE, [], false).footer.map((i) => i.key)).toEqual(['/profile'])
+  })
+})
+
+describe('顶级独立项（首页工作台）', () => {
+  const visible = filterMenuTree(TREE, [], true)
+
+  it('工作台是首页，且不在任何分组里', () => {
+    expect(TREE.top[0].key).toBe('/')
+    expect(TREE.groups.some((g) => g.items.some((i) => i.key === '/'))).toBe(false)
+  })
+
+  it('扁平化顺序把顶级项排在最前（侧栏与快速入口同序）', () => {
+    expect(flattenLeaves(visible).map((i) => i.key)).toEqual([
+      '/',
+      '/dashboard',
+      'umami-stats',
+      '/tutorials',
+      '/nodes',
+      '/moderation',
+      '/profile',
+    ])
+  })
+
+  it('访问 / 时选中工作台，且不展开任何分组', () => {
+    expect(resolveSelectedKey(visible, '/')).toBe('/')
+    expect(resolveOpenGroupKey(visible, '/')).toBeNull()
   })
 })
 
@@ -116,6 +148,7 @@ describe('resolveSelectedKey', () => {
 
   it('更长的 key 优先命中', () => {
     const tree: MenuTree = {
+      top: [],
       groups: [
         {
           key: 'g',
@@ -188,7 +221,8 @@ describe('collectMenuLabels', () => {
   it('把菜单叶子 key 映射到当前语言标题', () => {
     const labels = collectMenuLabels(TREE)
     expect(labels.get('/tutorials')).toBe('教程管理')
-    expect(labels.get('/')).toBe('数据看板')
+    expect(labels.get('/')).toBe('工作台')
+    expect(labels.get('/dashboard')).toBe('数据看板')
     expect(labels.get('/profile')).toBe('个人中心')
     expect(labels.get('/not-exist')).toBeUndefined()
   })

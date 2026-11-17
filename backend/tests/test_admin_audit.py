@@ -459,7 +459,9 @@ class TestSourceFieldWiring(unittest.TestCase):
             # → seed_feedback_reply_permission（feedback:reply 补种）
             # → seed_ai_playground_permission（ai_playground:view 补种）
             # 2026-11-04 站内聊天：add_chat_tables（三张表）→ seed_chat_permission（chat:view 补种）
-            ["seed_chat_permission"],
+            # 2026-11-04 界面偏好/锁屏：add_user_ui_preferences（单表，无新权限码）
+            # 2026-11-06 Stripe 会员支付：add_stripe_payment_fields（订单加 currency / provider_session_id）
+            ["add_stripe_payment_fields"],
             f"alembic head 不是最新迁移（当前 heads={heads}）—— 迁移链可能断开或挂错位置",
         )
 

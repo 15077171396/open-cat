@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DatePicker, Input, Segmented, Select, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Input, Select, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { ReloadOutlined, WalletOutlined } from '@ant-design/icons'
@@ -202,13 +202,14 @@ export default function PointsList() {
           options={TYPE_FILTER_OPTIONS}
           style={{ width: 140 }}
         />
-        <Segmented
+        <Select
           value={direction}
           onChange={(v) => {
             setDirection(String(v))
             setPage(1)
           }}
           options={DIRECTION_OPTIONS}
+          style={{ width: 140 }}
         />
         <DatePicker.RangePicker
           value={range}

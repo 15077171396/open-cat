@@ -318,7 +318,7 @@ export default function Workplace() {
                     <div className="wp-audit__title">
                       {item.action_label}
                       {item.target_type_label ? (
-                        <Tag color={RISK_COLOR[item.risk_level] || 'default'} bordered={false}>
+                        <Tag color={RISK_COLOR[item.risk_level] || 'default'} variant="filled">
                           {item.target_type_label}
                         </Tag>
                       ) : null}

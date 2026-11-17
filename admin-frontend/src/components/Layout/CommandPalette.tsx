@@ -140,6 +140,18 @@ export default function CommandPalette({
 
   const pageCommands = useMemo<PaletteCommand[]>(() => {
     const commands: PaletteCommand[] = []
+    for (const leaf of menuTree.top) {
+      commands.push({
+        key: `page:${leaf.key}`,
+        label: leaf.label,
+        hint: t('command.hintHome'),
+        keywords: `${leaf.label} ${leaf.key}`,
+        run: () => {
+          if (leaf.url) window.open(leaf.url, '_blank', 'noopener,noreferrer')
+          else navigate(leaf.key)
+        },
+      })
+    }
     for (const group of menuTree.groups) {
       for (const leaf of group.items) {
         commands.push({

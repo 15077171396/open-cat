@@ -25,6 +25,9 @@ class MenuSettingEntry(BaseModel):
 
 
 class MenuSettingsData(BaseModel):
+    """菜单管理数据：顶级独立项 + 分组 + 页脚。"""
+
+    top: list[MenuSettingEntry]
     groups: list[MenuSettingEntry]
     footer: list[MenuSettingEntry]
     custom_count: int

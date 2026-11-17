@@ -63,12 +63,11 @@
   --app-tint-border: #dbe8f7;
   --app-mask: rgba(18, 19, 20, 0.45);
 
-  /* 形状与节拍 */
-  --app-radius: 4px;
-  --app-radius-sm: 4px;
-  --app-radius-xs: 4px;
-  --app-radius-lg: 8px;
-  --app-radius-pill: 999px;
+  /* 形状与节拍：全站直角（圆角归零）；圆形语义元素在样式里直接用 50% */
+  --app-radius: 0px;
+  --app-radius-sm: 0px;
+  --app-radius-xs: 0px;
+  --app-radius-lg: 0px;
   --app-shadow: none;
   --app-shadow-float: 0 6px 16px rgba(18, 19, 20, 0.08);
   --app-gap: 16px;

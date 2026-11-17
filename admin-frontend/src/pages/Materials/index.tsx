@@ -17,7 +17,7 @@ import PageHeader from '../../components/ui/PageHeader'
 
 const PAGE_SIZE = 24
 
-/** 类型筛选做成 chips：比下拉更直观，且顺带展示各类型的数量。 */
+/** 左栏分类导航：与后端 kind 筛选参数一一对应，并顺带展示各类型数量。 */
 const KIND_CHIPS: Array<{ value: string; label: string; icon: ReactNode }> = [
   { value: '', label: '全部素材', icon: <AppstoreOutlined /> },
   { value: 'image', label: '图片', icon: <PictureOutlined /> },
@@ -201,173 +201,184 @@ export default function MaterialsPage() {
         }
       />
 
-      <div className="mat-chips" role="group" aria-label="素材类型筛选">
-        {chips.map((chip) => (
-          <button
-            type="button"
-            key={chip.value || 'all'}
-            className={`mat-chip${kind === chip.value ? ' is-active' : ''}`}
-            onClick={() => { setKind(chip.value); setPage(1) }}
-            aria-pressed={kind === chip.value}
-          >
-            <span className="mat-chip__icon">{chip.icon}</span>
-            <span className="mat-chip__label">{chip.label}</span>
-            <span className="mat-chip__count">{chip.count}</span>
-          </button>
-        ))}
-      </div>
+      <div className="mat-body">
+        <nav className="mat-nav" aria-label="素材分类">
+          {chips.map((chip) => (
+            <button
+              type="button"
+              key={chip.value || 'all'}
+              className={`mat-nav__item${kind === chip.value ? ' is-active' : ''}`}
+              onClick={() => { setKind(chip.value); setPage(1) }}
+              aria-pressed={kind === chip.value}
+            >
+              <span className="mat-nav__icon">{chip.icon}</span>
+              <span className="mat-nav__label">{chip.label}</span>
+              <span className="mat-nav__count">{chip.count}</span>
+            </button>
+          ))}
+        </nav>
 
-      <div className="mat-toolbar">
-        <Input
-          allowClear
-          value={keywordInput}
-          onChange={(event) => setKeywordInput(event.target.value)}
-          onPressEnter={applyKeyword}
-          prefix={<SearchOutlined />}
-          placeholder="搜索标题、文件名、Alt 或标签"
-          aria-label="搜索素材"
-          className="mat-toolbar__search"
-        />
-        <Select
-          value={source}
-          onChange={(value) => { setSource(value); setPage(1) }}
-          options={SOURCE_OPTIONS}
-          aria-label="素材来源"
-          className="mat-toolbar__source"
-        />
-        <Button type="primary" onClick={applyKeyword}>搜索</Button>
-        <span className="mat-toolbar__total">
-          {hasFilter ? `筛选出 ${total} 个` : `共 ${total} 个素材`}
-        </span>
-      </div>
-
-      <Spin spinning={loading}>
-        {items.length === 0 && !loading ? (
-          <div className="mat-empty">
-            <span className="mat-empty__icon">
-              {hasFilter ? <SearchOutlined /> : <PictureOutlined />}
+        <section className="mat-main" aria-label="素材内容">
+          <div className="mat-main__head">
+            <h2 className="mat-main__title">素材</h2>
+            <span className="mat-main__hint">
+              {kind ? `${KIND_LABELS[kind] || kind}分类` : '全部分类'}
             </span>
-            <div className="mat-empty__title">
-              {hasFilter ? '没有匹配的素材' : '素材库还是空的'}
-            </div>
-            <div className="mat-empty__sub">
-              {hasFilter
-                ? '换个关键词或筛选条件试试'
-                : '在编辑器里上传图片、从图库导入，或让 AI 生成配图，都会自动收进这里'}
-            </div>
-            {hasFilter ? <Button onClick={clearFilters}>清除筛选</Button> : null}
           </div>
-        ) : (
-          <div className="mat-grid">
-            {items.map((item) => {
-              const label = item.title || item.filename || `素材 ${item.id}`
-              const dimensions = item.width && item.height ? `${item.width}×${item.height}` : ''
-              return (
-                <article className="mat-card" key={item.id}>
-                  <div className="mat-card__media">
-                    <button
-                      type="button"
-                      className="mat-card__preview"
-                      onClick={() => openPreview(item)}
-                      aria-label={`预览 ${label}`}
-                    >
-                      {item.kind === 'image' ? (
-                        <img
-                          src={item.thumb_url || item.cos_url}
-                          alt={item.alt || item.title || ''}
-                          loading="lazy"
-                        />
-                      ) : (
-                        <span className="mat-card__file">
-                          <span className="mat-card__file-icon">{kindIcon(item.kind)}</span>
-                          <span className="mat-card__ext">{extOf(item) || 'FILE'}</span>
-                        </span>
-                      )}
-                    </button>
 
-                    <span className="mat-card__badge">
-                      {item.kind === 'image' ? (extOf(item) || 'IMG') : (KIND_LABELS[item.kind] || item.kind)}
-                    </span>
+          <div className="mat-toolbar">
+            <Input
+              allowClear
+              value={keywordInput}
+              onChange={(event) => setKeywordInput(event.target.value)}
+              onPressEnter={applyKeyword}
+              prefix={<SearchOutlined />}
+              placeholder="搜索标题、文件名、Alt 或标签"
+              aria-label="搜索素材"
+              className="mat-toolbar__search"
+            />
+            <Select
+              value={source}
+              onChange={(value) => { setSource(value); setPage(1) }}
+              options={SOURCE_OPTIONS}
+              aria-label="素材来源"
+              className="mat-toolbar__source"
+            />
+            <Button type="primary" onClick={applyKeyword}>搜索</Button>
+            <span className="mat-toolbar__total">
+              {hasFilter ? `筛选出 ${total} 个` : `共 ${total} 个素材`}
+            </span>
+          </div>
 
-                    <div className="mat-card__overlay">
-                      <Tooltip title="复制地址">
-                        <Button
-                          size="small"
-                          aria-label="复制地址"
-                          icon={<LinkOutlined />}
-                          onClick={() => copyUrl(item)}
-                        />
-                      </Tooltip>
-                      {item.kind === 'image' ? (
-                        <Tooltip title="复制 Markdown">
-                          <Button
-                            size="small"
-                            aria-label="复制 Markdown"
-                            icon={<FileMarkdownOutlined />}
-                            onClick={() => copyMarkdown(item)}
-                          />
-                        </Tooltip>
-                      ) : null}
-                      <Tooltip title="打开原文件">
-                        <Button
-                          size="small"
-                          aria-label="打开原文件"
-                          icon={<ExportOutlined />}
-                          href={item.cos_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => markUsed(item)}
-                        />
-                      </Tooltip>
-                      <Tooltip title="查看详情">
-                        <Button
-                          size="small"
-                          aria-label={`查看详情 ${label}`}
-                          icon={<EyeOutlined />}
+          <Spin spinning={loading}>
+            {items.length === 0 && !loading ? (
+              <div className="mat-empty">
+                <span className="mat-empty__icon">
+                  {hasFilter ? <SearchOutlined /> : <PictureOutlined />}
+                </span>
+                <div className="mat-empty__title">
+                  {hasFilter ? '没有匹配的素材' : '素材库还是空的'}
+                </div>
+                <div className="mat-empty__sub">
+                  {hasFilter
+                    ? '换个关键词或筛选条件试试'
+                    : '在编辑器里上传图片、从图库导入，或让 AI 生成配图，都会自动收进这里'}
+                </div>
+                {hasFilter ? <Button onClick={clearFilters}>清除筛选</Button> : null}
+              </div>
+            ) : (
+              <div className="mat-grid">
+                {items.map((item) => {
+                  const label = item.title || item.filename || `素材 ${item.id}`
+                  const dimensions = item.width && item.height ? `${item.width}×${item.height}` : ''
+                  return (
+                    <article className="mat-card" key={item.id}>
+                      <div className="mat-card__media">
+                        <button
+                          type="button"
+                          className="mat-card__preview"
                           onClick={() => openPreview(item)}
-                        />
-                      </Tooltip>
-                    </div>
-                  </div>
+                          aria-label={`预览 ${label}`}
+                        >
+                          {item.kind === 'image' ? (
+                            <img
+                              src={item.thumb_url || item.cos_url}
+                              alt={item.alt || item.title || ''}
+                              loading="lazy"
+                            />
+                          ) : (
+                            <span className="mat-card__file">
+                              <span className="mat-card__file-icon">{kindIcon(item.kind)}</span>
+                              <span className="mat-card__ext">{extOf(item) || 'FILE'}</span>
+                            </span>
+                          )}
+                        </button>
 
-                  <div className="mat-card__body">
-                    <div className="mat-card__title" title={label}>{label}</div>
-                    <div className="mat-card__meta">
-                      <span className="mat-card__source">{SOURCE_LABELS[item.source] || item.source}</span>
-                      <span className="mat-card__dot" aria-hidden="true">·</span>
-                      <span>{formatBytes(item.size_bytes)}</span>
-                      {dimensions ? (
-                        <>
+                        <span className="mat-card__badge">
+                          {item.kind === 'image' ? (extOf(item) || 'IMG') : (KIND_LABELS[item.kind] || item.kind)}
+                        </span>
+
+                        <div className="mat-card__overlay">
+                          <Tooltip title="复制地址">
+                            <Button
+                              size="small"
+                              aria-label="复制地址"
+                              icon={<LinkOutlined />}
+                              onClick={() => copyUrl(item)}
+                            />
+                          </Tooltip>
+                          {item.kind === 'image' ? (
+                            <Tooltip title="复制 Markdown">
+                              <Button
+                                size="small"
+                                aria-label="复制 Markdown"
+                                icon={<FileMarkdownOutlined />}
+                                onClick={() => copyMarkdown(item)}
+                              />
+                            </Tooltip>
+                          ) : null}
+                          <Tooltip title="打开原文件">
+                            <Button
+                              size="small"
+                              aria-label="打开原文件"
+                              icon={<ExportOutlined />}
+                              href={item.cos_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => markUsed(item)}
+                            />
+                          </Tooltip>
+                          <Tooltip title="查看详情">
+                            <Button
+                              size="small"
+                              aria-label={`查看详情 ${label}`}
+                              icon={<EyeOutlined />}
+                              onClick={() => openPreview(item)}
+                            />
+                          </Tooltip>
+                        </div>
+                      </div>
+
+                      <div className="mat-card__body">
+                        <div className="mat-card__title" title={label}>{label}</div>
+                        <div className="mat-card__meta">
+                          <span className="mat-card__source">{SOURCE_LABELS[item.source] || item.source}</span>
                           <span className="mat-card__dot" aria-hidden="true">·</span>
-                          <span>{dimensions}</span>
-                        </>
-                      ) : null}
-                    </div>
-                    <div className="mat-card__foot">
-                      <span>使用 {item.usage_count} 次</span>
-                      {item.last_used_at ? (
-                        <span className="mat-card__time">{formatDateTime(item.last_used_at)}</span>
-                      ) : null}
-                    </div>
-                  </div>
-                </article>
-              )
-            })}
-          </div>
-        )}
-      </Spin>
+                          <span>{formatBytes(item.size_bytes)}</span>
+                          {dimensions ? (
+                            <>
+                              <span className="mat-card__dot" aria-hidden="true">·</span>
+                              <span>{dimensions}</span>
+                            </>
+                          ) : null}
+                        </div>
+                        <div className="mat-card__foot">
+                          <span>使用 {item.usage_count} 次</span>
+                          {item.last_used_at ? (
+                            <span className="mat-card__time">{formatDateTime(item.last_used_at)}</span>
+                          ) : null}
+                        </div>
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
+            )}
+          </Spin>
 
-      {total > PAGE_SIZE ? (
-        <div className="mat-pagination">
-          <Pagination
-            current={page}
-            pageSize={PAGE_SIZE}
-            total={total}
-            showSizeChanger={false}
-            onChange={setPage}
-          />
-        </div>
-      ) : null}
+          {total > PAGE_SIZE ? (
+            <div className="mat-pagination">
+              <Pagination
+                current={page}
+                pageSize={PAGE_SIZE}
+                total={total}
+                showSizeChanger={false}
+                onChange={setPage}
+              />
+            </div>
+          ) : null}
+        </section>
+      </div>
 
       <Modal
         open={!!preview}

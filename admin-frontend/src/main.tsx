@@ -6,7 +6,7 @@ import zhCN from 'antd/locale/zh_CN'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
 import App from './App'
-import { getThemeConfig } from './theme'
+import { applyPrimaryCssVars, applyRadiusCssVars, getThemeConfig } from './theme'
 import { resolveMode, usePrefsStore } from './store/prefsStore'
 import { bindToastInstance } from './utils/toast'
 import { initMonitoring } from './utils/monitoring'
@@ -25,9 +25,16 @@ void initMonitoring()
  * `system` 模式也在这里解析一次，随后由 ThemeShell 的 matchMedia 监听接管实时变化。
  */
 function applyInitialTheme(): void {
-  const resolved = resolveMode(usePrefsStore.getState().mode)
+  const state = usePrefsStore.getState()
+  const resolved = resolveMode(state.mode)
   document.documentElement.dataset.theme = resolved
   document.documentElement.style.colorScheme = resolved
+  // 主题色同样要在首帧前写入，否则刷新会先闪一帧默认蓝再变用户选的颜色
+  applyPrimaryCssVars(state.primaryColor, resolved)
+  // 圆角、灰色/色弱同属「首帧就该正确」的观感项
+  applyRadiusCssVars(state.radius)
+  document.documentElement.dataset.gray = String(state.grayMode)
+  document.documentElement.dataset.colorWeak = String(state.colorWeak)
 }
 applyInitialTheme()
 
@@ -67,6 +74,12 @@ function ToastBridge() {
 function ThemeShell({ children }: { children: React.ReactNode }) {
   const mode = usePrefsStore((s) => s.mode)
   const locale = usePrefsStore((s) => s.locale)
+  const primaryColor = usePrefsStore((s) => s.primaryColor)
+  const menuStyle = usePrefsStore((s) => s.menuStyle)
+  const radius = usePrefsStore((s) => s.radius)
+  const componentSize = usePrefsStore((s) => s.componentSize)
+  const grayMode = usePrefsStore((s) => s.grayMode)
+  const colorWeak = usePrefsStore((s) => s.colorWeak)
   const [systemDark, setSystemDark] = React.useState(
     () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches,
   )
@@ -86,14 +99,28 @@ function ThemeShell({ children }: { children: React.ReactNode }) {
     document.documentElement.dataset.theme = resolved
     // 原生控件（滚动条、日期选择器弹层）跟随，避免暗色页面里滚出一条亮白色滚动条
     document.documentElement.style.colorScheme = resolved
-  }, [resolved])
+    applyPrimaryCssVars(primaryColor, resolved)
+  }, [resolved, primaryColor])
+
+  React.useEffect(() => {
+    applyRadiusCssVars(radius)
+  }, [radius])
+
+  React.useEffect(() => {
+    document.documentElement.dataset.gray = String(grayMode)
+    document.documentElement.dataset.colorWeak = String(colorWeak)
+  }, [grayMode, colorWeak])
 
   React.useEffect(() => {
     applyLocale(locale)
   }, [locale])
 
   return (
-    <ConfigProvider locale={locale === 'en-US' ? enUS : zhCN} theme={getThemeConfig(resolved)}>
+    <ConfigProvider
+      locale={locale === 'en-US' ? enUS : zhCN}
+      componentSize={componentSize === 'default' ? 'middle' : componentSize}
+      theme={getThemeConfig(resolved, primaryColor, menuStyle, radius)}
+    >
       {children}
     </ConfigProvider>
   )

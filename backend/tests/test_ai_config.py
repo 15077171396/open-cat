@@ -137,6 +137,9 @@ class DefinitionTests(unittest.TestCase):
                 "wechat_pay_api_v3_key",
                 "wechat_pay_private_key",
                 "alipay_private_key",
+                # Stripe 支付密钥（2026-11-06）
+                "stripe_secret_key",
+                "stripe_webhook_secret",
                 # 图片搜索图源密钥（2026-10-29）
                 "image_search_pexels_key",
                 "image_search_pixabay_key",

@@ -29,6 +29,7 @@ class PaymentNotification:
     amount_cents: int | None
     success: bool
     raw: dict[str, Any] = field(default_factory=dict)
+    currency: str | None = None
 
 
 class PaymentProvider(ABC):

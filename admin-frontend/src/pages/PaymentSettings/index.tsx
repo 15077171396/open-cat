@@ -2,6 +2,7 @@ import { useState } from 'react'
 import {
   CreditCardOutlined,
   ExclamationCircleFilled,
+  PayCircleOutlined,
   SafetyOutlined,
   WechatOutlined,
 } from '@ant-design/icons'
@@ -22,17 +23,21 @@ interface PaymentSettingsPayload extends SettingsPayload {
   env: string
   channels: ChannelState[]
   warnings: PaymentWarning[]
+  /** 后端 DEFAULT_PAYMENT_PROVIDER 解析后的默认渠道（stripe / wechat / alipay / mock） */
+  default_channel?: string
 }
 
 /** 渠道 → 开关键 */
 const CHANNEL_SWITCH_KEY: Record<string, string> = {
   mock: 'payment_mock_enabled',
+  stripe: 'stripe_enabled',
   wechat: 'wechat_pay_enabled',
   alipay: 'alipay_enabled',
 }
 
 const CHANNEL_ICONS: Record<string, React.ReactNode> = {
   mock: <SafetyOutlined />,
+  stripe: <PayCircleOutlined />,
   wechat: <WechatOutlined />,
   alipay: <CreditCardOutlined />,
 }
@@ -48,7 +53,7 @@ const WARNING_STYLE: Record<PaymentWarning['level'], { box: string; icon: string
 }
 
 /**
- * 支付与渠道：支付开关 / 微信支付 / 支付宝。
+ * 支付与渠道：支付开关 / Stripe（默认渠道） / 微信支付 / 支付宝。
  *
  * 2026-10-27 从「系统设置 → 支付与渠道」抽出（模块名沿用原 tab 名，避免运营找不到）；
  * 同日改为与「系统设置」一致的**左导航 + 右单面板**布局 —— 原来渠道状态卡与三组配置
@@ -97,6 +102,13 @@ export default function PaymentSettingsPage() {
 
         const selectedGroup = groups.find((g) => g.key === activeKey)
         const showingStatus = !selectedGroup
+
+        // 默认渠道排在最前：运营第一眼要看到「用户默认会走哪个渠道」
+        const defaultKey = payload.default_channel || ''
+        const channelList = [...(payload.channels || [])].sort((a, b) => {
+          const rank = (ch: ChannelState) => (ch.key === defaultKey ? 0 : 1)
+          return rank(a) - rank(b)
+        })
 
         // 脏标记：状态页跟着「有任何改动」走，配置页跟着自己那一组走
         const dirtyKeys = new Set<string>([
@@ -147,7 +159,8 @@ export default function PaymentSettingsPage() {
                   description={
                     <>
                       这里是<strong>保存后</strong>的实际效果：开关改动会实时反映在卡片上（凭据是否配齐仍需保存后重新校验）。
-                      前台只展示「已开启且可用」的渠道。
+                      前台只展示「已开启且可用」的渠道；未指定渠道时默认走
+                      <strong>「默认渠道」</strong>（当前 {payload.default_channel || '未配置'}）。
                     </>
                   }
                   dirty={isDirty}
@@ -160,7 +173,7 @@ export default function PaymentSettingsPage() {
                       icon={<CreditCardOutlined />}
                       disabledHint="前台不展示充值入口"
                     />
-                    {(payload.channels || []).map((ch) => (
+                    {channelList.map((ch) => (
                       <ChannelCard
                         key={ch.key}
                         channel={ch}

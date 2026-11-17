@@ -35,6 +35,8 @@ from app.api import (  # noqa: F401
     admin_recycle_bin,
     # 登录设备：查看/下线自己的会话 + 强制下线某个用户（改密、疑似盗号时用）
     admin_sessions,
+    # 本人界面偏好（跨浏览器恢复）+ 锁屏口令（bcrypt / 短期解锁令牌）
+    admin_preferences,
     admin_redeem_codes,
     admin_announcements,
     admin_feedbacks,

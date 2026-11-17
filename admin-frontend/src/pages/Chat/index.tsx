@@ -297,7 +297,7 @@ export default function ChatPage() {
         title="会话列表"
         open={listOpen}
         onClose={() => setListOpen(false)}
-        width={300}
+        size={300}
       >
         <div className="chat-list chat-list--in-drawer">
           {conversations.map((conv) => (

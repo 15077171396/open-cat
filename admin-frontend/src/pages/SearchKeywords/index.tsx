@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Card, Col, Row, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, Card, Col, Row, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { ReloadOutlined, SearchOutlined } from '@ant-design/icons'
 import { apiGet } from '../../api/client'
@@ -164,10 +164,11 @@ export default function SearchKeywords() {
           </Space>
         )}
       >
-        <Segmented
+        <Select
           value={days}
           onChange={(value) => setDays(String(value))}
           options={RANGE_OPTIONS}
+          style={{ width: 140 }}
         />
         {zeroRate !== null && zeroRate !== undefined ? (
           <Tooltip title="零结果占比越高，说明站内越缺用户要找的内容（建议 >30% 就开始补内容）">

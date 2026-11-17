@@ -23,6 +23,7 @@ from app.services.payments import (
     PaymentError,
     PaymentNotification,
     available_channels,
+    default_payment_channel,
     get_payment_provider,
 )
 from app.services.point_service import (
@@ -82,10 +83,14 @@ def _order_to_dict(order: PaymentOrder, *, include_pay_info: bool = False) -> di
         "product_kind": order.product_kind,
         "amount_cents": int(order.amount_cents or 0),
         "amount": f"{(order.amount_cents or 0) / 100:.2f}",
+        "currency": order.currency or "CNY",
         "points": int(order.points or 0),
         "vip_days": int(order.vip_days or 0),
         "channel": order.channel,
+        "provider": order.channel,
         "status": order.status,
+        "provider_session_id": order.provider_session_id,
+        "session_id": order.provider_session_id,
         "paid_at": order.paid_at.isoformat() if order.paid_at else None,
         "expires_at": order.expires_at.isoformat() if order.expires_at else None,
         "created_at": order.created_at.isoformat() if order.created_at else None,
@@ -139,12 +144,17 @@ async def create_order(
     user: User,
     *,
     product_code: str,
-    channel: str,
+    channel: str | None = None,
     client_ip: str | None = None,
+    expected_kind: str | None = None,
 ) -> dict:
     config = await get_payment_config()
     if not config.bool("payment_enabled"):
         raise AppException(code=403, message="在线支付未开启")
+
+    selected = (channel or "").strip().lower() or default_payment_channel(config)
+    if not selected:
+        raise AppException(code=403, message="当前没有可用的支付渠道")
 
     product = (
         await db.execute(
@@ -164,9 +174,12 @@ async def create_order(
         raise AppException(code=400, message="VIP 套餐配置错误")
     if product.kind not in PAYMENT_KINDS:
         raise AppException(code=400, message="套餐类型配置错误")
+    if expected_kind and product.kind != expected_kind:
+        raise AppException(code=400, message="该套餐不是会员开通套餐")
 
-    if channel not in {item["value"] for item in available_channels(config)}:
+    if selected not in {item["value"] for item in available_channels(config)}:
         raise AppException(code=400, message="该支付渠道暂不可用")
+    channel = selected
 
     try:
         provider = await get_payment_provider(channel, config)
@@ -174,6 +187,7 @@ async def create_order(
         raise AppException(code=502, message=str(exc))
 
     expire_minutes = max(5, min(config.int("payment_order_expire_minutes", default=30), 1440))
+    currency = (config.str("stripe_currency") or "cny").upper() if channel == "stripe" else "CNY"
     order = PaymentOrder(
         order_no=_order_no(),
         user_id=user.id,
@@ -181,6 +195,7 @@ async def create_order(
         product_name=product.name,
         product_kind=product.kind,
         amount_cents=product.amount_cents,
+        currency=currency,
         points=product.points,
         vip_days=product.vip_days,
         channel=channel,
@@ -204,6 +219,7 @@ async def create_order(
         "pay_url": intent.pay_url,
         "qr_content": intent.qr_content,
     }
+    order.provider_session_id = (intent.provider_payload or {}).get("session_id") or None
     await db.commit()
     # server_default 的 created_at 在 flush 后仍是未加载状态；commit 后序列化会触发
     # 惰性 IO（MissingGreenlet），先刷新再返回
@@ -218,6 +234,10 @@ async def refresh_order(db: AsyncSession, order: PaymentOrder) -> None:
         return
     if order.expires_at and order.expires_at < _utcnow():
         order.status = "closed"
+        order.provider_payload = {
+            **(order.provider_payload or {}),
+            "close_reason": "expired",
+        }
         await db.commit()
         return
 
@@ -238,6 +258,120 @@ async def refresh_order(db: AsyncSession, order: PaymentOrder) -> None:
         return
     if notification is not None and notification.success:
         await settle_order(db, notification)
+    elif notification is not None and not notification.success:
+        await close_order(db, order, reason=str(notification.raw.get("reason") or "failed"))
+
+
+async def close_order(db: AsyncSession, order: PaymentOrder, *, reason: str) -> bool:
+    """把待支付订单落为终态：取消/失败/超时。
+
+    Stripe 的「用户取消」不会产生任何服务端事件（Cancel 只是回跳），所以取消路径由
+    前端回跳后调用关闭接口显式落库；超时与 expired 事件也复用这里。
+    """
+    if order.status != "pending":
+        return False
+    order.status = "closed" if reason in ("cancel", "expired") else "failed"
+    order.provider_payload = {**(order.provider_payload or {}), "close_reason": reason}
+    await db.commit()
+    logger.info(f"支付订单关闭: {order.order_no} reason={reason} status={order.status}")
+    return True
+
+
+async def mark_notification_failure(db: AsyncSession, notification: PaymentNotification) -> bool:
+    """Webhook 收到失败/过期事件：按订单号落终态，重复事件不重复处理。"""
+    if not notification.order_no:
+        return False
+    order = (
+        await db.execute(
+            select(PaymentOrder)
+            .where(PaymentOrder.order_no == notification.order_no)
+            .with_for_update()
+        )
+    ).scalar_one_or_none()
+    if order is None:
+        logger.warning(f"支付失败事件订单不存在: {notification.order_no}")
+        return False
+    reason = str(notification.raw.get("reason") or "failed")
+    return await close_order(db, order, reason=reason)
+
+
+async def get_user_order_by_session(
+    db: AsyncSession, user: User, session_id: str
+) -> PaymentOrder:
+    """按 Stripe Checkout Session 查当前用户的订单。"""
+    order = (
+        await db.execute(
+            select(PaymentOrder).where(
+                PaymentOrder.provider_session_id == session_id,
+                PaymentOrder.user_id == user.id,
+            )
+        )
+    ).scalar_one_or_none()
+    if order is None:
+        raise AppException(code=404, message="支付会话不存在")
+    return order
+
+
+def membership_state(user: User) -> dict:
+    now = _utcnow()
+    expire = user.vip_expire_time
+    if expire is not None and expire.tzinfo is not None:
+        expire = expire.replace(tzinfo=None)
+    is_vip = user.role == "admin" or (
+        user.role == "vip" and expire is not None and expire > now
+    )
+    return {
+        "user_id": user.id,
+        "role": user.role,
+        "is_vip": bool(is_vip),
+        "vip_expire_time": expire.isoformat() if expire else None,
+    }
+
+
+async def create_membership_checkout(
+    db: AsyncSession,
+    user: User,
+    *,
+    product_code: str,
+    channel: str | None = None,
+    client_ip: str | None = None,
+) -> dict:
+    """直接付费开通会员：复用现有 PaymentOrder / 套餐 / 结算链路，不走知识会员认证。"""
+    return await create_order(
+        db,
+        user,
+        product_code=product_code,
+        channel=channel,
+        client_ip=client_ip,
+        expected_kind="vip",
+    )
+
+
+async def get_membership_checkout(
+    db: AsyncSession, user: User, session_id: str
+) -> dict:
+    order = await get_user_order_by_session(db, user, session_id)
+    await refresh_order(db, order)
+    await db.refresh(order)
+    await db.refresh(user)
+    return {
+        "order": _order_to_dict(order, include_pay_info=True),
+        "membership": membership_state(user),
+    }
+
+
+async def cancel_membership_checkout(
+    db: AsyncSession, user: User, session_id: str
+) -> dict:
+    order = await get_user_order_by_session(db, user, session_id)
+    if order.status == "pending":
+        await close_order(db, order, reason="cancel")
+    await db.refresh(order)
+    await db.refresh(user)
+    return {
+        "order": _order_to_dict(order, include_pay_info=True),
+        "membership": membership_state(user),
+    }
 
 
 async def settle_order(db: AsyncSession, notification: PaymentNotification) -> bool:
@@ -268,6 +402,14 @@ async def settle_order(db: AsyncSession, notification: PaymentNotification) -> b
         logger.error(
             f"支付金额不一致，拒绝发放: {order.order_no} "
             f"expected={order.amount_cents} got={notification.amount_cents}"
+        )
+        return False
+    if notification.currency and order.currency and (
+        notification.currency.upper() != order.currency.upper()
+    ):
+        logger.error(
+            f"支付币种不一致，拒绝发放: {order.order_no} "
+            f"expected={order.currency} got={notification.currency}"
         )
         return False
 

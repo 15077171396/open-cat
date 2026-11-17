@@ -39,6 +39,9 @@ SENSITIVE_PATHS = {
     "/api/v1/auth/wechat/web/callback",
     # 登录图形验证码：签发即写 Redis（TTL 有界但仍需防灌），Redis 异常时不签发
     "/api/v1/auth/captcha",
+    # 锁屏口令：设置与校验都接受凭据；校验失败计数也依赖 Redis，异常时必须 fail-closed
+    "/api/v1/admin/lock/password",
+    "/api/v1/admin/lock/verify",
 }
 
 # 默认可信代理网段：回环 + RFC1918 私网（容器部署 nginx 位于 docker 私网）

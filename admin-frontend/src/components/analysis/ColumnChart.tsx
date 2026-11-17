@@ -77,7 +77,7 @@ export default function ColumnChart({
           barWidth: stacked ? '54%' : labels.length > 12 ? '56%' : '46%',
           itemStyle: {
             color: item.color,
-            borderRadius: stacked ? 0 : ([3, 3, 0, 0] as [number, number, number, number]),
+            borderRadius: 0,
           },
           emphasis: { focus: 'series' },
           ...SERIES_ANIMATION,

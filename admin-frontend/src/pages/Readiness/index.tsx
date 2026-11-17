@@ -175,7 +175,7 @@ export default function Readiness() {
                         <Tag
                           style={{ margin: 0, fontSize: 11, lineHeight: '16px' }}
                           color={item.required ? 'blue' : undefined}
-                          bordered={false}
+                          variant="filled"
                         >
                           {item.required ? '必填' : '可选'}
                         </Tag>

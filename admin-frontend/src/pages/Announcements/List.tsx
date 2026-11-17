@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, ColorPicker, DatePicker, Form, Input, Modal, Segmented, Select, Space, Switch, Tag, Tooltip, Typography } from 'antd'
+import { Button, ColorPicker, DatePicker, Form, Input, Modal, Select, Space, Switch, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import dayjs from 'dayjs'
@@ -422,13 +422,14 @@ export default function AnnouncementsList() {
           options={[{ value: '', label: '全部标签' }, ...TAG_OPTIONS]}
           style={{ width: 130 }}
         />
-        <Segmented
+        <Select
           value={publishFilter}
           onChange={(v) => {
             setPublishFilter(String(v))
             handleFilterChange()
           }}
           options={PUBLISH_FILTER_OPTIONS}
+          style={{ width: 140 }}
         />
       </ListToolbar>
 

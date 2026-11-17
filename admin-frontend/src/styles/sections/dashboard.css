@@ -486,7 +486,7 @@
   align-items: center;
   gap: 6px;
   padding: 1px 10px;
-  border-radius: 999px;
+  border-radius: 0;
   font-size: 12px;
   font-weight: 500;
   line-height: 20px;
@@ -836,7 +836,7 @@
 .ai-guard__model-flag {
   flex: none;
   padding: 0 5px;
-  border-radius: 4px;
+  border-radius: 0;
   background: var(--app-purple-bg);
   color: var(--app-purple);
   font-size: 11px;
@@ -1126,7 +1126,7 @@
   flex: none;
   padding: 0 6px;
   border: 1px solid var(--app-border);
-  border-radius: 4px;
+  border-radius: 0;
   background: var(--app-subtle);
   font-size: 11px;
   line-height: 18px;
@@ -1174,7 +1174,7 @@
 
 .sys-detail__value code {
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--app-subtle);
   font-size: 12px;
 }

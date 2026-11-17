@@ -190,6 +190,12 @@ SETTING_GROUPS: tuple[SettingGroup, ...] = (
         surface=SURFACE_PAYMENT,
     ),
     SettingGroup(
+        "payment_stripe", "Stripe（默认渠道）",
+        "Stripe Checkout：直接付费开通会员 / 充值。Secret Key 与 Webhook Secret 仅在后端使用，"
+        "页面只显示是否已配置；Publishable Key 可下发给前端。模式（test/live）用于展示与密钥前缀校验",
+        surface=SURFACE_PAYMENT,
+    ),
+    SettingGroup(
         "payment_wechat", "微信支付",
         "微信支付 v3 Native 扫码：商户号 / AppID / 证书序列号 / APIv3 密钥 / 商户私钥 / "
         "平台公钥 / 回调地址。私钥加密存储，页面只显示是否已配置；缺任一项该渠道不会出现在前台",
@@ -832,6 +838,57 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         "wechat_pay_notify_url", "微信支付回调地址", "url", "payment_wechat", "微信支付", "", public=False,
         help_text="必须为 HTTPS 公网地址；留空则用 site_base_url + /api/v1/payments/notify/wechat",
     ),
+    # --- Stripe（默认支付渠道）---
+    SettingDefinition(
+        "stripe_enabled", "Stripe 支付（Checkout）", "bool", "payment_stripe", "Stripe（默认渠道）", "1", public=False,
+        help_text="默认支付渠道；Secret Key / Publishable Key 未配置时该渠道自动不可用，下单回退到其它渠道",
+    ),
+    SettingDefinition(
+        "stripe_mode", "运行模式", "select", "payment_stripe", "Stripe（默认渠道）",
+        settings.STRIPE_MODE or "test", public=False,
+        options=[
+            {"value": "test", "label": "测试模式（test）"},
+            {"value": "live", "label": "正式模式（live）"},
+        ],
+        help_text="仅用于展示与密钥前缀提醒，实际是否扣款由 Secret Key 决定",
+    ),
+    SettingDefinition(
+        "stripe_secret_key", "Secret Key（sk_...）", "password", "payment_stripe", "Stripe（默认渠道）",
+        settings.STRIPE_SECRET_KEY, secret=True, public=False,
+        help_text="只写后端，绝不下发前端；加密存储，页面只显示是否已配置",
+    ),
+    SettingDefinition(
+        "stripe_publishable_key", "Publishable Key（pk_...）", "text", "payment_stripe", "Stripe（默认渠道）",
+        settings.STRIPE_PUBLISHABLE_KEY, public=False,
+        help_text="可公开下发：前端配置接口会返回该值用于 Stripe.js（如需要）",
+    ),
+    SettingDefinition(
+        "stripe_webhook_secret", "Webhook Secret（whsec_...）", "password", "payment_stripe", "Stripe（默认渠道）",
+        settings.STRIPE_WEBHOOK_SECRET, secret=True, public=False,
+        help_text="用于校验 Stripe 回调签名；未配置时公网回调会被拒绝，本地依赖回跳查单",
+    ),
+    SettingDefinition(
+        "stripe_currency", "结算币种", "select", "payment_stripe", "Stripe（默认渠道）",
+        (settings.STRIPE_CURRENCY or "cny").lower(), public=False,
+        options=[
+            {"value": "cny", "label": "CNY（人民币）"},
+            {"value": "usd", "label": "USD（美元）"},
+            {"value": "hkd", "label": "HKD（港币）"},
+        ],
+        help_text="套餐金额按其最小货币单位（分）传给 Stripe；切换币种前请确认套餐价格",
+    ),
+    SettingDefinition(
+        "stripe_success_url", "支付成功回跳地址", "url", "payment_stripe", "Stripe（默认渠道）",
+        settings.STRIPE_SUCCESS_URL, public=False,
+        help_text="留空则用 site_base_url + /recharge/result?provider=stripe；系统会自动追加 session_id",
+    ),
+    SettingDefinition(
+        "stripe_cancel_url", "取消支付回跳地址", "url", "payment_stripe", "Stripe（默认渠道）",
+        settings.STRIPE_CANCEL_URL, public=False,
+        help_text="留空则用 site_base_url + /recharge/result?provider=stripe&status=cancel",
+    ),
+
+    # 支付宝
     SettingDefinition(
         "alipay_enabled", "支付宝（电脑网站支付）", "bool", "payment_alipay", "支付宝", "0", public=False,
     ),

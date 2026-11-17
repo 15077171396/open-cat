@@ -46,6 +46,7 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
 
 const CHANNEL_LABEL: Record<string, string> = {
   mock: '模拟支付',
+  stripe: 'Stripe',
   wechat: '微信支付',
   alipay: '支付宝',
 }
@@ -201,6 +202,7 @@ export default function PaymentOrdersList() {
               style={{ width: 130 }}
               options={[
                 { value: '', label: '全部渠道' },
+                { value: 'stripe', label: 'Stripe' },
                 { value: 'mock', label: '模拟支付' },
                 { value: 'wechat', label: '微信支付' },
                 { value: 'alipay', label: '支付宝' },

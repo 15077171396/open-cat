@@ -169,6 +169,14 @@ class AdminRouteTableTests(unittest.TestCase):
             f"{orphan}",
         )
 
+    def test_root_route_is_workplace_home(self):
+        """`/` 是首页（工作台），数据看板迁到 /dashboard"""
+        blocks = {block.group(1): block.group(0) for block in ENTRY_RE.finditer(_routes_source())}
+        self.assertIn("/", blocks)
+        self.assertIn("WorkplacePage", blocks["/"], "首页 / 应渲染工作台")
+        self.assertIn("/dashboard", blocks)
+        self.assertIn("Dashboard", blocks["/dashboard"], "/dashboard 应渲染数据看板")
+
     def test_no_menu_exempt_list_is_not_stale(self):
         stale = [path for path in NO_MENU_EXEMPT if path in self.menu_items]
         self.assertEqual(stale, [], f"以下豁免项其实已有菜单入口，请从 NO_MENU_EXEMPT 移除: {stale}")

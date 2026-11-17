@@ -84,7 +84,7 @@ export default function MonitorOnline() {
       render: (_, row) => (
         <Space size={6}>
           <span>{row.nickname || row.account || `#${row.uid}`}</span>
-          <Tag bordered={false}>{row.role || 'user'}</Tag>
+          <Tag variant="filled">{row.role || 'user'}</Tag>
         </Space>
       ),
     },

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, DatePicker, Drawer, Form, Grid, Image, Input, Modal, Segmented, Select, Space, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Drawer, Form, Grid, Image, Input, Modal, Select, Space, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { CommentOutlined, DeleteOutlined, EditOutlined, MessageOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
@@ -420,13 +420,14 @@ export default function FeedbackList() {
           </Typography.Text>
         )}
       >
-        <Segmented
+        <Select
           value={statusFilter}
           onChange={(v) => {
             setStatusFilter(String(v))
             setPage(1)
           }}
           options={[{ value: '', label: '全部' }, ...statusOptions]}
+          style={{ width: 140 }}
         />
         <DatePicker.RangePicker
           value={range}
@@ -531,7 +532,7 @@ export default function FeedbackList() {
         title={`回复反馈 #${replyTarget?.id ?? ''}`}
         open={!!replyTarget}
         onClose={() => setReplyTarget(null)}
-        width={520}
+        size={520}
         forceRender
       >
         {replyTarget && (

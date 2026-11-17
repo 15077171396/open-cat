@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Alert, Button, Drawer, Form, Input, Modal, Segmented, Select, Space, Spin, Tag, Tooltip, Tree, Typography } from 'antd'
+import { Alert, Button, Drawer, Form, Input, Modal, Select, Space, Spin, Tag, Tooltip, Tree, Typography } from 'antd'
 import type { DataNode } from 'antd/es/tree'
 import type { TableProps } from 'antd'
 import { DeleteOutlined, EditOutlined, KeyOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
@@ -423,7 +423,7 @@ export default function RolesList() {
           </Tooltip>
         )}
       >
-        <Segmented
+        <Select
           value={typeFilter}
           onChange={(v) => setTypeFilter(String(v) as TypeFilter)}
           options={[
@@ -431,6 +431,7 @@ export default function RolesList() {
             { value: 'system', label: '内置' },
             { value: 'custom', label: '自定义' },
           ]}
+          style={{ width: 140 }}
         />
       </ListToolbar>
 

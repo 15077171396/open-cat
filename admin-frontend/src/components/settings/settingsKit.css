@@ -51,6 +51,13 @@
   color: var(--app-text);
 }
 
+.settings-channel__tags {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  margin-left: auto;
+}
+
 .settings-channel__state {
   display: flex;
   gap: 8px;

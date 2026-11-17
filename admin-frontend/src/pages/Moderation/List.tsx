@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Badge, Button, Card, Empty, Form, Grid, Input, Modal, Segmented, Select, Space, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
+import { Badge, Button, Card, Empty, Form, Grid, Input, Modal, Select, Space, Table, Tabs, Tag, Tooltip, Typography } from 'antd'
 import type { FormInstance, TableProps } from 'antd'
 import { FlagOutlined, ReloadOutlined, SafetyCertificateOutlined } from '@ant-design/icons'
 import { useSearchParams } from 'react-router-dom'
@@ -326,13 +326,14 @@ function LogTab({ onChanged }: { onChanged: () => void }) {
           </Tooltip>
         )}
       >
-        <Segmented
+        <Select
           value={statusFilter}
           onChange={(v) => {
             setStatusFilter(String(v))
             setPage(1)
           }}
           options={[{ value: '', label: '全部' }, ...statusOptions]}
+          style={{ width: 140 }}
         />
         <Select
           allowClear
@@ -557,52 +558,42 @@ function ReportTab({ onChanged }: { onChanged: () => void }) {
 
   return (
     <div>
-      <Card className="adm-toolbar" variant="outlined">
-        <div className="adm-toolbar__row">
-          <Space wrap size={12}>
-            <Segmented
-              value={statusFilter}
-              onChange={(v) => {
-                setStatusFilter(String(v))
-                setPage(1)
-              }}
-              options={[{ value: '', label: '全部' }, ...statusOptions]}
-            />
-            <Select
-              allowClear
-              placeholder="全部内容类型"
-              value={contentType || undefined}
-              onChange={(v) => {
-                setContentType(v ?? '')
-                setPage(1)
-              }}
-              options={contentTypeOptions}
-              style={{ width: 150 }}
-            />
-            {hasFilter && (
-              <Tooltip title="清空筛选条件">
-                <Button
-                  type="text"
-                  size="small"
-                  icon={<ReloadOutlined />}
-                  onClick={() => {
-                    setStatusFilter('')
-                    setContentType('')
-                    setPage(1)
-                  }}
-                >
-                  重置
-                </Button>
-              </Tooltip>
-            )}
-          </Space>
+      <ListToolbar
+        hasFilter={hasFilter}
+        onReset={() => {
+          setStatusFilter('')
+          setContentType('')
+          setPage(1)
+        }}
+        extra={(
           <Tooltip title="重新拉取当前条件下的举报">
             <Button icon={<ReloadOutlined />} onClick={refresh}>
               刷新
             </Button>
           </Tooltip>
-        </div>
-      </Card>
+        )}
+      >
+        <Select
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(String(v))
+            setPage(1)
+          }}
+          options={[{ value: '', label: '全部' }, ...statusOptions]}
+          style={{ width: 140 }}
+        />
+        <Select
+          allowClear
+          placeholder="全部内容类型"
+          value={contentType || undefined}
+          onChange={(v) => {
+            setContentType(v ?? '')
+            setPage(1)
+          }}
+          options={contentTypeOptions}
+          style={{ width: 150 }}
+        />
+      </ListToolbar>
 
       <Card className="adm-tablecard" variant="outlined">
         <Table<ReportItem>

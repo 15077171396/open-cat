@@ -267,7 +267,7 @@ export default function Login() {
                           alt={t('login.captcha')}
                           width={96}
                           height={32}
-                          style={{ cursor: 'pointer', borderRadius: 4, display: 'block' }}
+                          style={{ cursor: 'pointer', borderRadius: 0, display: 'block' }}
                           onClick={() => void loadCaptcha()}
                         />
                       </Tooltip>

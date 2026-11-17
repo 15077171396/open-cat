@@ -84,12 +84,13 @@ pip install -r requirements.txt
 cp .env.example .env             # 填 DB / Redis / SECRET_KEY
 mysql -u root -p < init_db.sql
 alembic upgrade head
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 # 前端（另开一个终端，别和后端共用终端）
 cd admin-frontend
 npm install
-npm run dev                      # http://localhost:5174/admin/
+npm run dev                      # http://localhost:5175/admin/（固定端口，被占直接报错）
+# 后端若跑在 8000：VITE_API_TARGET=http://127.0.0.1:8000 npm run dev
 ```
 
 首次打开会跳 `/admin/setup` 安装向导（库里还没有管理员时）。

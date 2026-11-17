@@ -270,7 +270,7 @@
 .ai-writing-history__count {
   min-width: 20px;
   padding: 0 7px;
-  border-radius: 999px;
+  border-radius: 0;
   background: var(--app-tint);
   color: var(--app-primary);
   font-size: 10px;

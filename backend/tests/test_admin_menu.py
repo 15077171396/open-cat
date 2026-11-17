@@ -19,6 +19,7 @@ from pathlib import Path
 from app.services.admin_menu import (
     MENU_FOOTER,
     MENU_GROUPS,
+    MENU_TOP,
     all_menu_perms,
     iter_menu_items,
     menu_tree,
@@ -119,10 +120,14 @@ class AdminMenuConfigTests(unittest.TestCase):
 
     def test_tree_payload_shape(self):
         """接口载荷：空字段不下发，外链带 url"""
+        self.assertIn("top", self.tree)
         self.assertIn("groups", self.tree)
         self.assertIn("footer", self.tree)
+        self.assertEqual(len(self.tree["top"]), len(MENU_TOP))
         self.assertEqual(len(self.tree["groups"]), len(MENU_GROUPS))
         self.assertEqual(len(self.tree["footer"]), len(MENU_FOOTER))
+        for item in self.tree["top"]:
+            self.assertEqual(set(item), {"key", "label", "icon", "perm"})
         for group in self.tree["groups"]:
             self.assertEqual(set(group), {"key", "label", "icon", "items"})
             for item in group["items"]:
@@ -130,6 +135,15 @@ class AdminMenuConfigTests(unittest.TestCase):
                 self.assertIn("label", item)
                 self.assertIn("icon", item)
                 self.assertNotIn(None, item.values(), f"菜单项不应下发 None 字段: {item}")
+
+    def test_workplace_is_top_level_home(self):
+        """首页「工作台」是分组之上的第一个菜单，不再嵌在「概览」里"""
+        self.assertEqual([item.key for item in MENU_TOP], ["/"])
+        self.assertEqual([item["key"] for item in self.tree["top"]], ["/"])
+        overview = next(group for group in MENU_GROUPS if group.key == "overview")
+        overview_keys = [item.key for item in overview.items]
+        self.assertNotIn("/", overview_keys, "工作台不应再出现在「概览」分组内")
+        self.assertIn("/dashboard", overview_keys, "数据看板迁到 /dashboard 后仍在「概览」里")
 
     def test_external_items_carry_url(self):
         for item in self.items:

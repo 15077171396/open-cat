@@ -25,12 +25,14 @@ import type { MenuTree } from '../../types'
 const mockedGet = vi.mocked(apiGet)
 
 const MENU: MenuTree = {
+  // 首页「工作台」是分组之上的顶级独立项
+  top: [{ key: '/', label: '工作台', icon: 'workplace' }],
   groups: [
     {
       key: 'overview',
       label: '概览',
       icon: 'home',
-      items: [{ key: '/', label: '数据看板', icon: 'dashboard' }],
+      items: [{ key: '/dashboard', label: '数据看板', icon: 'dashboard' }],
     },
     {
       key: 'user',
@@ -107,7 +109,16 @@ describe('CommandPalette', () => {
     expect(screen.getByTestId('location')).toHaveTextContent('/users')
   })
 
-  it('快捷动作受权限控制：有 tutorial:create 才出现「新建教程」', async () => {
+  it('首页「工作台」出现在页面搜索结果里', async () => {
+    render(<Harness initialOpen />)
+    const input = await screen.findByPlaceholderText('搜索页面、教程、用户，或输入操作…')
+    await userEvent.type(input, '工作台')
+
+    expect(await screen.findByText('工作台')).toBeInTheDocument()
+    expect(screen.getByText('首页')).toBeInTheDocument()
+  })
+
+  it('Cmd/Ctrl+K 快捷动作受权限控制：有 tutorial:create 才出现「新建教程」', async () => {
     render(<Harness initialOpen permissions={['tutorial:view']} />)
     const input = await screen.findByPlaceholderText('搜索页面、教程、用户，或输入操作…')
     await userEvent.type(input, '新建教程')

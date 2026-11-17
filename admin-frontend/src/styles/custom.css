@@ -109,6 +109,9 @@
 /* 全局命令面板 */
 @import './sections/command-palette.css';
 
+/* 界面设置抽屉 */
+@import './sections/settings-drawer.css';
+
 /* 暗色主题补充覆盖：antd 预设色标签 !important 兜底 + 少量装饰 badge 提亮 */
 @import './sections/theme-dark.css';
 

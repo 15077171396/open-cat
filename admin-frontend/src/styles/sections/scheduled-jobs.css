@@ -131,7 +131,7 @@
 
 .jobs-notes code {
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--app-subtle);
   font-size: 12px;
 }
@@ -201,7 +201,7 @@
 
 .sys-footnote code {
   padding: 1px 4px;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--app-subtle);
 }
 
@@ -240,7 +240,7 @@
 
 .jobs-banner__desc code {
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--app-subtle);
   font-size: 12px;
 }

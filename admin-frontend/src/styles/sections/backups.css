@@ -11,7 +11,7 @@
 
 .bk-meta code {
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--app-subtle);
   color: var(--app-text);
 }
@@ -23,7 +23,7 @@
 
 .bk-commands code {
   padding: 1px 5px;
-  border-radius: 3px;
+  border-radius: 0;
   background: var(--app-subtle);
   font-size: 12px;
 }

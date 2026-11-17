@@ -1,81 +1,126 @@
-/* 素材库：类型 chips + 工具条 + 方形缩略图网格；白 + 浅蓝，与 AI 写作面板同一套视觉。 */
+/* 素材库：类型导航 + 工具条 + 方形缩略图网格；去掉装饰性底色，用边框与留白分层。 */
 
+/* 页面不再使用整屏浅色底，跟随全局背景 */
 .mat-page {
-  background: var(--app-tint);
+  background: transparent;
 }
 
-/* ---------- 类型筛选 chips ---------- */
+/* ---------- 左右布局：分类导航 + 内容区 ---------- */
 
-.mat-chips {
+/* 两栏容器：整块圆角卡片；左栏与右栏之间用 1px 边框真分隔（不用阴影） */
+.mat-body {
+  display: grid;
+  grid-template-columns: 196px minmax(0, 1fr);
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--app-tint-border);
+  border-radius: var(--app-radius);
+  background: var(--app-card);
+}
+
+.mat-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 14px 10px;
+  border-right: 1px solid var(--app-tint-border);
+  background: transparent;
+}
+
+.mat-nav__item {
   display: flex;
   align-items: center;
   gap: 8px;
-  /* 窄屏不换行（换行会让最后一个 chip 孤零零掉到下一行），改成横向滚动 */
-  flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 2px;
-  margin-bottom: 12px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--app-tint-border) transparent;
-}
-
-.mat-chips::-webkit-scrollbar {
-  height: 6px;
-}
-
-.mat-chips::-webkit-scrollbar-thumb {
-  border-radius: 3px;
-  background: var(--app-tint-border);
-}
-
-.mat-chip {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 6px;
-  padding: 7px 12px;
-  border: 1px solid var(--app-tint-border);
-  border-radius: 999px;
-  background: var(--app-card);
+  width: 100%;
+  padding: 9px 10px 9px 8px;
+  border: 0;
+  /* 预留给选中态左侧强调条，切换时不产生位移 */
+  border-left: 3px solid transparent;
+  border-radius: var(--app-radius);
+  background: transparent;
   color: var(--app-text-2);
   cursor: pointer;
   font: inherit;
   font-size: 13px;
-  line-height: 1;
+  line-height: 1.2;
+  text-align: left;
   transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
 }
 
-.mat-chip:hover {
-  border-color: var(--app-tint-border);
+.mat-nav__item:hover {
+  background: transparent;
   color: var(--app-link);
 }
 
-.mat-chip.is-active {
-  border-color: var(--app-primary);
-  background: var(--app-primary);
-  color: #fff;
+.mat-nav__item.is-active {
+  border-left-color: var(--app-primary);
+  background: transparent;
+  color: var(--app-primary);
+  font-weight: 600;
 }
 
-.mat-chip__icon {
+.mat-nav__item:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: -2px;
+}
+
+.mat-nav__icon {
   display: inline-flex;
-  font-size: 14px;
+  flex: 0 0 auto;
+  font-size: 15px;
   opacity: 0.85;
 }
 
-.mat-chip__count {
-  min-width: 18px;
+.mat-nav__label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mat-nav__count {
+  flex: 0 0 auto;
+  min-width: 20px;
   padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--app-tint);
+  border-radius: 0;
+  background: transparent;
   color: var(--app-text-2);
   font-size: 11px;
   font-variant-numeric: tabular-nums;
   text-align: center;
 }
 
-.mat-chip.is-active .mat-chip__count {
-  background: rgba(255, 255, 255, 0.22);
-  color: #fff;
+.mat-nav__item.is-active .mat-nav__count {
+  background: transparent;
+  color: var(--app-primary);
+}
+
+.mat-main {
+  min-width: 0;
+  padding: 16px 18px 18px;
+}
+
+.mat-main__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.mat-main__title {
+  margin: 0;
+  color: var(--app-text);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.mat-main__hint {
+  color: var(--app-text-2);
+  font-size: 12px;
 }
 
 /* ---------- 工具条 ---------- */
@@ -89,7 +134,7 @@
   padding: 10px 12px;
   border: 1px solid var(--app-tint-border);
   border-radius: var(--app-radius);
-  background: var(--app-card);
+  background: transparent;
 }
 
 .mat-toolbar__search {
@@ -310,7 +355,7 @@
   padding: 64px 24px;
   border: 1px dashed var(--app-tint-border);
   border-radius: var(--app-radius);
-  background: var(--app-card);
+  background: transparent;
   text-align: center;
 }
 
@@ -322,7 +367,7 @@
   height: 56px;
   margin-bottom: 4px;
   border-radius: var(--app-radius);
-  background: var(--app-tint);
+  background: transparent;
   color: var(--app-primary);
   font-size: 24px;
 }
@@ -478,6 +523,40 @@
 }
 
 @media (max-width: 900px) {
+  /* 窄屏：左栏转为顶部横向可滚动分类条，避免左右两栏挤压内容区 */
+  .mat-body { grid-template-columns: minmax(0, 1fr); }
+  .mat-nav {
+    flex-direction: row;
+    gap: 8px;
+    padding: 10px 12px;
+    border-right: 0;
+    border-bottom: 1px solid var(--app-tint-border);
+    overflow-x: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--app-tint-border) transparent;
+  }
+  .mat-nav::-webkit-scrollbar { height: 6px; }
+  .mat-nav::-webkit-scrollbar-thumb { border-radius: 0; background: var(--app-tint-border); }
+  .mat-nav__item {
+    flex: 0 0 auto;
+    width: auto;
+    padding: 6px 12px;
+    border: 1px solid var(--app-tint-border);
+    border-radius: 0;
+    background: transparent;
+    line-height: 1;
+  }
+  .mat-nav__label { flex: 0 0 auto; }
+  .mat-nav__item.is-active {
+    border-color: var(--app-primary);
+    background: transparent;
+    color: var(--app-primary);
+  }
+  .mat-nav__item.is-active .mat-nav__count {
+    background: transparent;
+    color: var(--app-primary);
+  }
+  .mat-main { padding: 12px; }
   .mat-grid { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .mat-preview { grid-template-columns: minmax(0, 1fr); }
   .mat-preview__stage { max-height: 42vh; }

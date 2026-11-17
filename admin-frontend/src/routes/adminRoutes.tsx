@@ -78,9 +78,9 @@ export interface AdminRouteDef {
 
 /** 需要登录 + 权限守卫的页面路由（登录页 / 安装向导在 `App.tsx` 里单独挂，不在此表） */
 export const ADMIN_ROUTES: AdminRouteDef[] = [
-  { path: '/', element: <Dashboard />, perm: 'dashboard:view' },
-  // 工作台：快捷入口 + 待办 + 最近动态，复用既有接口
-  { path: '/workplace', element: <WorkplacePage />, perm: 'dashboard:view' },
+  // 首页：工作台（快捷入口 + 待办 + 最近动态）。2026-11 起 `/` 即首页，数据看板迁到 /dashboard
+  { path: '/', element: <WorkplacePage />, perm: 'dashboard:view' },
+  { path: '/dashboard', element: <Dashboard />, perm: 'dashboard:view' },
   // 数据分析：全页演示数据（不请求后端），权限与数据看板同层级
   { path: '/analysis', element: <Analysis />, perm: 'dashboard:view' },
   { path: '/tutorials', element: <TutorialsList />, perm: 'tutorial:view' },

@@ -117,6 +117,24 @@ async def settings_tree(db: AsyncSession, locale: str = DEFAULT_LOCALE) -> dict:
     """菜单管理页的数据：代码目录 + 生效值 + 默认值（未做模块过滤，便于管理全部入口）。"""
     overrides = await load_overrides(db)
 
+    # 分组之上的顶级独立项（如首页「工作台」）：不属于任何分组，单独返回
+    top: list[dict] = []
+    for item_index, item in enumerate(admin_menu.MENU_TOP):
+        item_override = overrides.get(item.key)
+        entry = _effective(item.key, item.label, item.icon, item_override, locale, item_index)
+        entry.update(
+            {
+                "kind": "item",
+                "route": item.key,
+                "perm": item.perm,
+                "perms": list(item.perms),
+                "url": item.url,
+                "module_enabled": module_registry.menu_visible(item.key),
+            }
+        )
+        top.append(entry)
+    top.sort(key=_sort_key)
+
     groups: list[dict] = []
     for group_index, group in enumerate(admin_menu.MENU_GROUPS):
         group_override = overrides.get(group.key)
@@ -170,7 +188,7 @@ async def settings_tree(db: AsyncSession, locale: str = DEFAULT_LOCALE) -> dict:
         footer.append(entry)
     footer.sort(key=_sort_key)
 
-    return {"groups": groups, "footer": footer, "custom_count": len(overrides)}
+    return {"top": top, "groups": groups, "footer": footer, "custom_count": len(overrides)}
 
 
 def _require_key(key: str) -> None:

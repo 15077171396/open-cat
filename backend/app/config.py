@@ -170,6 +170,20 @@ class Settings(BaseSettings):
     # 小程序内嵌 H5 / 图片素材的 CDN 域名（选填）
     MINI_ASSET_BASE_URL: str = ""
 
+    # ---- Stripe 支付（默认渠道）----
+    # 密钥只允许放在 backend/.env（已被 gitignore），绝不写进源码/前端/文档/提交记录。
+    # 后台「支付与渠道」页可覆盖这些默认值；secret key 仅在服务端使用。
+    STRIPE_MODE: str = "test"  # test / live，仅用于展示与密钥前缀提醒
+    STRIPE_SECRET_KEY: str = ""
+    STRIPE_PUBLISHABLE_KEY: str = ""
+    STRIPE_WEBHOOK_SECRET: str = ""
+    STRIPE_CURRENCY: str = "cny"
+    # 支付成功 / 取消回跳地址（前端页面）；留空则由 SITE_BASE_URL 派生
+    STRIPE_SUCCESS_URL: str = ""
+    STRIPE_CANCEL_URL: str = ""
+    # 默认支付渠道：stripe / alipay / wechat / mock；渠道不可用时自动回退到首个可用渠道
+    DEFAULT_PAYMENT_PROVIDER: str = "stripe"
+
     # 限流 (固定窗口计数器)
     RATE_LIMIT_GUEST: int = 120  # 游客每分钟请求上限
     RATE_LIMIT_USER: int = 300   # 登录用户每分钟请求上限

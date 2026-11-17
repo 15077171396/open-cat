@@ -56,24 +56,26 @@ describe('PageHeader', () => {
 })
 
 describe('ListToolbar', () => {
-  it('有筛选时才出现重置按钮，点击回调一次', async () => {
+  it('重置按钮常驻，有筛选时点击回调一次', async () => {
     const onReset = vi.fn()
     render(
       <ListToolbar hasFilter onReset={onReset}>
         <span>筛选项</span>
       </ListToolbar>,
     )
-    await userEvent.click(screen.getByRole('button', { name: /重置/ }))
+    const reset = screen.getByRole('button', { name: /重置/ })
+    expect(reset).toBeEnabled()
+    await userEvent.click(reset)
     expect(onReset).toHaveBeenCalledTimes(1)
   })
 
-  it('无筛选时不渲染重置按钮', () => {
+  it('无筛选可清时重置按钮仍渲染，但禁用', () => {
     render(
       <ListToolbar hasFilter={false} onReset={vi.fn()}>
         <span>筛选项</span>
       </ListToolbar>,
     )
-    expect(screen.queryByRole('button', { name: /重置/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /重置/ })).toBeDisabled()
   })
 })
 

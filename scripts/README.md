@@ -33,7 +33,7 @@
 | `start-backend.bat` | 常驻启动后端（`uvicorn`，不随窗口关闭而停） | 端口 8000 与本机其它项目冲突（见根 README），脚本会先探测占用 |
 | `start-backend-dev.bat` | **开发热重载**：`uvicorn --reload`（只监听 `app/` 与 `scheduler/`），启动前先释放 8000 → **再双击一次 = 重启** | 改完后端代码**自动生效**（不用手动重启，也就不会再出现「接口还是 404」）。⚠️ 真机联调请用上面那个：reload 会在保存文件时中断在飞请求。依赖 `watchfiles`（已装入 venv） |
 | `start-scheduler.bat` | **本机跑定时任务**：`python -m scheduler.tasks`（生产是 compose 的 scheduler 容器） | 不开也能用后台「系统 → 定时任务」页（看状态 / 启停 / 改周期），但「立即执行」会 503、页面提示「调度器未运行」—— 那是准确的。⚠️ 它会真的执行清理/降级/推送任务，**本机开发库同样会被改动** |
-| `start-all-dev.bat` | **两端一键启动**：后端（复用 `start-backend-dev.bat`）+ 管理端 5174，各开一个独立窗口 | 关窗口 = 停服务，**不受父进程被回收的连坐**。前端带 `--strictPort`：端口被占直接报错，不会悄悄换端口。前提：MySQL 3306 在跑 |
+| `start-all-dev.bat` | **两端一键启动**：后端（复用 `start-backend-dev.bat`，8000）+ 管理端 5175，各开一个独立窗口 | 关窗口 = 停服务，**不受父进程被回收的连坐**。前端固定 5175 且带 `--strictPort`：端口被占直接报错，不会悄悄换端口。窗口内已设 `VITE_API_TARGET=http://127.0.0.1:8000`，与后端端口对齐。前提：MySQL 3306 在跑 |
 | `check-admin-dev-routes.mjs` | **校验管理端 dev server 的编译结果是否与 `App.tsx` 一致**：源码加了 `<Route>` 但编译结果没有时，点菜单会静默跳回数据看板（或整页白屏），而 `tsc`/`vitest`/`vite build` 全绿 | `node scripts/check-admin-dev-routes.mjs`；退出码 1 = dev server 陈旧，需 `taskkill /T` 重启 vite（Vite 是父子进程，只杀子进程会残留）。dev server 没起时跳过（exit 0） |
 
 ## 三、隧道与代理（服务器侧要访问 GitHub 时才需要）

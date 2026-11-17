@@ -117,7 +117,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
                     minWidth: 0,
                     height: 22,
                     background: 'var(--app-fill)',
-                    borderRadius: 4,
+                    borderRadius: 0,
                     overflow: 'hidden',
                   }}
                 >
@@ -126,7 +126,7 @@ export default function FunnelPanel({ data, loading, failed, onRefresh }: Props)
                       width: `${Math.max(ratio * 100, count ? 1.5 : 0)}%`,
                       height: '100%',
                       background: color,
-                      borderRadius: 4,
+                      borderRadius: 0,
                       transition: 'width .3s ease',
                     }}
                   />

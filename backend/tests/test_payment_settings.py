@@ -60,6 +60,17 @@ def _full_alipay() -> dict:
     }
 
 
+def _full_stripe() -> dict:
+    return {
+        "stripe_enabled": "1",
+        "stripe_mode": "test",
+        "stripe_secret_key": "sk_test_stripe_probe",
+        "stripe_publishable_key": "pk_test_stripe_probe",
+        "stripe_webhook_secret": "whsec_stripe_probe",
+        "stripe_currency": "cny",
+    }
+
+
 class PaymentScopeTests(unittest.TestCase):
     """① 归属与键集合"""
 
@@ -81,13 +92,15 @@ class PaymentScopeTests(unittest.TestCase):
     def test_groups_and_counts(self):
         self.assertEqual(
             [g["key"] for g in payment_settings_service.groups()],
-            ["payment_general", "payment_wechat", "payment_alipay"],
+            ["payment_general", "payment_stripe", "payment_wechat", "payment_alipay"],
         )
         keys = payment_settings_service.PAYMENT_SETTING_KEYS
-        self.assertEqual(len(keys), 18, "支付配置项数量变了，检查是否有键漏归属")
+        self.assertEqual(len(keys), 26, "支付配置项数量变了，检查是否有键漏归属")
         self.assertIn("payment_enabled", keys)
         self.assertIn("wechat_pay_private_key", keys)
         self.assertIn("alipay_public_key", keys)
+        self.assertIn("stripe_secret_key", keys)
+        self.assertIn("stripe_webhook_secret", keys)
 
 
 class PaymentWriteScopeTests(unittest.IsolatedAsyncioTestCase):
@@ -132,13 +145,30 @@ class ChannelOverviewTests(unittest.TestCase):
         return {c["key"]: c for c in payment_settings_service.channel_overview(config)}
 
     def test_all_disabled(self):
-        # 注意：Mock 的默认值是 "1"（本地联调方便），所以要显式关掉再断言「全关」状态
-        channels = self._channels(_config(payment_mock_enabled="0"))
-        for key in ("mock", "wechat", "alipay"):
+        # 注意：Mock 与 Stripe 的默认值都是 "1"（本地联调方便），所以要显式关掉再断言「全关」状态
+        channels = self._channels(_config(payment_mock_enabled="0", stripe_enabled="0"))
+        for key in ("mock", "wechat", "alipay", "stripe"):
             with self.subTest(channel=key):
                 self.assertFalse(channels[key]["enabled"])
                 self.assertFalse(channels[key]["ready"])
                 self.assertEqual(channels[key]["issues"], [])
+
+    def test_stripe_requires_credentials(self):
+        partial = _config(payment_enabled="1", **{**_full_stripe(), "stripe_secret_key": ""})
+        self.assertTrue(self._channels(partial)["stripe"]["enabled"])
+        self.assertFalse(self._channels(partial)["stripe"]["ready"])
+        self.assertTrue(self._channels(partial)["stripe"]["issues"])
+
+        ready = self._channels(_config(payment_enabled="1", **_full_stripe()))["stripe"]
+        self.assertTrue(ready["ready"])
+        self.assertEqual(ready["issues"], [])
+        self.assertTrue(ready["default"], "Stripe 应被标记为默认渠道")
+
+    def test_stripe_mode_mismatch_is_reported(self):
+        config = _config(payment_enabled="1", **{**_full_stripe(), "stripe_mode": "test",
+                                                "stripe_secret_key": "sk_live_probe"})
+        issues = self._channels(config)["stripe"]["issues"]
+        self.assertTrue(any("live" in issue for issue in issues))
 
     def test_mock_is_ready_only_outside_production(self):
         config = _config(payment_enabled="1", payment_mock_enabled="1")

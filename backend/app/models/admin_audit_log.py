@@ -37,6 +37,11 @@ AUDIT_ACTIONS: dict[str, str] = {
     # 下线登录设备（管理员操作自己的会话）：动作本身轻，但「谁在什么时候踢了哪台」
     # 是排查「账号是不是被别人用过」时的关键线索
     "session_revoke": "下线登录设备",
+    # 本人界面偏好：只影响自己的外观，按常规留痕（用于排查「设置莫名变了」）
+    "ui_preferences_update": "更新界面偏好",
+    # 锁屏口令：设置/校验都只涉及自己的本机保护；口令明文与摘要永不进审计
+    "lock_password_update": "更新锁屏口令",
+    "lock_password_verify": "校验锁屏口令",
     # 积分兑换码（积分入金口）
     "redeem_code_create": "生成兑换码",
     "redeem_code_disable": "作废兑换码",
@@ -231,6 +236,10 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "user_force_logout": AUDIT_RISK_DANGER,
     # 下线自己的某台设备：正常安全操作，按普通级记录（否则高危列表会被日常操作刷满）
     "session_revoke": AUDIT_RISK_NORMAL,
+    # 本人偏好 / 锁屏（仅影响自己，不触达他人与全站）
+    "ui_preferences_update": AUDIT_RISK_NORMAL,
+    "lock_password_update": AUDIT_RISK_NORMAL,
+    "lock_password_verify": AUDIT_RISK_NORMAL,
     # 数据导出不改数据，但把库里的数据带出了系统：事后唯一能回答
     # 「谁导走了用户名单」的记录点，按高危呈现
     "data_export": AUDIT_RISK_DANGER,

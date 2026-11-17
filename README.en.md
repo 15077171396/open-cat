@@ -57,6 +57,11 @@ create an admin → choose storage → done. No manual env editing, no third-par
 **Default account**: set by yourself in the wizard. Without the wizard, it is controlled by
 `ADMIN_PASSWORD`; if unset, a random password is generated and printed **once** in the startup log.
 
+> Local development without Docker: see [Development §2](docs/07-开源文档/05-开发文档.md).
+> The admin dev server is fixed at `http://localhost:5175/admin/`; the backend defaults to `:8001`.
+> If your backend runs on `:8000`, start the frontend with
+> `VITE_API_TARGET=http://127.0.0.1:8000 npm run dev`.
+
 Want to see it with data?
 
 ```bash

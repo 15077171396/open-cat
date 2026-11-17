@@ -7,6 +7,7 @@ import {
   compactNumber,
 } from '../components/analysis/mockData'
 import type { AnalysisRange } from '../components/analysis/mockData'
+import PageHeader from '../components/ui/PageHeader'
 import AnimatedNumber from '../components/analysis/AnimatedNumber'
 import Sparkline from '../components/analysis/Sparkline'
 import LineAreaChart from '../components/analysis/LineAreaChart'
@@ -44,30 +45,28 @@ export default function Analysis() {
 
   return (
     <div className="ana-page">
-      <header className="ana-head">
-        <div>
-          <div className="ana-eyebrow">CONTENT INTELLIGENCE</div>
-          <h1 className="ana-title">数据分析</h1>
-          <p className="ana-sub">
-            阅读、用户与转化的一体化视图
+      <PageHeader
+        icon={<InfoCircleOutlined />}
+        title="数据分析"
+        subtitle="阅读、用户与转化的一体化视图"
+        actions={
+          <Space className="ana-controls" wrap size={10}>
             <Tooltip title="所有数字由浏览器本地生成，不读取数据库，也不写入任何业务表">
               <Tag className="ana-demo-tag" icon={<InfoCircleOutlined />} color="gold">
                 演示数据
               </Tag>
             </Tooltip>
-          </p>
-        </div>
-        <Space className="ana-controls" wrap size={10}>
-          <Segmented
-            value={range}
-            options={RANGE_OPTIONS}
-            onChange={(value) => setRange(value as AnalysisRange)}
-          />
-          <Button icon={<ReloadOutlined />} onClick={() => setSeed((value) => value + 1)}>
-            换一批
-          </Button>
-        </Space>
-      </header>
+            <Segmented
+              value={range}
+              options={RANGE_OPTIONS}
+              onChange={(value) => setRange(value as AnalysisRange)}
+            />
+            <Button icon={<ReloadOutlined />} onClick={() => setSeed((value) => value + 1)}>
+              换一批
+            </Button>
+          </Space>
+        }
+      />
 
       <section className="ana-hero" aria-label="核心指标">
         <div className="ana-hero__grid">

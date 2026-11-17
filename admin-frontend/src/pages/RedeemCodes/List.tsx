@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Button, DatePicker, Form, Input, InputNumber, Modal, Progress, Radio, Segmented, Space, Table, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Form, Input, InputNumber, Modal, Progress, Radio, Select, Space, Table, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { CopyOutlined, EyeOutlined, GiftOutlined, ReloadOutlined, StopOutlined } from '@ant-design/icons'
@@ -419,7 +419,7 @@ export default function RedeemCodesList() {
           </Space>
         )}
       >
-        <Segmented
+        <Select
           value={status}
           onChange={(v) => {
             setStatus(String(v))
@@ -427,6 +427,7 @@ export default function RedeemCodesList() {
             setPage(1)
           }}
           options={STATUS_FILTER_OPTIONS}
+          style={{ width: 140 }}
         />
       </ListToolbar>
 

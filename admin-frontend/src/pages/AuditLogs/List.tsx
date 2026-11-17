@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Button, DatePicker, Input, Segmented, Select, Tag, Tooltip, Typography } from 'antd'
+import { Button, DatePicker, Input, Select, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import type { Dayjs } from 'dayjs'
 import { AuditOutlined, ReloadOutlined } from '@ant-design/icons'
@@ -256,10 +256,11 @@ export default function AuditLogsList() {
           options={targetTypeOptions}
           style={{ width: 150 }}
         />
-        <Segmented
+        <Select
           value={risk}
           onChange={(v) => resetPageAnd(() => setRisk(String(v)))}
           options={[{ value: '', label: '全部' }, ...riskOptions]}
+          style={{ width: 140 }}
         />
         <DatePicker.RangePicker
           value={range}

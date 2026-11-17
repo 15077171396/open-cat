@@ -35,14 +35,25 @@
     font-size: 16px;
   }
 
+  /* 操作项保持各自宽度、整行右对齐：拉满宽度会把后面的按钮挤到第二行，出现「双行错位」。
+     放不下时由 PageHeaderActions 收进「更多」里，而不是靠换行。 */
   .adm-header__actions {
     width: 100%;
+    justify-content: flex-end;
   }
 
   .adm-header__actions .ant-input-search,
   .adm-header__actions .ant-input-affix-wrapper,
   .adm-header__actions .ant-picker {
-    width: 100% !important;
+    max-width: 100%;
+  }
+
+  /* 有溢出收起时不拉满整行：固定宽度更好算「还能放下几项」，也避免把「更多」挤出去 */
+  .adm-header__actions[data-managed='true'] .ant-input-search,
+  .adm-header__actions[data-managed='true'] .ant-input-affix-wrapper,
+  .adm-header__actions[data-managed='true'] .ant-picker {
+    width: auto !important;
+    max-width: 100%;
   }
 
   .adm-toolbar__row {
@@ -58,16 +69,35 @@
     width: 100%;
   }
 
-  .adm-toolbar .ant-select,
-  .adm-toolbar .ant-picker,
-  .adm-toolbar .ant-input-affix-wrapper,
-  .adm-toolbar .ant-segmented {
+  /* 只对筛选区拉满宽度；操作区里的搜索框/按钮不受影响，
+     否则隐藏测量层也会被撑满，收起计算失真。 */
+  .adm-toolbar__row > .ant-space .ant-select,
+  .adm-toolbar__row > .ant-space .ant-picker,
+  .adm-toolbar__row > .ant-space .ant-input-affix-wrapper,
+  .adm-toolbar__row > .ant-space .ant-segmented {
     width: 100% !important;
     max-width: 100%;
   }
 
-  .adm-toolbar__row > div:last-child {
-    align-self: flex-start;
+  /* 右侧区（操作组 + 刷新）优先保持同一行：给操作组保留最小宽度；
+     只有批量操作实在放不下时才整块换到下一行，避免操作按钮被压成 0 宽后竖排溢出 */
+  .adm-toolbar__right {
+    flex: none;
+    width: 100%;
+    align-self: stretch;
+    flex-wrap: wrap;
+    align-content: center;
+  }
+
+  .adm-toolbar__actions {
+    flex: 1 1 150px;
+  }
+
+  /* 窄屏批量操作允许在组内换行并让出宽度，避免把操作组压成 0 宽后按钮竖排溢出 */
+  .adm-toolbar__right > .ant-space {
+    flex: 0 1 auto;
+    min-width: 0;
+    flex-wrap: wrap;
   }
 
   .adm-table .ant-table-thead > tr > th,

@@ -12,7 +12,7 @@
 export const EDITOR_EXTRA_CSS = `
   /* ===== 提示框（callout）===== */
   .quill-editor-wrapper .ql-editor .ql-callout {
-    border-radius: 8px;
+    border-radius: 0;
     padding: 0.75em 1em;
     margin: 0 0 0.9em;
     border-left: 4px solid var(--app-primary);
@@ -50,7 +50,7 @@ export const EDITOR_EXTRA_CSS = `
     gap: 10px;
     padding: 10px 14px;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 0;
     background: #f8fafc;
     color: #334155;
     text-decoration: none;
@@ -85,7 +85,7 @@ export const EDITOR_EXTRA_CSS = `
     height: auto;
     aspect-ratio: 16 / 9;
     border: 0;
-    border-radius: 8px;
+    border-radius: 0;
     background: #000;
     margin: 0 0 0.9em;
   }
@@ -287,8 +287,8 @@ export const EDITOR_EXTRA_CSS = `
     background: #fafafa;
     font-size: 12px;
     color: #94a3b8;
-    /* 状态栏是编辑器框内最后一个元素：不跟随外框圆角时，灰底会盖住底部两个圆角 */
-    border-radius: 0 0 7px 7px;
+    /* 状态栏是编辑器框内最后一个元素：外框已直角，这里不再补圆角 */
+    border-radius: 0;
   }
   .quill-statusbar b {
     font-weight: 600;
@@ -324,7 +324,7 @@ export const EDITOR_EXTRA_CSS = `
     height: 28px;
     padding: 0 8px;
     border: 1px solid #d9d9d9;
-    border-radius: 4px;
+    border-radius: 0;
     font-size: 13px;
     outline: none;
     min-width: 140px;
@@ -336,7 +336,7 @@ export const EDITOR_EXTRA_CSS = `
     height: 28px;
     padding: 0 10px;
     border: 1px solid #d9d9d9;
-    border-radius: 4px;
+    border-radius: 0;
     background: #fff;
     color: #334155;
     font-size: 13px;
@@ -382,7 +382,7 @@ export const EDITOR_EXTRA_CSS = `
   .quill-preview-note {
     margin-top: 14px;
     padding: 8px 12px;
-    border-radius: 6px;
+    border-radius: 0;
     background: #f8fafc;
     border: 1px solid #e2e8f0;
     font-size: 12px;
@@ -397,7 +397,7 @@ export const EDITOR_EXTRA_CSS = `
   .quill-preview-body img {
     max-width: 100%;
     height: auto;
-    border-radius: 8px;
+    border-radius: 0;
   }
   .quill-preview-body img.img-align-left { display: block; margin-right: auto; }
   .quill-preview-body img.img-align-center { display: block; margin-left: auto; margin-right: auto; }
@@ -407,14 +407,14 @@ export const EDITOR_EXTRA_CSS = `
     width: 100%;
     aspect-ratio: 16 / 9;
     border: 0;
-    border-radius: 8px;
+    border-radius: 0;
     background: #000;
   }
   .quill-preview-body pre {
     background: #1e293b;
     color: #f8fafc;
     padding: 0.9em 1em;
-    border-radius: 8px;
+    border-radius: 0;
     overflow-x: auto;
     font-size: 0.875em;
   }
@@ -426,7 +426,7 @@ export const EDITOR_EXTRA_CSS = `
   .quill-preview-body code {
     background: #f1f5f9;
     padding: 0.15em 0.4em;
-    border-radius: 4px;
+    border-radius: 0;
     font-size: 0.875em;
   }
   .quill-preview-body blockquote {
@@ -448,7 +448,7 @@ export const EDITOR_EXTRA_CSS = `
     background: #f8fafc;
   }
   .quill-preview-body .ql-callout {
-    border-radius: 8px;
+    border-radius: 0;
     padding: 0.75em 1em;
     margin: 0 0 0.9em;
     border-left: 4px solid var(--app-primary);
@@ -464,7 +464,7 @@ export const EDITOR_EXTRA_CSS = `
     gap: 10px;
     padding: 10px 14px;
     border: 1px solid #e2e8f0;
-    border-radius: 8px;
+    border-radius: 0;
     background: #f8fafc;
     text-decoration: none;
     color: #334155;
@@ -496,7 +496,7 @@ export const EDITOR_EXTRA_CSS = `
     color: #475569;
     background: #f1f5f9;
     border: 1px solid #e2e8f0;
-    border-radius: 4px;
+    border-radius: 0;
     padding: 2px 6px;
     text-align: center;
   }

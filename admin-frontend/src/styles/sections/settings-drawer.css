@@ -1,0 +1,369 @@
+/* 界面设置抽屉（components/Layout/SettingsDrawer.tsx）
+ * 只做布局与色板，不覆盖 antd 控件自身主题；颜色一律走 --app-* 变量。 */
+
+.settings-drawer__section {
+  margin-bottom: 20px;
+}
+
+.settings-drawer__label {
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+}
+
+.settings-drawer__swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 4px 0;
+}
+
+.settings-drawer__swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 12px;
+  color: #fff;
+  cursor: pointer;
+  border: 0;
+  border-radius: 50%;
+  outline: 2px solid transparent;
+  outline-offset: 2px;
+  transition: outline-color 0.15s ease, transform 0.15s ease;
+}
+
+.settings-drawer__swatch:hover {
+  transform: scale(1.08);
+}
+
+.settings-drawer__swatch.is-active {
+  outline-color: var(--app-primary);
+}
+
+.settings-drawer__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 0;
+  font-size: 14px;
+  border-bottom: 1px solid var(--app-border-light);
+}
+
+.settings-drawer__row:last-child {
+  border-bottom: 0;
+}
+
+.settings-drawer__actions {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0 16px;
+  padding-top: 8px;
+  border-top: 1px solid var(--app-border-light);
+}
+
+.settings-drawer__actions .ant-btn {
+  flex: 1;
+  min-width: 0;
+}
+
+/* ---- 图片预览选择卡（菜单布局 / 菜单风格 / 盒子样式 / 容器宽度） ---- */
+
+.settings-drawer__previews {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.settings-drawer__preview {
+  position: relative;
+  flex: 1 1 58px;
+  min-width: 58px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  background: var(--app-card);
+  border: 1px solid var(--app-border);
+  border-radius: 0;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.settings-drawer__preview:hover {
+  border-color: var(--app-primary-border);
+}
+
+.settings-drawer__preview:focus-visible {
+  outline: 2px solid var(--app-primary);
+  outline-offset: 2px;
+}
+
+.settings-drawer__preview.is-active {
+  background: color-mix(in srgb, var(--app-primary) 6%, var(--app-card));
+  border-color: var(--app-primary);
+  box-shadow: 0 0 0 2px var(--app-primary-border);
+}
+
+.settings-drawer__preview-label {
+  overflow: hidden;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--app-text-2);
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-drawer__preview.is-active .settings-drawer__preview-label {
+  font-weight: 500;
+  color: var(--app-primary);
+}
+
+.settings-drawer__preview-check {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 15px;
+  height: 15px;
+  font-size: 11px;
+  line-height: 15px;
+  color: #fff;
+  text-align: center;
+  background: var(--app-primary);
+  border-radius: 50%;
+}
+
+/* 缩略图基底：所有 `.pv` 都是固定高度的小画布，纯 CSS 绘制，不依赖图片资源 */
+.pv {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 40px;
+  overflow: hidden;
+  background: var(--app-card);
+  border: 1px solid var(--app-border-light);
+  border-radius: 0;
+  box-sizing: border-box;
+}
+
+.pv i {
+  display: block;
+  box-sizing: border-box;
+}
+
+/* 菜单布局：侧栏 / 顶栏 / 内容区三块色块 */
+
+.pv-bar {
+  position: absolute;
+  background: color-mix(in srgb, var(--app-primary) 20%, var(--app-fill));
+}
+
+.pv-bar--top {
+  background: color-mix(in srgb, var(--app-primary) 34%, var(--app-fill));
+}
+
+.pv-bar--sub {
+  display: none;
+}
+
+.pv-panel {
+  position: absolute;
+  background: var(--app-subtle);
+}
+
+.pv-layout--side .pv-bar--side {
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 26%;
+}
+
+.pv-layout--side .pv-bar--top {
+  top: 0;
+  right: 0;
+  left: 26%;
+  height: 18%;
+}
+
+.pv-layout--side .pv-panel {
+  top: 18%;
+  right: 0;
+  bottom: 0;
+  left: 26%;
+}
+
+.pv-layout--top .pv-bar--side {
+  display: none;
+}
+
+.pv-layout--top .pv-bar--top {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 22%;
+}
+
+.pv-layout--top .pv-panel {
+  top: 22%;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+.pv-layout--mixed .pv-bar--side {
+  top: 22%;
+  bottom: 0;
+  left: 0;
+  width: 24%;
+}
+
+.pv-layout--mixed .pv-bar--top {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 22%;
+}
+
+.pv-layout--mixed .pv-panel {
+  top: 22%;
+  right: 0;
+  bottom: 0;
+  left: 24%;
+}
+
+.pv-layout--double .pv-bar--side {
+  top: 18%;
+  bottom: 0;
+  left: 0;
+  width: 16%;
+}
+
+.pv-layout--double .pv-bar--sub {
+  display: block;
+  top: 18%;
+  bottom: 0;
+  left: 16%;
+  width: 16%;
+}
+
+.pv-layout--double .pv-bar--top {
+  top: 0;
+  right: 0;
+  left: 0;
+  height: 18%;
+}
+
+.pv-layout--double .pv-panel {
+  top: 18%;
+  right: 0;
+  bottom: 0;
+  left: 32%;
+}
+
+/* 菜单风格：三条菜单项模拟侧栏配色 */
+
+.pv-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+  padding: 6px 7px;
+}
+
+.pv-menu-item {
+  height: 6px;
+  background: var(--app-border-strong);
+  border-radius: 0;
+}
+
+.pv-menu-item.is-active {
+  background: var(--app-primary);
+}
+
+.pv-menu--design {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--app-primary) 18%, #fff),
+    color-mix(in srgb, var(--app-primary) 6%, #fff)
+  );
+}
+
+.pv-menu--design .pv-menu-item {
+  background: color-mix(in srgb, var(--app-primary) 26%, #fff);
+}
+
+.pv-menu--design .pv-menu-item.is-active {
+  background: var(--app-primary);
+}
+
+.pv-menu--dark {
+  background: #001529;
+}
+
+.pv-menu--dark .pv-menu-item {
+  background: rgb(255 255 255 / 26%);
+}
+
+.pv-menu--dark .pv-menu-item.is-active {
+  background: var(--app-primary);
+}
+
+.pv-menu--light {
+  background: var(--app-card);
+}
+
+/* 盒子样式：描边 vs 阴影 */
+
+.pv-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
+  background: var(--app-subtle);
+}
+
+.pv-card {
+  display: block;
+  width: 74%;
+  height: 100%;
+  background: var(--app-card);
+  border-radius: 0;
+}
+
+.pv-card--border {
+  border: 1px solid var(--app-border-strong);
+}
+
+.pv-card--shadow {
+  border: 1px solid var(--app-border-light);
+  box-shadow: 0 2px 6px rgb(0 0 0 / 16%);
+}
+
+/* 容器宽度：铺满 vs 居中定宽 */
+
+.pv-width {
+  display: flex;
+  align-items: center;
+  padding: 6px;
+  background: var(--app-canvas);
+}
+
+.pv-content {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: color-mix(in srgb, var(--app-primary) 12%, var(--app-card));
+  border: 1px dashed var(--app-border-strong);
+  border-radius: 0;
+}
+
+.pv-width--fixed .pv-content {
+  width: 62%;
+  margin: 0 auto;
+}
+

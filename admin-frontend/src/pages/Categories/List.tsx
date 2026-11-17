@@ -6,11 +6,9 @@ import {
   Col,
   Dropdown,
   Input,
-  List,
   Modal,
   Popconfirm,
   Row,
-  Segmented,
   Select,
   Space,
   Tabs,
@@ -565,9 +563,8 @@ export default function CategoriesList() {
               </PermGuard>
             }
           >
-            <List
-              size="small"
-              dataSource={[
+            <div>
+              {[
                 { key: 'all' as Selection, name: '全部分类', count: items.length },
                 {
                   key: 'ungrouped' as Selection,
@@ -580,67 +577,68 @@ export default function CategoriesList() {
                   count: g.category_count,
                   group: g,
                 })),
-              ]}
-              renderItem={(entry) => {
+              ].map((entry) => {
                 const active = selection === entry.key
                 const group = 'group' in entry ? (entry.group as CategoryGroupRow) : undefined
                 return (
-                  <List.Item
+                  <div
+                    key={entry.key}
                     onClick={() => setSelection(entry.key)}
                     style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 8,
                       cursor: 'pointer',
                       padding: '8px 16px',
                       background: active ? 'rgba(66, 99, 235, 0.08)' : undefined,
                       borderInlineStart: active ? '3px solid var(--app-primary)' : '3px solid transparent',
                     }}
-                    extra={
-                      group ? (
-                        <Dropdown
-                          trigger={['click']}
-                          menu={{
-                            items: [
-                              { key: 'rename', label: '重命名' },
-                              { key: 'delete', label: '删除', danger: true },
-                            ],
-                            onClick: ({ key, domEvent }) => {
-                              domEvent.stopPropagation()
-                              if (key === 'rename') openGroupRename(group)
-                              if (key === 'delete') {
-                                Modal.confirm({
-                                  title: `确认删除分组「${group.name}」？`,
-                                  content:
-                                    group.category_count > 0
-                                      ? `该分组下还有 ${group.category_count} 个分类，请先把它们移到别的分组（或未分组）再删除。`
-                                      : '分组删除后不可恢复；分类本身不受影响。',
-                                  okText: '删除',
-                                  okType: 'danger',
-                                  cancelText: '取消',
-                                  onOk: () => handleGroupDelete(group),
-                                })
-                              }
-                            },
-                          }}
-                        >
-                          <Button
-                            type="text"
-                            size="small"
-                            icon={<MoreOutlined />}
-                            onClick={(e) => e.stopPropagation()}
-                          />
-                        </Dropdown>
-                      ) : null
-                    }
                   >
-                    <Space size={6} style={{ width: '100%', justifyContent: 'space-between' }}>
+                    <Space size={6} style={{ flex: 1, justifyContent: 'space-between' }}>
                       <span style={{ fontWeight: active ? 600 : 400 }}>{entry.name}</span>
                       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
                         {entry.count}
                       </Typography.Text>
                     </Space>
-                  </List.Item>
+                    {group ? (
+                      <Dropdown
+                        trigger={['click']}
+                        menu={{
+                          items: [
+                            { key: 'rename', label: '重命名' },
+                            { key: 'delete', label: '删除', danger: true },
+                          ],
+                          onClick: ({ key, domEvent }) => {
+                            domEvent.stopPropagation()
+                            if (key === 'rename') openGroupRename(group)
+                            if (key === 'delete') {
+                              Modal.confirm({
+                                title: `确认删除分组「${group.name}」？`,
+                                content:
+                                  group.category_count > 0
+                                    ? `该分组下还有 ${group.category_count} 个分类，请先把它们移到别的分组（或未分组）再删除。`
+                                    : '分组删除后不可恢复；分类本身不受影响。',
+                                okText: '删除',
+                                okType: 'danger',
+                                cancelText: '取消',
+                                onOk: () => handleGroupDelete(group),
+                              })
+                            }
+                          },
+                        }}
+                      >
+                        <Button
+                          type="text"
+                          size="small"
+                          icon={<MoreOutlined />}
+                          onClick={(e) => e.stopPropagation()}
+                        />
+                      </Dropdown>
+                    ) : null}
+                  </div>
                 )
-              }}
-            />
+              })}
+            </div>
           </Card>
         </Col>
 
@@ -655,10 +653,11 @@ export default function CategoriesList() {
               </Typography.Text>
             )}
           >
-            <Segmented
+            <Select
               value={usageFilter}
               onChange={(v) => setUsageFilter(String(v))}
               options={USAGE_FILTER_OPTIONS}
+              style={{ width: 140 }}
             />
           </ListToolbar>
 

@@ -137,6 +137,14 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("DELETE", "/api/v1/admin/sessions", []),
     ("DELETE", "/api/v1/admin/sessions/{sid}", []),
 
+    # 本人界面偏好 + 锁屏口令：同样是「只读写自己」的自服务能力，
+    # 复用 sessions / rbac-profile 的空权限先例（服务层按 current_user.id 过滤，
+    # 不接受 userId 参数），不新建权限码以免老部署升级后 403。
+    ("GET", "/api/v1/admin/preferences", []),
+    ("PUT", "/api/v1/admin/preferences", []),
+    ("POST", "/api/v1/admin/lock/password", []),
+    ("POST", "/api/v1/admin/lock/verify", []),
+
     # 积分流水
     ("GET", "/api/v1/admin/points/transactions", ["points:view"]),
 

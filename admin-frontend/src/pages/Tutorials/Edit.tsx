@@ -734,7 +734,7 @@ export default function TutorialsEdit() {
         <Section
           icon={<SettingOutlined />}
           title="发布与权限"
-          hint="置顶与推荐只影响前台排序与角标；阅读权限决定谁能读——免费教程所有登录用户可读，会员教程仅认证会员可读。"
+          hint="置顶与推荐只影响前台排序与角标；阅读权限决定谁能读——免费教程所有登录用户可读，会员教程需在线付费开通会员后阅读。"
         >
           <Row gutter={16}>
             <Col xs={24} md={12}>
@@ -764,7 +764,7 @@ export default function TutorialsEdit() {
               <Form.Item
                 label="阅读权限"
                 name="access_mode"
-                extra="免费：登录后即可阅读；会员：知识星球认证会员可读，非会员可按积分价购买后永久阅读。"
+                extra="免费：登录后即可阅读；会员：需在线支付开通会员（默认 Stripe）后可读，也可按积分价购买后永久阅读。"
               >
                 <Radio.Group>
                   <Radio.Button value="free">免费</Radio.Button>

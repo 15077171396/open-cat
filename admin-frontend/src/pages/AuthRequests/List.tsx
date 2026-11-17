@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { Button, Form, Input, Modal, Radio, Segmented, Tag, Tooltip, Typography } from 'antd'
+import { Button, Form, Input, Modal, Radio, Select, Tag, Tooltip, Typography } from 'antd'
 import type { TableProps } from 'antd'
 import { CheckCircleOutlined, ReloadOutlined } from '@ant-design/icons'
 import { apiGet, apiPut } from '../../api/client'
@@ -231,13 +231,14 @@ export default function AuthRequestsList() {
           </Typography.Text>
         )}
       >
-        <Segmented
+        <Select
           value={statusFilter}
           onChange={(v) => {
             setStatusFilter(String(v))
             setPage(1)
           }}
           options={[{ value: '', label: '全部' }, ...statusOptions]}
+          style={{ width: 140 }}
         />
       </ListToolbar>
 

@@ -117,7 +117,8 @@ class SwitchSemanticsTests(unittest.TestCase):
 
 class MenuFilteringTests(unittest.TestCase):
     def _menu_keys(self, tree: dict) -> set[str]:
-        keys = {i["key"] for g in tree["groups"] for i in g["items"]}
+        keys = {i["key"] for i in tree["top"]}
+        keys |= {i["key"] for g in tree["groups"] for i in g["items"]}
         keys |= {i["key"] for i in tree["footer"]}
         return keys
 

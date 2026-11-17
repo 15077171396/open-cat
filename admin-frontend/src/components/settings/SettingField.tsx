@@ -58,6 +58,11 @@ function ImageSettingItem({
   // 当前生效值：自定义值优先，其次默认值（与前台展示逻辑一致）
   const effective = value || def.default
   const isCustom = !!value
+  // 默认值里的根绝对路径（如 /logo_new.png）属于前端 public 资源，需补上当前 base 前缀
+  const effectiveSrc =
+    !isCustom && effective.startsWith('/') && !effective.startsWith('//')
+      ? `${import.meta.env.BASE_URL}${effective.slice(1)}`
+      : effective
 
   const handleUpload = async (file: File) => {
     setUploading(true)
@@ -90,7 +95,7 @@ function ImageSettingItem({
         }}
       >
         {effective ? (
-          <img src={effective} alt={def.label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+          <img src={effectiveSrc} alt={def.label} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
         ) : (
           <PictureOutlined style={{ fontSize: 28, color: 'var(--app-text-4)' }} />
         )}

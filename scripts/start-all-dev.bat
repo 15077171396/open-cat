@@ -14,8 +14,10 @@ rem
 rem  与单独启动的关系：
 rem   后端直接复用 start-backend-dev.bat（自带「先释放 8000」+ venv 检查 +
 rem   --reload 只监听 app/ 与 scheduler/），本脚本不重复实现那套逻辑。
-rem   前端加 --strictPort：端口被占时**直接报错**，而不是悄悄换到 5175
-rem   让人对着旧地址排查。
+rem   前端固定 5175 + --strictPort：端口被占时**直接报错**，而不是悄悄换端口
+rem   再起一个隐藏实例，让人对着旧地址排查。
+rem   后端仍是 8000，所以这里显式把 VITE_API_TARGET 指回 8000；
+rem   vite.config.ts 的默认代理目标是 8001（给独立起后端时用）。
 title AI猫 两端一键启动
 setlocal
 cd /d "%~dp0.."
@@ -36,7 +38,7 @@ echo ============================================================
 echo   正在打开两个窗口（各自独立，互不影响）
 echo ------------------------------------------------------------
 echo   后端       http://127.0.0.1:8000/docs    （热重载 app/ scheduler/）
-echo   管理端     http://127.0.0.1:5174/admin/  （必须带尾斜杠）
+echo   管理端     http://127.0.0.1:5175/admin/  （必须带尾斜杠）
 echo ------------------------------------------------------------
 echo   依赖：MySQL 3306 常驻；Redis 6379 若没起，缓存类功能会降级
 echo   停止：关掉对应窗口即可
@@ -44,7 +46,7 @@ echo ============================================================
 echo.
 
 start "AI猫后端-热重载 (0.0.0.0:8000)" /D "%~dp0" cmd /k "start-backend-dev.bat"
-start "AI猫管理端 (127.0.0.1:5174)" /D "%~dp0..\admin-frontend" cmd /k "node ./node_modules/vite/bin/vite.js --host 127.0.0.1 --strictPort"
+start "AI猫管理端 (127.0.0.1:5175)" /D "%~dp0..\admin-frontend" cmd /k "set VITE_API_TARGET=http://127.0.0.1:8000&& node ./node_modules/vite/bin/vite.js --host 127.0.0.1 --strictPort"
 
 echo [ok] 两个窗口已拉起。本窗口可以关闭。
 timeout /t 5 >nul

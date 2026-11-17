@@ -13,6 +13,8 @@ export interface ChannelState {
   ready: boolean
   detail: string
   issues: string[]
+  /** 是否为当前默认支付渠道（后端 DEFAULT_PAYMENT_PROVIDER 生效结果） */
+  default?: boolean
 }
 
 interface ChannelCardProps {
@@ -58,9 +60,10 @@ export default function ChannelCard({
       <div className="settings-channel__head">
         <span className="settings-channel__icon">{icon}</span>
         <span className="settings-channel__label">{channel.label}</span>
-        <Tag color={enabled ? 'green' : 'default'} style={{ marginLeft: 'auto' }}>
-          {enabled ? '已开启' : '已关闭'}
-        </Tag>
+        <span className="settings-channel__tags">
+          {channel.default && <Tag color="blue">默认渠道</Tag>}
+          <Tag color={enabled ? 'green' : 'default'}>{enabled ? '已开启' : '已关闭'}</Tag>
+        </span>
       </div>
 
       <div className="settings-channel__state">

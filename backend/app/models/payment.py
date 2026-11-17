@@ -60,15 +60,23 @@ class PaymentOrder(Base):
     product_name: Mapped[str] = mapped_column(String(100), comment="商品名称快照")
     product_kind: Mapped[str] = mapped_column(String(20), comment="points/vip")
     amount_cents: Mapped[int] = mapped_column(Integer, comment="应付金额（分）")
+    currency: Mapped[str] = mapped_column(
+        String(8), default="CNY", server_default="CNY", comment="币种（ISO 4217）"
+    )
     points: Mapped[int] = mapped_column(Integer, default=0, server_default="0", comment="积分快照")
     vip_days: Mapped[int] = mapped_column(Integer, default=0, server_default="0", comment="VIP 天数快照")
-    channel: Mapped[str] = mapped_column(String(20), index=True, comment="mock/wechat/alipay")
+    channel: Mapped[str] = mapped_column(
+        String(20), index=True, comment="mock/wechat/alipay/stripe"
+    )
     status: Mapped[str] = mapped_column(
         String(20), default="pending", server_default="pending", index=True,
         comment="pending/paid/closed/refunded/failed",
     )
     provider_trade_no: Mapped[str | None] = mapped_column(
         String(64), nullable=True, unique=True, index=True, comment="第三方交易号"
+    )
+    provider_session_id: Mapped[str | None] = mapped_column(
+        String(255), nullable=True, index=True, comment="第三方会话号（Stripe Checkout Session）"
     )
     provider_payload: Mapped[dict | None] = mapped_column(
         JSON, nullable=True, comment="下单/回调摘要（不含密钥）"

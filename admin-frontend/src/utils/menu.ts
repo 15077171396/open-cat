@@ -45,14 +45,15 @@ export function filterMenuTree(
     if (items.length > 0) groups.push({ ...group, items })
   }
   return {
+    top: tree.top.filter((leaf) => canSeeLeaf(leaf, permissions, isSuper)),
     groups,
     footer: tree.footer.filter((leaf) => canSeeLeaf(leaf, permissions, isSuper)),
   }
 }
 
-/** 扁平化全部叶子项（渲染顺序） */
+/** 扁平化全部叶子项（渲染顺序：顶级独立项 → 分组内 → 页脚） */
 export function flattenLeaves(tree: MenuTree): MenuLeaf[] {
-  const leaves: MenuLeaf[] = []
+  const leaves: MenuLeaf[] = [...tree.top]
   for (const group of tree.groups) leaves.push(...group.items)
   leaves.push(...tree.footer)
   return leaves

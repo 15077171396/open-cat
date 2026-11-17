@@ -50,7 +50,7 @@
 
 .ai-playground__bubble {
   max-width: 82%;
-  border-radius: var(--app-radius-lg, 10px);
+  border-radius: var(--app-radius-lg, 0px);
   padding: 8px 12px;
   line-height: 1.6;
   word-break: break-word;

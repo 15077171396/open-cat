@@ -1,8 +1,10 @@
-import { Fragment, useEffect } from 'react'
+import { Fragment, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { useInRouterContext, useLocation } from 'react-router-dom'
 import { useI18n } from '../../i18n'
 import { usePageTitleStore } from '../../store/pageTitleStore'
+import PageHeaderActions from './PageHeaderActions'
 
 /**
  * 把页头标题注册给标签页。
@@ -67,18 +69,44 @@ export interface PageHeaderProps {
 export default function PageHeader({ icon, title, subtitle, actions, count }: PageHeaderProps) {
   const { t } = useI18n()
   const inRouter = useInRouterContext()
+  const headerRef = useRef<HTMLDivElement>(null)
+  const slotRef = useRef<HTMLDivElement | null>(null)
+  /**
+   * 工具条右侧的挂载点。列表页的操作按钮要和「刷新」在同一行，
+   * 因此运行期找 `ListToolbar` 里的 `.adm-toolbar__actions` 并挂进去；
+   * 找不到（详情页/编辑页没有工具条）就维持原来的页头内联布局。
+   */
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
+
+  useLayoutEffect(() => {
+    if (!actions) {
+      slotRef.current = null
+      setSlot(null)
+      return
+    }
+    const root = headerRef.current?.closest('.adm-page') ?? headerRef.current?.parentElement
+    const target = root?.querySelector<HTMLDivElement>('.adm-toolbar__actions') ?? null
+    slotRef.current = target
+    setSlot(target)
+  }, [actions])
 
   // 数组 = 多段统计；过滤掉空值，避免渲染出「· ·」这种连续分隔符
   const parts = (Array.isArray(subtitle) ? subtitle : subtitle ? [subtitle] : []).filter(Boolean)
 
   return (
-    <div className="adm-header">
+    <div
+      className="adm-header"
+      ref={headerRef}
+      data-empty={actions ? undefined : 'true'}
+      data-in-toolbar={slot ? 'true' : undefined}
+    >
       {/* 标签页标题来源：菜单名兜不住编辑页/新建页，页头注册的标题才是准的 */}
       {inRouter && <RegisterPageTitle title={title} />}
+      {/* 页头文字不再可见：保留在 DOM 里供读屏与标签页使用，视觉上移到内容区之外 */}
       <div className="adm-header__main">
         <span className="adm-header__icon">{icon}</span>
         <div style={{ minWidth: 0 }}>
-          <div className="adm-header__title">{title}</div>
+          <h1 className="adm-header__title">{title}</h1>
           {(subtitle || count) && (
             <div className="adm-header__sub">
               {parts.map((part, index) => (
@@ -98,7 +126,12 @@ export default function PageHeader({ icon, title, subtitle, actions, count }: Pa
           )}
         </div>
       </div>
-      {actions && <div className="adm-header__actions">{actions}</div>}
+      {actions &&
+        (slot ? (
+          createPortal(<PageHeaderActions actions={actions} containerRef={slotRef} />, slot)
+        ) : (
+          <PageHeaderActions actions={actions} containerRef={headerRef} />
+        ))}
     </div>
   )
 }

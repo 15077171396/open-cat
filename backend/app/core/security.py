@@ -99,6 +99,35 @@ def decode_token(token: str) -> Optional[dict]:
         return None
 
 
+# 锁屏解锁令牌：沿用同一套 JWT 密钥/算法，但 type 独立于 access/refresh，
+# 避免被「解锁令牌」冒充登录态（get_current_user 只认 type=access）。
+UNLOCK_TOKEN_TYPE = "unlock"
+UNLOCK_TOKEN_EXPIRE_MINUTES = 5
+
+
+def create_unlock_token(user_id: int) -> str:
+    """签发短期解锁令牌（仅用于本机锁屏解锁，5 分钟失效）。"""
+    expire = datetime.now(timezone.utc) + timedelta(minutes=UNLOCK_TOKEN_EXPIRE_MINUTES)
+    payload = {
+        "sub": str(user_id),
+        "type": UNLOCK_TOKEN_TYPE,
+        "scope": "unlock",
+        "exp": expire,
+        "jti": uuid.uuid4().hex,
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.JWT_ALGORITHM)
+
+
+def decode_unlock_token(token: str) -> Optional[dict]:
+    """解码并校验解锁令牌；普通 access/refresh 令牌一律返回 None。"""
+    payload = decode_token(token)
+    if not payload or payload.get("type") != UNLOCK_TOKEN_TYPE:
+        return None
+    if payload.get("scope") != "unlock" or not str(payload.get("sub", "")).isdigit():
+        return None
+    return payload
+
+
 def create_token_pair(user_id: int, role: str, ver: int = 0, sid: str | None = None) -> dict:
     """生成 access + refresh token 对（ver 为当前用户令牌版本号，sid 为会话 id）。
 

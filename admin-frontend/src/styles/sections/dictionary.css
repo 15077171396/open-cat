@@ -97,7 +97,7 @@
 .dict-value {
   padding: 1px 5px;
   border: 1px solid var(--app-border-light);
-  border-radius: 4px;
+  border-radius: 0;
   background: var(--app-subtle);
   font-size: 12px;
   color: var(--app-text-2);

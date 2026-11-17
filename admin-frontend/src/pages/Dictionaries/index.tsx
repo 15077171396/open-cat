@@ -6,10 +6,10 @@ import {
   Dropdown,
   Form,
   Input,
-  List,
   Popconfirm,
   Row,
   Space,
+  Spin,
   Switch,
   Tag,
   Tooltip,
@@ -375,17 +375,33 @@ export default function Dictionaries() {
                 onChange={(event) => setTypeKeyword(event.target.value)}
               />
             </div>
-            <List
-              size="small"
-              loading={loadingTypes}
-              dataSource={filteredTypes}
-              locale={{ emptyText: '暂无字典类型' }}
-              renderItem={(type) => (
-                <List.Item
-                  className={`dict-type-item${type.id === activeTypeId ? ' is-active' : ''}`}
-                  onClick={() => selectType(type)}
-                  extra={
-                    canUpdate ? (
+            <Spin spinning={loadingTypes}>
+              <div>
+                {filteredTypes.map((type) => (
+                  <div
+                    key={type.id}
+                    className={`dict-type-item ant-list-item${type.id === activeTypeId ? ' is-active' : ''}`}
+                    onClick={() => selectType(type)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 8 }}
+                  >
+                    <div className="dict-type-item__body" style={{ flex: 1 }}>
+                      <div className="dict-type-item__name">
+                        {type.name}
+                        {!type.is_enabled ? <Tag>停用</Tag> : null}
+                      </div>
+                      <div className="dict-type-item__code">{type.code}</div>
+                      <div className="dict-type-item__count">{type.item_count} 项</div>
+                    </div>
+                    {canUpdate ? (
+                      <Switch
+                        size="small"
+                        checked={type.is_enabled}
+                        onClick={(_, event) => event.stopPropagation()}
+                        onChange={(checked) => void updateTypeEnabled(type, checked)}
+                        aria-label={`${type.name} 是否启用`}
+                      />
+                    ) : null}
+                    {canUpdate ? (
                       <Dropdown
                         trigger={['click']}
                         menu={{
@@ -417,29 +433,16 @@ export default function Dictionaries() {
                           onClick={(event) => event.stopPropagation()}
                         />
                       </Dropdown>
-                    ) : null
-                  }
-                >
-                  <div className="dict-type-item__body">
-                    <div className="dict-type-item__name">
-                      {type.name}
-                      {!type.is_enabled ? <Tag>停用</Tag> : null}
-                    </div>
-                    <div className="dict-type-item__code">{type.code}</div>
-                    <div className="dict-type-item__count">{type.item_count} 项</div>
+                    ) : null}
                   </div>
-                  {canUpdate ? (
-                    <Switch
-                      size="small"
-                      checked={type.is_enabled}
-                      onClick={(_, event) => event.stopPropagation()}
-                      onChange={(checked) => void updateTypeEnabled(type, checked)}
-                      aria-label={`${type.name} 是否启用`}
-                    />
-                  ) : null}
-                </List.Item>
-              )}
-            />
+                ))}
+                {!loadingTypes && filteredTypes.length === 0 ? (
+                  <div style={{ padding: '24px 12px', textAlign: 'center', color: 'var(--app-text-2)' }}>
+                    暂无字典类型
+                  </div>
+                ) : null}
+              </div>
+            </Spin>
           </Card>
         </Col>
 

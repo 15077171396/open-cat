@@ -81,6 +81,15 @@ PAYMENT_KEYS = (
     "alipay_notify_url",
     "alipay_return_url",
     "alipay_gateway",
+    # Stripe（默认支付渠道）
+    "stripe_enabled",
+    "stripe_mode",
+    "stripe_secret_key",
+    "stripe_publishable_key",
+    "stripe_webhook_secret",
+    "stripe_currency",
+    "stripe_success_url",
+    "stripe_cancel_url",
 )
 
 ALL_KEYS = tuple(dict.fromkeys(AUTH_KEYS + PAYMENT_KEYS + ("site_base_url",)))
@@ -94,6 +103,8 @@ SECRET_KEYS = frozenset(
         "wechat_pay_api_v3_key",
         "wechat_pay_private_key",
         "alipay_private_key",
+        "stripe_secret_key",
+        "stripe_webhook_secret",
     }
 )
 
@@ -147,6 +158,15 @@ _DEFAULTS: dict[str, str] = {
     "alipay_notify_url": "",
     "alipay_return_url": "",
     "alipay_gateway": "https://openapi.alipay.com/gateway.do",
+    # Stripe：默认开启并由环境变量兜底密钥；密钥缺失时渠道会被判定为不可用
+    "stripe_enabled": "1",
+    "stripe_mode": settings.STRIPE_MODE,
+    "stripe_secret_key": settings.STRIPE_SECRET_KEY,
+    "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
+    "stripe_webhook_secret": settings.STRIPE_WEBHOOK_SECRET,
+    "stripe_currency": settings.STRIPE_CURRENCY,
+    "stripe_success_url": settings.STRIPE_SUCCESS_URL,
+    "stripe_cancel_url": settings.STRIPE_CANCEL_URL,
     "site_base_url": settings.SITE_BASE_URL,
 }
 
@@ -290,4 +310,5 @@ def payment_capabilities(config: IntegrationConfig) -> dict[str, Any]:
         "mock": config.bool("payment_mock_enabled"),
         "wechat": config.bool("wechat_pay_enabled"),
         "alipay": config.bool("alipay_enabled"),
+        "stripe": config.bool("stripe_enabled"),
     }
