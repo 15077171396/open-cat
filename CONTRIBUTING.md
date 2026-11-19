@@ -134,7 +134,7 @@ python scripts/check_compose_scalars.py    # compose 折叠标量里不能有 #
 feat(admin): 用户列表支持按注册来源筛选
 fix(auth): 修 TOTP 校验在时钟偏移下的误判
 refactor(ui): 列表页统一换 DataTable
-docs: 部署说明书补备份恢复章节
+docs: 开发文档补备份恢复章节
 chore(db): 清理下线模块遗留表
 ```
 

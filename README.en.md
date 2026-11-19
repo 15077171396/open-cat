@@ -1,4 +1,4 @@
-# AI Cat · Admin Console
+# Open Cat · Admin Console
 
 **A content back office with button-level RBAC, full operation auditing, UGC moderation and AI writing.**
 Use it to run content and users; use its API to render your own site.
@@ -68,8 +68,8 @@ Want to see it with data?
 docker compose exec app python seed_demo.py
 ```
 
-Seeds 5 tutorials (with 15 chapters), categories, users, comments, feedback, announcements and points
-history — and generates cover images and avatars **into the real storage driver**, so images actually
+Seeds 5 tutorials (with 15 chapters), categories, users, comments, feedback and announcements —
+and generates cover images and avatars **into the real storage driver**, so images actually
 load instead of showing 404 placeholders.
 
 The script is idempotent (titles are prefixed with `【示例】`); it refuses to run on a database that
@@ -86,18 +86,19 @@ already has real content unless you pass `--yes`.
 | **Content (sample domain)** | Tutorials (multi-level chapter tree) / categories / media library — a **copyable reference implementation**: list, chapter tree, editor, review, recycle bin |
 | **Editing** | Quill 2 rich text (tables, code blocks, captions, TOC, Markdown paste), AI rewrite/continue/illustrate, image library search, draft preview |
 | **Moderation** | Machine-review trail, user reports, comment governance (deletable and restorable, never editable) |
-| **Users** | CRUD, ban, soft delete and restore, points adjustment, role assignment, real-name review |
-| **Permissions** | Roles / permission tree / departments / positions, 67 permission codes, button-level |
-| **Audit** | Every write is recorded; high-risk actions keep a **field-level diff** (old → new, secrets masked, long values truncated), searchable by module / actor / time / result |
+| **Users** | CRUD, ban, soft delete and restore, role assignment |
+| **Users** | CRUD, ban, soft delete/restore, **CSV bulk import** (atomic: any invalid row cancels the batch; same password policy) |
+| **Permissions** | Roles / permission tree / departments / positions, 70 permission codes, button-level |
+| **Audit** | Every write is recorded; high-risk actions keep a **field-level diff** (old → new, secrets masked, long values truncated), searchable by module / actor / time / result; **CSV export** for offline archiving (field-level diff deliberately excluded) |
 | **Experience** | Global command palette (Ctrl/Cmd + K): jump to pages, search users / tutorials, switch theme / layout; results land on filtered lists or edit pages. Below 767px the menu becomes a drawer, and comments / moderation / feedback prioritize content columns |
 | **Workplace** | Aggregated page under Overview: permission-aware quick actions, pending to-dos, today's signups / total users, recent audit events and tutorials |
-| **Analytics (demo)** | Standalone analysis page: KPI trends, reading trend, traffic sources, content ranking, content quadrant, new vs returning users, active hours, conversion funnel, quality radar, search terms; rendered with **ECharts** (hover tooltips / emphasis, count-up, line-rise, bar/pie/radar expansion), with animations replaying on range/seed change; **all numbers are browser-local mock data** (no backend calls, no database writes), clearly labelled as demo |
+| **Dashboard** | Core metric cards (signups / users / to-dos), content & registration trends (real data), signup-source donut, content assets; **system metric trends**: hourly snapshots of key gauges (user/content totals, pending backlog, login failures in the last hour) replayed over 24h/3d/7d windows |
 | **Menu management** | Edit sidebar labels (zh/en), icons, order and visibility; changes apply immediately and are audited. Routes and permission codes stay code-defined, so the page deliberately offers no create/delete to avoid dead 404/403 entries |
 | **Dictionaries** | Two-pane dictionary types + items: code/name/description, label/value/order/default/enabled; one default per type; type deletion requires empty items; ships content/moderation/feedback/user dictionaries |
 | **Code generator** | Introspects existing tables and renders Model / Schema / Service / API skeletons plus an integration guide; preview in-page and download a ZIP. Read-only against the database; downloads require `setting:update` and are audited |
-| **Monitoring** | Online users (all sessions, device/IP/activity, force logout), server metrics (CPU/memory/disk/swap/process), Redis cache (INFO, key-prefix distribution, hit rate); read-only with graceful degradation |
-| **Operations** | Announcements (scheduled publish/unpublish), system notifications, recharge plans and orders (read-only), search-term analytics |
-| **System** | 26 groups / 138 settings, login methods, mandatory admin 2FA, payment channels, mail, AI models and pricing, scheduled jobs, legal documents, **deployment readiness**, list export, **header to-do center**, **unified recycle bin**, **version & upgrade**, **backup manager** |
+| **Monitoring** | Online users (all sessions, device/IP/activity, force logout), server metrics (CPU/memory/disk/swap/process), Redis cache (INFO, key-prefix distribution, hit rate), **error log** (recent ERROR events buffered in Redis, each with a request_id for log correlation), **login log** (success/failure/logout trail with masked accounts, IP/UA and failure reasons; view and clear are separately authorized), **IP blacklist** (one IP/CIDR per line, 403 on hit, effective immediately, health checks exempt), **API monitor** (call/error-rate Top and slow-request details, Redis aggregation with zero DB writes), **metric snapshot export** (CSV for ops archiving); read-only with graceful degradation |
+| **Operations** | Announcements (scheduled publish/unpublish), system notifications, search-term analytics |
+| **System** | 26 groups / 138 settings, login methods, mandatory admin 2FA, mail, AI models and pricing, **scheduled jobs** (visible in-app: pause / reschedule / run-now; ships hourly login-log cleanup and metric snapshot jobs), **sensitive-word library** (built-in baseline + custom words UI, hot reload on save), legal documents, **deployment readiness**, list export, **header to-do center**, **unified recycle bin**, **version & upgrade**, **backup manager** |
 | **AI** | Multiple providers (OpenAI-compatible / DeepSeek / Qwen), per-model pricing, global cost guard, per-user quota |
 
 ---
@@ -105,11 +106,11 @@ already has real content unless you pass `--yes`.
 ## Tech stack
 
 **Backend** FastAPI 0.138 · SQLAlchemy 2 (async) · MySQL 8 · Redis 7 · Alembic · APScheduler · Pydantic 2
-**Frontend** React 18 · TypeScript · Vite 5 · Ant Design 6 · Zustand · Quill 2 · ECharts 6 (analytics page)
+**Frontend** React 18 · TypeScript · Vite 5 · Ant Design 6 · Zustand · Quill 2
 **Deploy** Docker Compose · nginx · optional Sentry
 
 ```
-backend/         FastAPI app (285 operations, 171 admin; content API at /api/v1/content/docs)
+backend/         FastAPI app (292 operations, 178 admin; content API at /api/v1/content/docs)
 admin-frontend/  Admin SPA (base=/admin/)
 docs/            Documentation (Chinese)
 ```
@@ -150,7 +151,6 @@ The thing worth reviewing in an open-source project is discipline, not feature c
 | [Technical](docs/07-开源文档/03-技术文档.md) | Choices, key decisions, integrations, limits |
 | [Architecture](docs/07-开源文档/04-架构文档.md) | Layers, auth chain, data model, extension points |
 | [Development](docs/07-开源文档/05-开发文档.md) | Boot, adding a module, tests, PR |
-| [Deployment](docs/04-运维/部署说明书.md) | Production deploy, backup, monitoring, troubleshooting |
 
 ---
 
