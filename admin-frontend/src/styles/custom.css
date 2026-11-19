@@ -45,9 +45,6 @@
 /* 数据看板：pages/Dashboard + components/dashboard/* */
 @import './sections/dashboard.css';
 
-/* 数据分析：pages/Analysis + components/analysis/*（ECharts 图表） */
-@import './sections/analysis.css';
-
 /* 菜单管理：pages/MenuSettings */
 @import './sections/menu-settings.css';
 

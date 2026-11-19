@@ -5,12 +5,12 @@ import ImageSearchPreview from './ImageSearchPreview'
 import type { ImageSearchItem, ImageSearchSource } from './types'
 
 const source: ImageSearchSource = {
-  id: 'sogou', name: '搜狗图片', configured: true, license: '网络图片',
+  id: 'pexels', name: 'Pexels', configured: true, license: '网络图片',
   license_url: '', requires_attribution: false, types: ['photo'], help_url: '',
 }
 
 const item: ImageSearchItem = {
-  source: 'sogou', source_id: '1',
+  source: 'pexels', source_id: '1',
   thumb_url: 'https://example.com/thumb.jpg',
   thumb_proxy_url: '/api/v1/images/search-thumb?token=thumbnail',
   preview_url: 'https://example.com/preview.jpg',
@@ -24,7 +24,7 @@ function grid(items = [item], query = '猫', activeSource = 'all') {
   return (
     <ImageSearchGrid
       sources={[source]}
-      results={{ sogou: { items, page: 1, hasMore: true, loading: false, error: '', skipped: false } }}
+      results={{ pexels: { items, page: 1, hasMore: true, loading: false, error: '', skipped: false } }}
       activeSource={activeSource} selectedKey="" query={query}
       onSelect={vi.fn()} onRetry={vi.fn()} onLoadMore={vi.fn()}
     />
@@ -61,7 +61,7 @@ describe('ImageSearchGrid', () => {
   })
 
   it('still explains an empty result when only that source is selected', () => {
-    render(grid([], '熊猫', 'sogou'))
+    render(grid([], '熊猫', 'pexels'))
     expect(screen.getByText('没有找到相关图片')).toBeInTheDocument()
   })
 

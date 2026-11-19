@@ -46,7 +46,6 @@ vi.mock('../../components/QuillEditor', () => ({
 vi.mock('../../components/EditPageLayout', () => ({
   default: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
 }))
-vi.mock('../../components/NetdiskLinksEditor', () => ({ default: () => null }))
 vi.mock('../../hooks/useCategoryOptions', () => ({ useCategoryOptions: () => [] }))
 
 import EditTutorial from './Edit'
@@ -77,8 +76,6 @@ beforeEach(() => {
       introduction: '',
       category: 'comfyui',
       status: 'updating',
-      access_mode: 'free',
-      points_price: 0,
       is_pinned: false,
       is_recommended: false,
       cover_image: '',

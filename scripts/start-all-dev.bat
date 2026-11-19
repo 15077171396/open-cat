@@ -18,7 +18,7 @@ rem   前端固定 5175 + --strictPort：端口被占时**直接报错**，而�
 rem   再起一个隐藏实例，让人对着旧地址排查。
 rem   后端仍是 8000，所以这里显式把 VITE_API_TARGET 指回 8000；
 rem   vite.config.ts 的默认代理目标是 8001（给独立起后端时用）。
-title AI猫 两端一键启动
+title 两端一键启动
 setlocal
 cd /d "%~dp0.."
 
@@ -45,8 +45,8 @@ echo   停止：关掉对应窗口即可
 echo ============================================================
 echo.
 
-start "AI猫后端-热重载 (0.0.0.0:8000)" /D "%~dp0" cmd /k "start-backend-dev.bat"
-start "AI猫管理端 (127.0.0.1:5175)" /D "%~dp0..\admin-frontend" cmd /k "set VITE_API_TARGET=http://127.0.0.1:8000&& node ./node_modules/vite/bin/vite.js --host 127.0.0.1 --strictPort"
+start "后端-热重载 (0.0.0.0:8000)" /D "%~dp0" cmd /k "start-backend-dev.bat"
+start "管理端 (127.0.0.1:5175)" /D "%~dp0..\admin-frontend" cmd /k "set VITE_API_TARGET=http://127.0.0.1:8000&& node ./node_modules/vite/bin/vite.js --host 127.0.0.1 --strictPort"
 
 echo [ok] 两个窗口已拉起。本窗口可以关闭。
 timeout /t 5 >nul

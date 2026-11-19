@@ -1,5 +1,5 @@
 {
-  "name": "ai-cat-admin-frontend",
+  "name": "open-cat-admin-frontend",
   "version": "1.0.0",
   "license": "MIT",
   "type": "module",
@@ -19,7 +19,6 @@
     "axios": "^1.7.3",
     "dayjs": "^1.11.13",
     "dompurify": "^3.4.17",
-    "echarts": "^6.1.0",
     "marked": "^18.0.6",
     "quill": "^2.0.3",
     "quill-delta": "^5.1.0",

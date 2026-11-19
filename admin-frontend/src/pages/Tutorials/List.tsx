@@ -32,13 +32,6 @@ const RECYCLE_VIEW_OPTIONS = [
   { value: 'deleted', label: '回收站' },
 ]
 
-/** 阅读权限筛选项 */
-const ACCESS_MODE_FILTER_OPTIONS = [
-  { value: '', label: '全部权限' },
-  { value: 'free', label: '免费' },
-  { value: 'vip', label: '会员专享' },
-]
-
 /** 千分位；缺值显示「—」而不是 0（旧后端不返回该字段时不该谎报 0） */
 function formatCount(value: number | undefined | null): string {
   if (typeof value !== 'number') return '—'
@@ -52,14 +45,6 @@ function statusTag(status: string): ReactNode {
   ) : (
     <Tag color="warning">更新中</Tag>
   )
-}
-
-/** 阅读权限标签 */
-function accessTag(t: Tutorial): ReactNode {
-  if (t.access_mode === 'vip') {
-    return <Tag color="gold">会员{t.points_price > 0 ? ` · ${t.points_price}积分` : ''}</Tag>
-  }
-  return <Tag color="blue">免费</Tag>
 }
 
 export default function TutorialsList() {
@@ -76,7 +61,6 @@ export default function TutorialsList() {
   const [category, setCategory] = useState('')
   const [status, setStatus] = useState('')
   const [publishFilter, setPublishFilter] = useState('')
-  const [accessMode, setAccessMode] = useState('')
   // 回收站视图：'deleted' 时列表只显示已软删除的教程（后端按 deleted 参数过滤）
   const [recycleView, setRecycleView] = useState('active')
 
@@ -85,7 +69,6 @@ export default function TutorialsList() {
   if (category) params.category = category
   if (status) params.status = status
   if (publishFilter !== '') params.is_published = publishFilter === 'published'
-  if (accessMode) params.access_mode = accessMode
   if (recycleView === 'deleted') params.deleted = 'deleted'
 
   const { items: tutorials, loading, page, pageSize, total, refresh, handleDelete, setPage } = useCrudList<Tutorial>({
@@ -95,7 +78,7 @@ export default function TutorialsList() {
     deleteSuccessMessage: '已移入回收站（可在回收站恢复）',
     // 软删除必须说清「可恢复」，否则运营不敢点，或者以为已经彻底删了
     deleteConfirm: (label) =>
-      label ? `确认将 ${label} 移入回收站？可随时恢复，章节与购买记录会保留。` : '确认移入回收站？',
+      label ? `确认将 ${label} 移入回收站？可随时恢复，章节内容会保留。` : '确认移入回收站？',
   })
 
   // 批量选择与操作
@@ -148,7 +131,6 @@ export default function TutorialsList() {
     setCategory('')
     setStatus('')
     setPublishFilter('')
-    setAccessMode('')
     setRecycleView('active')
     setSelectedIds([])
     setPage(1)
@@ -157,7 +139,7 @@ export default function TutorialsList() {
   const inRecycle = recycleView === 'deleted'
 
   const hasFilter =
-    !!keyword.trim() || !!category || !!status || publishFilter !== '' || !!accessMode || inRecycle
+    !!keyword.trim() || !!category || !!status || publishFilter !== '' || inRecycle
 
   const handleBatchPublish = async (publish: boolean) => {
     setBatchLoading(true)
@@ -179,7 +161,7 @@ export default function TutorialsList() {
   const handleBatchDelete = () => {
     Modal.confirm({
       title: '批量移入回收站',
-      content: `确认将选中的 ${selectedIds.length} 篇教程移入回收站？章节与购买记录会保留，可随时恢复。`,
+      content: `确认将选中的 ${selectedIds.length} 篇教程移入回收站？章节内容会保留，可随时恢复。`,
       okText: '删除',
       okType: 'danger',
       cancelText: '取消',
@@ -312,13 +294,6 @@ export default function TutorialsList() {
       width: 100,
       render: (v: boolean) =>
         v ? <Tag color="success">已发布</Tag> : <Tag color="default">草稿</Tag>,
-    },
-    {
-      title: '阅读权限',
-      dataIndex: 'access_mode',
-      key: 'access_mode',
-      width: 124,
-      render: (_: unknown, t: Tutorial) => accessTag(t),
     },
     {
       title: '学习',
@@ -527,15 +502,6 @@ export default function TutorialsList() {
           options={PUBLISH_FILTER_OPTIONS}
           style={{ width: 140 }}
         />
-        <Select
-          value={accessMode}
-          onChange={(v) => {
-            setAccessMode(v)
-            handleFilterChange()
-          }}
-          options={ACCESS_MODE_FILTER_OPTIONS}
-          style={{ width: 130 }}
-        />
       </ListToolbar>
 
       {/* 列表 */}
@@ -544,7 +510,7 @@ export default function TutorialsList() {
         columns={columns}
         rowKey="id"
         loading={loading}
-        scrollX={1164}
+        scrollX={1040}
         rowSelection={{
         selectedRowKeys: selectedIds,
         onChange: (keys) => setSelectedIds(keys as number[]),
@@ -554,7 +520,7 @@ export default function TutorialsList() {
       />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        提示：批量删除会一并清除所选教程的章节与购买记录，操作不可恢复。
+        提示：批量删除会一并清除所选教程的章节内容，操作不可恢复。
       </Typography.Text>
     </div>
   )

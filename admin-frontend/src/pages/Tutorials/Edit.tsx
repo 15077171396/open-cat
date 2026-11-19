@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { Button, Col, Empty, Form, Input, InputNumber, Popconfirm, Radio, Row, Select, Space, Switch, Upload } from 'antd'
+import { Button, Col, Empty, Form, Input, Popconfirm, Row, Select, Space, Switch, Upload } from 'antd'
 import {
   ArrowDownOutlined,
   ArrowUpOutlined,
   CheckCircleOutlined,
   CheckOutlined,
-  CloudDownloadOutlined,
   DeleteOutlined,
   DownOutlined,
   EditOutlined,
@@ -30,16 +29,15 @@ import AiWritingDrawer from '../../components/ai-writing/AiWritingDrawer'
 import { pickTutorialArticleText } from '../../components/ai-writing/text'
 import type { AiFillField, WritingOptions } from '../../components/ai-writing/types'
 import { markdownToSafeHtml } from '../../components/editor/markdown'
-import NetdiskLinksEditor from '../../components/NetdiskLinksEditor'
 import EditPageLayout from '../../components/EditPageLayout'
 import Section from '../../components/AdminSection'
 import { useCategoryOptions } from '../../hooks/useCategoryOptions'
 import { useUnsavedChangesGuard, clearFormTouched } from '../../hooks/useUnsavedChangesGuard'
-import { TUTORIAL_CATEGORIES, TUTORIAL_STATUSES, EMPTY_NETDISK_LINK } from '../../constants'
+import { TUTORIAL_CATEGORIES, TUTORIAL_STATUSES } from '../../constants'
 import { getErrorMessage, isFormValidationError } from '../../utils/error'
 import { isSafeUrl } from '../../utils/url'
 import { uploadImage } from '../../utils/upload'
-import type { NetdiskLink, Tutorial, TutorialStatus } from '../../types'
+import type { Tutorial, TutorialStatus } from '../../types'
 
 import { toast } from '../../utils/toast'
 /** 管理端章节树节点（GET/POST /admin/tutorials/:id/nodes） */
@@ -58,8 +56,6 @@ interface TutorialFormValues {
   introduction: string
   category: string
   status: TutorialStatus
-  access_mode: 'free' | 'vip'
-  points_price: number
   is_pinned: boolean
   is_recommended: boolean
   cover_image: string
@@ -79,13 +75,10 @@ export default function TutorialsEdit() {
   const [form] = Form.useForm<TutorialFormValues>()
   const [loading, setLoading] = useState(isEdit)
   const [saving, setSaving] = useState(false)
-  const [tutorialLinks, setTutorialLinks] = useState<NetdiskLink[]>([{ ...EMPTY_NETDISK_LINK }])
   const categoryOptions = useCategoryOptions('tutorial', TUTORIAL_CATEGORIES)
   const [coverUploading, setCoverUploading] = useState(false)
   // 学习次数（详情接口返回）：仅用于「发布检查」区展示
   const [viewCount, setViewCount] = useState<number | null>(null)
-  // 配套资源链接的初始快照（isFieldsTouched 覆盖不到表单外的 state，用 JSON 比较补充）
-  const initialLinksJsonRef = useRef(JSON.stringify([{ ...EMPTY_NETDISK_LINK }]))
 
   // 章节管理状态
   const [nodeTree, setNodeTree] = useState<AdminNode[]>([])
@@ -225,10 +218,8 @@ export default function TutorialsEdit() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId])
 
-  // 未保存守卫：基本信息表单 + 当前章节正文 + 配套资源链接（isFieldsTouched() 无参 = 任意字段被编辑过）
-  const confirmLeave = useUnsavedChangesGuard(
-    () => form.isFieldsTouched() || isDirty || JSON.stringify(tutorialLinks) !== initialLinksJsonRef.current,
-  )
+  // 未保存守卫：基本信息表单 + 当前章节正文（isFieldsTouched() 无参 = 任意字段被编辑过）
+  const confirmLeave = useUnsavedChangesGuard(() => form.isFieldsTouched() || isDirty)
 
   // 「发布检查」与侧栏预览要随输入即时更新（Form.Item 内的值读不到响应式变化）
   const watchedTitle = Form.useWatch('title', form)
@@ -242,7 +233,6 @@ export default function TutorialsEdit() {
     return count(nodeTree)
   }, [nodeTree])
 
-  const linkCount = tutorialLinks.filter((l) => l.url.trim()).length
   const checklist = [
     { label: '教程标题', done: !!(watchedTitle || '').trim() },
     { label: '课程简介', done: !!(watchedDescription || '').trim() },
@@ -292,8 +282,6 @@ export default function TutorialsEdit() {
             introduction,
             category: d.category || TUTORIAL_CATEGORIES[0],
             status: d.status || 'updating',
-            access_mode: d.access_mode || 'free',
-            points_price: d.points_price ?? 0,
             is_pinned: d.is_pinned ?? false,
             is_recommended: d.is_recommended ?? false,
             cover_image: d.cover_image || '',
@@ -302,18 +290,8 @@ export default function TutorialsEdit() {
             seo_keywords: d.seo_keywords || '',
           })
           // antd v6：程序化回填会把字段标记为 touched，需清除避免未保存守卫误报
-          clearFormTouched(form, ['title', 'description', 'introduction', 'category', 'status', 'access_mode', 'points_price', 'is_pinned', 'is_recommended', 'cover_image', 'seo_title', 'seo_description', 'seo_keywords'])
+          clearFormTouched(form, ['title', 'description', 'introduction', 'category', 'status', 'is_pinned', 'is_recommended', 'cover_image', 'seo_title', 'seo_description', 'seo_keywords'])
           setViewCount(typeof d.view_count === 'number' ? d.view_count : null)
-          setTutorialLinks(
-            d.netdisk_links?.length
-              ? d.netdisk_links.map((l) => ({ platform: l.platform, url: l.url, extract_code: l.extract_code || '' }))
-              : [{ ...EMPTY_NETDISK_LINK }]
-          )
-          initialLinksJsonRef.current = JSON.stringify(
-            d.netdisk_links?.length
-              ? d.netdisk_links.map((l) => ({ platform: l.platform, url: l.url, extract_code: l.extract_code || '' }))
-              : [{ ...EMPTY_NETDISK_LINK }],
-          )
         } catch (err) {
           toast.error(getErrorMessage(err, '加载教程失败'))
           navigate('/tutorials')
@@ -501,23 +479,13 @@ export default function TutorialsEdit() {
         toast.error('封面图 URL 必须以 http:// 或 https:// 开头')
         return
       }
-      const invalidLinks = tutorialLinks.filter((l) => l.url.trim() && !isSafeUrl(l.url))
-      if (invalidLinks.length > 0) {
-        toast.error('网盘链接必须以 http:// 或 https:// 开头')
-        return
-      }
       setSaving(true)
       const payload = {
         ...values,
-        // 免费模式积分价归零（与后端归一口径一致，避免表单残留脏值）
-        points_price: values.access_mode === 'free' ? 0 : values.points_price ?? 0,
         // SEO 信息：trim 后清空，空串由后端按「清除」处理（前台回落默认标题/简介）
         seo_title: values.seo_title?.trim() || '',
         seo_description: values.seo_description?.trim() || '',
         seo_keywords: values.seo_keywords?.trim() || '',
-        netdisk_links: tutorialLinks
-          .filter((l) => l.url.trim())
-          .map((l) => ({ platform: l.platform, url: l.url, extract_code: l.extract_code })),
       }
       if (isEdit && id) {
         await client.put(`/admin/tutorials/${id}`, payload)
@@ -630,8 +598,6 @@ export default function TutorialsEdit() {
           introduction: '',
           category: TUTORIAL_CATEGORIES[0],
           status: 'updating',
-          access_mode: 'free',
-          points_price: 0,
           is_pinned: false,
           is_recommended: false,
           cover_image: '',
@@ -733,8 +699,8 @@ export default function TutorialsEdit() {
 
         <Section
           icon={<SettingOutlined />}
-          title="发布与权限"
-          hint="置顶与推荐只影响前台排序与角标；阅读权限决定谁能读——免费教程所有登录用户可读，会员教程需在线付费开通会员后阅读。"
+          title="发布与排序"
+          hint="置顶与推荐只影响前台排序与角标。"
         >
           <Row gutter={16}>
             <Col xs={24} md={12}>
@@ -755,46 +721,6 @@ export default function TutorialsEdit() {
                 extra="推荐教程卡片显示「推荐」角标并排序提前"
               >
                 <Switch checkedChildren="推荐" unCheckedChildren="普通" />
-              </Form.Item>
-            </Col>
-          </Row>
-
-          <Row gutter={16}>
-            <Col xs={24} md={12}>
-              <Form.Item
-                label="阅读权限"
-                name="access_mode"
-                extra="免费：登录后即可阅读；会员：需在线支付开通会员（默认 Stripe）后可读，也可按积分价购买后永久阅读。"
-              >
-                <Radio.Group>
-                  <Radio.Button value="free">免费</Radio.Button>
-                  <Radio.Button value="vip">会员专享</Radio.Button>
-                </Radio.Group>
-              </Form.Item>
-            </Col>
-            <Col xs={24} md={12}>
-              {/* 仅会员模式可设置积分价；切换为免费时保存会自动归零 */}
-              <Form.Item noStyle shouldUpdate={(prev, cur) => prev.access_mode !== cur.access_mode}>
-                {() => {
-                  const isVip = form.getFieldValue('access_mode') === 'vip'
-                  return (
-                    <Form.Item
-                      label="积分购买价"
-                      name="points_price"
-                      extra={isVip ? '非会员可用该积分购买本教程，购买后永久可读；0 表示不支持积分购买。' : '仅「会员专享」教程支持设置积分购买价。'}
-                    >
-                      <InputNumber
-                        min={0}
-                        max={1000000}
-                        precision={0}
-                        suffix="积分"
-                        style={{ width: '100%' }}
-                        disabled={!isVip}
-                        placeholder="如 100"
-                      />
-                    </Form.Item>
-                  )
-                }}
               </Form.Item>
             </Col>
           </Row>
@@ -906,18 +832,6 @@ export default function TutorialsEdit() {
         <div className="adm-divider" />
 
         <Section
-          icon={<CloudDownloadOutlined />}
-          title="配套资源"
-          hint="教程附带的网盘链接或官方直链；留空则前台不显示「配套资源」区域。"
-        >
-          <Form.Item style={{ marginBottom: 0 }}>
-            <NetdiskLinksEditor links={tutorialLinks} onChange={setTutorialLinks} />
-          </Form.Item>
-        </Section>
-
-        <div className="adm-divider" />
-
-        <Section
           icon={<SearchOutlined />}
           title="SEO 信息（选填）"
           hint="仅用于搜索引擎收录展示（教程介绍页与章节阅读页的标题、摘要与关键词），前台页面不显示；未填写时自动使用教程标题与简介。"
@@ -980,8 +894,6 @@ export default function TutorialsEdit() {
             章节 <strong>{nodeCount}</strong> 个
             <span className="adm-sep"> · </span>
             学习 <strong>{viewCount == null ? '—' : viewCount.toLocaleString('zh-CN')}</strong> 次
-            <span className="adm-sep"> · </span>
-            配套资源 <strong>{linkCount}</strong> 条
           </div>
         </Section>
       </Form>

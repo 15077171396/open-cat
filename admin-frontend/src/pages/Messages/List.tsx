@@ -12,7 +12,7 @@ import {
 } from 'antd'
 import type { TableProps } from 'antd'
 import { NotificationOutlined, ReloadOutlined, SendOutlined } from '@ant-design/icons'
-import { apiGet, apiPost, idempotentConfig, newIdempotencyKey } from '../../api/client'
+import { apiGet, apiPost, apiPut, idempotentConfig, newIdempotencyKey } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
 import { getErrorMessage } from '../../utils/error'
 import { formatTime } from '../../utils/datetime'
@@ -28,6 +28,13 @@ import { DataTable, ModalForm } from '../../components/ui'
  * 发送权限单独成码（`message:send`）：群发是**面向全体用户**的触达能力，
  * 发错一次就是全站可见事故，与「看已发记录」不是同一类授权。
  */
+
+/** 站内通知模板（发送弹窗一键套用；增删与发送同级授权 message:send） */
+interface MessageTemplate {
+  name: string
+  title: string
+  content: string
+}
 
 interface MessageBatch {
   batch_id: string
@@ -59,8 +66,56 @@ export default function MessageList() {
   // 连点两次「发送」= 同一个 key，服务端只发一批；关掉重开 = 新 key，是一次新的发送。
   const sendKeyRef = useRef(newIdempotencyKey())
   const [userOptions, setUserOptions] = useState<{ label: string; value: number }[]>([])
+  const [templates, setTemplates] = useState<MessageTemplate[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [form] = Form.useForm<SendFormValues>()
   const target = Form.useWatch('target', form)
+
+  /** 模板清单：发送弹窗打开时拉取（失败静默 —— 模板是便利功能，不卡发送） */
+  const loadTemplates = useCallback(async () => {
+    try {
+      const data = await apiGet<{ templates: MessageTemplate[] }>('/admin/message-templates')
+      setTemplates(data.templates || [])
+    } catch {
+      setTemplates([])
+    }
+  }, [])
+
+  /** 把当前填写的标题/正文存为模板（name=标题，同名覆盖） */
+  const saveCurrentAsTemplate = async () => {
+    const values = form.getFieldsValue()
+    const title = (values.title || '').trim()
+    const content = (values.content || '').trim()
+    if (!title || !content) {
+      toast.warning('请先填写标题与内容再存为模板')
+      return
+    }
+    const next = [
+      ...templates.filter((t) => t.name !== title),
+      { name: title, title, content },
+    ].slice(0, 20)
+    try {
+      await apiPut('/admin/message-templates', { templates: next })
+      setTemplates(next)
+      setSelectedTemplate(title)
+      toast.success(`已存为模板「${title}」`)
+    } catch (err) {
+      toast.error(getErrorMessage(err, '模板保存失败'))
+    }
+  }
+
+  /** 删除当前选中模板（整份清单保存语义） */
+  const deleteTemplate = async (name: string) => {
+    const next = templates.filter((t) => t.name !== name)
+    try {
+      await apiPut('/admin/message-templates', { templates: next })
+      setTemplates(next)
+      setSelectedTemplate(null)
+      toast.success(`已删除模板「${name}」`)
+    } catch (err) {
+      toast.error(getErrorMessage(err, '模板删除失败'))
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -152,19 +207,27 @@ export default function MessageList() {
       ),
     },
     {
-      title: '送达 / 已读',
+      title: '送达 / 已读 / 已读率',
       key: 'stats',
-      width: 140,
-      render: (_: unknown, row) => (
-        <Space size={4}>
-          <Tag color="blue" style={{ margin: 0 }}>
-            {row.sent_count} 人
-          </Tag>
-          <Tag color={row.read_count > 0 ? 'green' : 'default'} style={{ margin: 0 }}>
-            读 {row.read_count}
-          </Tag>
-        </Space>
-      ),
+      width: 200,
+      render: (_: unknown, row) => {
+        // 已读率：已读数 / 送达数；送达数为 0（历史边界）时显示「—」而不是 0%
+        const rate =
+          row.sent_count > 0 ? `${Math.round((row.read_count / row.sent_count) * 100)}%` : '—'
+        return (
+          <Space size={4}>
+            <Tag color="blue" style={{ margin: 0 }}>
+              {row.sent_count} 人
+            </Tag>
+            <Tag color={row.read_count > 0 ? 'green' : 'default'} style={{ margin: 0 }}>
+              读 {row.read_count}
+            </Tag>
+            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
+              {rate}
+            </Typography.Text>
+          </Space>
+        )
+      },
     },
     {
       title: '发送时间',
@@ -196,6 +259,7 @@ export default function MessageList() {
                 onClick={() => {
                   sendKeyRef.current = newIdempotencyKey()
                   setSendOpen(true)
+                  void loadTemplates()
                 }}
               >
                 发送通知
@@ -239,6 +303,36 @@ export default function MessageList() {
             ]}
           >
             <Input placeholder="例如：平台新增「AI 绘画」专题教程" maxLength={60} showCount />
+          </Form.Item>
+
+          {/* 模板套用与保存：常用通知文案（维护公告/新功能上线等）一键填充；
+              增删与发送同级授权（模板内容最终会以管理员名义群发） */}
+          <Form.Item label="套用模板">
+            <Space wrap>
+              <Select
+                style={{ width: 220 }}
+                placeholder="选择模板填充标题与内容"
+                allowClear
+                value={selectedTemplate ?? undefined}
+                onChange={(name) => {
+                  setSelectedTemplate(name ?? null)
+                  const tpl = templates.find((t) => t.name === name)
+                  if (!tpl) return
+                  form.setFieldsValue({ title: tpl.title, content: tpl.content })
+                  toast.success(`已套用模板「${name}」，可继续编辑`)
+                }}
+                options={templates.map((t) => ({ value: t.name, label: t.name }))}
+                notFoundContent={templates.length ? undefined : '暂无模板（填写内容后可存为模板）'}
+              />
+              <Button size="small" onClick={() => void saveCurrentAsTemplate()}>
+                存为模板
+              </Button>
+              {selectedTemplate && (
+                <Button size="small" danger onClick={() => void deleteTemplate(selectedTemplate)}>
+                  删除模板
+                </Button>
+              )}
+            </Space>
           </Form.Item>
 
           <Form.Item

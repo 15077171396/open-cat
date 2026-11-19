@@ -79,7 +79,6 @@ interface AuditLogResponse {
 /** 角色英文码 → 中文名（与用户管理页口径一致；RBAC 角色另有 roles 字段单独展示） */
 const ROLE_LABELS: Record<string, string> = {
   admin: '管理员',
-  vip: '会员',
   user: '普通用户',
 }
 

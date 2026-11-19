@@ -3,7 +3,7 @@ import { Tag } from 'antd'
 import { CheckCircleFilled, ExclamationCircleFilled } from '@ant-design/icons'
 import './settingsKit.css'
 
-/** 后端下发的渠道摘要（登录管理 channels[] / 支付与渠道 channels[] 同构） */
+/** 后端下发的渠道摘要（登录管理 channels[] 等设置类页面同构） */
 export interface ChannelState {
   key: string
   label: string
@@ -13,7 +13,7 @@ export interface ChannelState {
   ready: boolean
   detail: string
   issues: string[]
-  /** 是否为当前默认支付渠道（后端 DEFAULT_PAYMENT_PROVIDER 生效结果） */
+  /** 是否为默认渠道（后端标注；如需突出某个主渠道时使用） */
   default?: boolean
 }
 

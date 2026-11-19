@@ -104,13 +104,13 @@ const BLOCKED_DATA = {
       link: '/mail-settings',
     },
     {
-      key: 'payment',
-      label: '支付渠道',
+      key: 'ai',
+      label: 'AI 能力',
       status: 'error' as const,
       required: false,
-      detail: '微信支付缺 wechat_pay_mch_id',
-      action: '凭据不齐时回调验签不过',
-      link: '/payment-settings',
+      detail: '默认模型密钥缺失',
+      action: '凭据不齐时对话必然失败',
+      link: '/ai-models',
     },
   ],
   summary: {
@@ -151,7 +151,7 @@ describe('部署体检', () => {
     mockedGet.mockResolvedValue(BLOCKED_DATA)
     renderPage()
 
-    await waitFor(() => expect(screen.getByText('支付渠道')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('AI 能力')).toBeInTheDocument())
     // error 用「有问题」，unconfigured 用「未配置」—— 用户能据此判断是自己没填还是填错了
     expect(screen.getByText('有问题')).toBeInTheDocument()
     expect(screen.getAllByText('未配置').length).toBe(2)

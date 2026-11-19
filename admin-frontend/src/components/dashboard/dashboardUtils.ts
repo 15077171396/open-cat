@@ -14,10 +14,6 @@ import type {
   DashboardTrendPoint,
   NormalizedAiUsage,
   NormalizedDashboard,
-  ContentAttributionData,
-  FunnelOverviewData,
-  NormalizedAttribution,
-  NormalizedFunnel,
   NormalizedSystemStatus,
   NormalizedScheduledJobs,
   ScheduledJobStatus,
@@ -225,12 +221,6 @@ function toCount(value: unknown): number {
   return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0
 }
 
-/** 比率兜底：保留一位小数（后端 conversion_rate 即一位小数） */
-function toRate(value: unknown): number {
-  const n = typeof value === 'number' ? value : Number(value)
-  return Number.isFinite(n) ? Math.round(n * 10) / 10 : 0
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
@@ -257,10 +247,6 @@ export function normalizeDashboard(
   const source = src.registration_source ?? { phone: 0, email: 0 }
   return {
     today_registrations: toCount(src.today_registrations),
-    today_downloads: toCount(src.today_downloads),
-    conversion_rate: toRate(src.conversion_rate),
-    approved_count: toCount(src.approved_count),
-    download_trend: toTrend(src.download_trend),
     total_users: toCount(src.total_users),
     total_tutorials: toCount(src.total_tutorials),
     registration_source: {
@@ -268,13 +254,11 @@ export function normalizeDashboard(
       email: toCount(source.email),
     },
     registration_trend: toTrend(src.registration_trend),
-    active_users_7d: toCount(src.active_users_7d),
-    today_tool_usage: toCount(src.today_tool_usage),
+    content_trend: toTrend(src.content_trend),
     content_overview: {
       tutorials: toCount(overview.tutorials),
     },
     pending: {
-      auth_requests: toCount(pending.auth_requests),
       feedbacks: toCount(pending.feedbacks),
     },
   }
@@ -687,100 +671,6 @@ export function formatCst(epoch: number | null | undefined): string {
   // zh-CN 的 24 点会输出 "24"，统一成 "00"（否则「10-27 24:00」这种不存在的时刻会出现）
   const hour = get('hour') === '24' ? '00' : get('hour')
   return `${get('month')}-${get('day')} ${hour}:${get('minute')}`
-}
-
-// 六、转化漏斗与留存
-
-/**
- * 归一化漏斗数据。
- *
- * 关键约定：`count === null` 表示**聚合失败（未知）**，必须原样保留成 null，
- * 不能兜底成 0 —— 「没人走到这一步」与「不知道有多少人」是两件完全不同的事，
- * 混成 0 会让运营误判「这一段彻底没人要」。
- */
-export function normalizeFunnel(raw: FunnelOverviewData | null | undefined): NormalizedFunnel {
-  const src = raw ?? {}
-  const funnel = src.funnel ?? {}
-  const retention = src.retention ?? {}
-
-  const toNullableNumber = (value: unknown): number | null =>
-    typeof value === 'number' && Number.isFinite(value) ? value : null
-  const toRate = (value: unknown): number | null => {
-    const n = toNullableNumber(value)
-    if (n === null) return null
-    return Math.min(1, Math.max(0, n))
-  }
-
-  return {
-    days: toCount(funnel.days ?? 30),
-    since: String(funnel.since ?? ''),
-    stages: (funnel.stages ?? []).map((stage) => ({
-      key: String(stage.key ?? ''),
-      label: String(stage.label ?? stage.key ?? ''),
-      count: toNullableNumber(stage.count),
-      rateFromStart: toRate(stage.rate_from_start),
-      rateFromPrev: toRate(stage.rate_from_prev),
-    })),
-    approvalRate: toRate(funnel.approval_rate),
-    paidRate: toRate(funnel.paid_rate),
-    retentionDays: toCount(retention.days ?? 14),
-    retention: (retention.rows ?? []).map((row) => ({
-      date: String(row.date ?? ''),
-      cohort: toCount(row.cohort ?? 0),
-      d1Active: toNullableNumber(row.d1_active),
-      d7Active: toNullableNumber(row.d7_active),
-      d1Rate: toRate(row.d1_rate),
-      d7Rate: toRate(row.d7_rate),
-    })),
-  }
-}
-
-/**
- * 百分比展示：null → 「—」。
- *
- * 刻意不把 null 显示成 0%：分母为 0（还没有样本）与「转化率真的是零」在运营决策上
- * 是相反的两件事 —— 前者应继续观察，后者要立刻改产品。
- * 小于 0.1% 保留两位小数，避免「明明有人转化却显示 0%」。
- */
-export function formatPercent(rate: number | null | undefined): string {
-  if (rate === null || rate === undefined || !Number.isFinite(rate)) return '—'
-  const percent = rate * 100
-  if (percent > 0 && percent < 0.1) return '<0.1%'
-  if (percent >= 10) return `${percent.toFixed(1)}%`
-  return `${percent.toFixed(1)}%`
-}
-
-// 七、内容归因
-
-/**
- * 归一化内容归因数据。
- *
- * `available === false` 表示**还没采集**（迁移未执行 / 新部署），
- * 与「采集了但这几天没人浏览」是两件事：前者要去跑迁移，后者是正常现象。
- * `rate === null` 同理不能兜底成 0（viewers 为 0 时根本没有分母）。
- */
-export function normalizeAttribution(raw: ContentAttributionData | null | undefined): NormalizedAttribution {
-  const src = raw ?? {}
-  const toNullableNumber = (value: unknown): number | null =>
-    typeof value === 'number' && Number.isFinite(value) ? value : null
-  return {
-    days: toCount(src.days ?? 30),
-    available: src.available !== false,
-    windowDays: toCount(src.attribution_window_days ?? 7),
-    totalViews: toCount(src.total_views ?? 0),
-    totalViewers: toCount(src.total_viewers ?? 0),
-    items: (src.items ?? []).map((item) => {
-      const rate = toNullableNumber(item.rate)
-      return {
-        type: String(item.target_type ?? ''),
-        id: toCount(item.target_id ?? 0),
-        title: String(item.title ?? ''),
-        viewers: toCount(item.viewers ?? 0),
-        converted: toCount(item.converted ?? 0),
-        rate: rate === null ? null : Math.min(1, Math.max(0, rate)),
-      }
-    }),
-  }
 }
 
 // 八、定时任务（GET /admin/scheduled-jobs）

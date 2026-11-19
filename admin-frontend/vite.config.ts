@@ -32,7 +32,7 @@ export default defineConfig(({ command }) => {
     ],
     base: '/admin/',
     server: {
-      // 固定 5175，与旧 ai-cat 副本（5174）区分开。
+      // 固定 5175（--strictPort，端口占用直接报错）。
       // strictPort：端口被占时直接报错，而不是静默换到下一个端口 ——
       // 历史上正是「悄悄换端口」留下多个隐藏实例，导致页面开到旧界面。
       port: 5175,

@@ -100,6 +100,10 @@ ALLOW_DEFAULT_ONLY: dict[str, str] = {
         "容器内必须是 volumes 的挂载点 /app/backups，compose 已写死；"
         "允许 .env 覆盖只会让该项显示「不可见」（宿主机路径在容器里不存在）"
     ),
+    # 站内通知模板（2026-11-19）：JSON 清单只在「消息通知 → 发送通知」弹窗内维护，
+    # env 仅作占位（存 .env 里的 JSON 无法校验且极易写错）
+    "MESSAGE_TEMPLATES": "后台弹窗内维护，env 仅占位",
+    "SESSION_MAX_DAYS": "后台「登录管理」可调，默认 30 天即产品决策",
 }
 
 

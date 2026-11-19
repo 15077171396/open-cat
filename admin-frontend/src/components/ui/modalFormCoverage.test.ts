@@ -24,7 +24,6 @@ const SOURCES = import.meta.glob('../../pages/**/*.tsx', {
  * Input、关闭 2FA 的单密码框）不在此列 —— 它们本来就不该套 ModalForm。
  */
 const RAW_MODAL_FORM_ALLOWED: Record<string, string> = {
-  'AuthRequests/List.tsx': '审核弹窗：正文是只读的申请信息 + 审批结论，表单只是附带的备注字段',
   'Feedback/List.tsx': '反馈详情弹窗：主体是只读正文与状态处理，不是「填表新建实体」',
   'Moderation/List.tsx': '机审复核弹窗：审批型（通过/驳回 + 备注），无实体字段',
   'Users/UserEditModal.tsx': '按 user.id 变化回填的自定义生命周期，套 ModalForm 的「打开即 reset」会丢状态',

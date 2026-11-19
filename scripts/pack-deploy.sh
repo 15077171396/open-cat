@@ -2,7 +2,7 @@
 # 生成部署包：只打「服务器构建镜像 + 部署」需要的、且**已被 git 提交**的文件。
 #
 # 用法：
-#   bash scripts/pack-deploy.sh              # 输出 ./ai-cat-deploy.tar.gz
+#   bash scripts/pack-deploy.sh              # 输出 ./open-cat-deploy.tar.gz
 #   bash scripts/pack-deploy.sh /tmp/x.tar.gz
 #
 # ── 为什么用 `git archive` 而不是 `tar -T`（2026-10-21 线上事故）──
@@ -28,7 +28,7 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-OUT="${1:-ai-cat-deploy.tar.gz}"
+OUT="${1:-open-cat-deploy.tar.gz}"
 
 # ---- 白名单：只有这些进包（漏掉 nginx.conf / Dockerfile.nginx 会让 compose 起不来）----
 #
@@ -45,10 +45,9 @@ ITEMS=(
   backend
   admin-frontend
   # 服务器侧脚本：backup_mysql.sh 被 deploy.sh 强制调用（缺失即中止发版）；
-  # watchdog.sh 是要装到服务器 cron 的探活告警；cleanup_orphans.py 针对真实库生成清理 SQL
+  # watchdog.sh 是要装到服务器 cron 的探活告警
   scripts/backup_mysql.sh
   scripts/watchdog.sh
-  scripts/cleanup_orphans.py
   scripts/README.md
 )
 

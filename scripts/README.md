@@ -1,9 +1,9 @@
 # `scripts/` 工具脚本索引
 
-> 这里收录 24 个脚本。此前有 6 个在全仓文档里**零出现**（第五轮全量审查 P2-57 之八）——
+> 这里收录 20 个脚本。此前有 6 个在全仓文档里**零出现**（第五轮全量审查 P2-57 之八）——
 > 不是它们没用，而是没人知道它们存在，于是每次踩坑都靠口口相传。
-> 本文件只回答「这个脚本干什么、怎么跑、跑坏了他会怎样」，
-> 部署主流程仍以 [部署说明书](../docs/04-运维/部署说明书.md) 为准。
+> 本文件只回答「这个脚本干什么、怎么跑、跑坏了会怎样」，
+> 快速开始与部署主流程见根目录 [README](../README.md)。
 >
 > 开源版已移出用户端、小程序与预渲染服务，对应的启动/守卫脚本（`check_tabbar.js`、
 > `start-miniapp-api.bat`、`fix-weapp-proxy.bat`、`setup-device-debug.bat`、
@@ -17,7 +17,7 @@
 
 | 脚本 | 查什么 | 谁跑 |
 |------|--------|------|
-| `check_docs_links.py` | `docs/` 内所有文件链接、文内锚点、中文序号是否重复 | CI 第一个 job + 提交前自检 |
+| `check_docs_links.py` | `docs/07-开源文档/`（含 `docs/assets/`）内文件链接、文内锚点、中文序号是否重复 | CI 第一个 job + 提交前自检 |
 | `check_env_consistency.py` | compose 引用 ↔ 注入容器 ↔ 两份 `.env.example` ↔ `Settings` 字段五侧一致 | 同上 |
 | `check_ci_config.py` | CI 的 Node/Python 版本 pin ↔ `Dockerfile` 生产镜像一致 | 同上 |
 
@@ -36,26 +36,14 @@
 | `start-all-dev.bat` | **两端一键启动**：后端（复用 `start-backend-dev.bat`，8000）+ 管理端 5175，各开一个独立窗口 | 关窗口 = 停服务，**不受父进程被回收的连坐**。前端固定 5175 且带 `--strictPort`：端口被占直接报错，不会悄悄换端口。窗口内已设 `VITE_API_TARGET=http://127.0.0.1:8000`，与后端端口对齐。前提：MySQL 3306 在跑 |
 | `check-admin-dev-routes.mjs` | **校验管理端 dev server 的编译结果是否与 `App.tsx` 一致**：源码加了 `<Route>` 但编译结果没有时，点菜单会静默跳回数据看板（或整页白屏），而 `tsc`/`vitest`/`vite build` 全绿 | `node scripts/check-admin-dev-routes.mjs`；退出码 1 = dev server 陈旧，需 `taskkill /T` 重启 vite（Vite 是父子进程，只杀子进程会残留）。dev server 没起时跳过（exit 0） |
 
-## 三、隧道与代理（服务器侧要访问 GitHub 时才需要）
-
-| 脚本 | 用途 | 首次使用 |
-|------|------|---------|
-| `tunnel.ps1` | SSH **反向**隧道守护：服务器 `172.17.0.1:7897` → 本机 Clash，供后端 `GITHUB_PROXY` 拉 GitHub README；断线 5 秒自动重连 | 先设 `$env:AICAT_TUNNEL_SERVER = "user@host"`，或新建 `scripts/tunnel.local.ps1`（已在 `.gitignore`）写 `$Server = "..."`；两者都没有时脚本直接报错退出，不会静默连到别处 |
-| `start-tunnel.bat` | 前台跑一次 `tunnel.ps1`（关窗口即停） | 临时用 |
-| `install-tunnel-task.ps1` | 注册「当前用户登录时自动启动隧道」的计划任务 `SSH-Tunnel-ai-cat` | 卸载：`Unregister-ScheduledTask -TaskName "SSH-Tunnel-ai-cat" -Confirm:$false` |
-
-⚠️ 隧道只在**开发机开机且在线**时有效；服务器上的第三方抓取任务若依赖它，
-断链时后端会走降级路径（`fetch_capped` 的错误映射），不会 500，但内容会拉不到新的 README。
-
-## 四、按需/一次性
+## 三、按需/一次性
 
 | 脚本 | 用途 | 风险 |
 |------|------|------|
 | `backup_mysql.sh` | `mysqldump` 备份 + 保留期清理，被 `deploy.sh` 的发版前强制备份调用 | 依赖 `.env` 的 DB 凭据；失败即让发版中止（可用 `DEPLOY_SKIP_BACKUP=1` 显式跳过） |
 | `watchdog.sh` | 定时探活 `/health` 与 `/health/deep`，异常走 `WATCHDOG_WEBHOOK` 告警 | 自己读 `.env` 里 `WATCHDOG_*`（不 source 整份，避免展开含 `$` 的密钥）；`--doctor` 回答「配了吗 / 配在哪 / 装了吗」 |
-| `cleanup_orphans.py` | 生成孤儿数据清理 SQL（收藏 / 学习记录快照表无外键，P1-7 的历史遗留） | **只生成 SQL 不执行**，需要人工审过再跑 |
 
-## 五、迁移校验
+## 四、迁移校验
 
 `verify_migrations.py` —— 对**真实 MySQL**（`.env` 里的 `DB_HOST`/`DB_PORT`）
 执行 `upgrade head → downgrade base → upgrade head` 与单 head 校验，等价于 CI 的
@@ -63,12 +51,12 @@ migrations job。⚠️ 它会在同一个实例上**建库/删库**（`ai_cat_m
 所以跑之前必须核对连的是不是本机 dev 实例；这也是它属于「人工动作」而不是随手
 `pytest` 一部分的原因。
 
-## 六、打包部署包
+## 五、打包部署包
 
 `pack-deploy.sh` —— **生成部署包的唯一入口**（2026-10-21 起）。
 
 ```bash
-bash scripts/pack-deploy.sh                # → ./ai-cat-deploy.tar.gz（约 2.8MB / 579 条目）
+bash scripts/pack-deploy.sh                # → ./open-cat-deploy.tar.gz（约 2.8MB / 579 条目）
 bash scripts/pack-deploy.sh /tmp/x.tar.gz  # 指定输出路径
 ```
 

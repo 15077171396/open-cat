@@ -9,6 +9,7 @@ import { formatDateTime } from '../../utils/datetime'
 
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
+import ExportButton from '../../components/ui/ExportButton'
 import { DEFAULT_PAGE_SIZE } from '../../constants'
 import { DataTable, ListToolbar } from '../../components/ui'
 import { AuditDetail } from './AuditDetail'
@@ -223,7 +224,35 @@ export default function AuditLogsList() {
               onSearch={(v) => resetPageAnd(() => setKeyword(v.trim()))}
               style={{ width: 240 }}
             />
-
+            {/* 导出与列表页同筛选口径（audit:view）；数据外带，后端写审计。
+                双格式：CSV（流式）与 Excel（openpyxl），行集完全相同 */}
+            <ExportButton
+              url="/admin/export/audit-logs"
+              params={{
+                ...(action ? { action } : {}),
+                ...(targetType ? { target_type: targetType } : {}),
+                ...(risk ? { risk } : {}),
+                ...(keyword ? { keyword } : {}),
+                ...(range?.[0] ? { start_at: range[0].toISOString() } : {}),
+                ...(range?.[1] ? { end_at: range[1].toISOString() } : {}),
+              }}
+              label="审计日志"
+              fallbackName="audit-logs.csv"
+            />
+            <ExportButton
+              url="/admin/export/audit-logs"
+              params={{
+                format: 'xlsx',
+                ...(action ? { action } : {}),
+                ...(targetType ? { target_type: targetType } : {}),
+                ...(risk ? { risk } : {}),
+                ...(keyword ? { keyword } : {}),
+                ...(range?.[0] ? { start_at: range[0].toISOString() } : {}),
+                ...(range?.[1] ? { end_at: range[1].toISOString() } : {}),
+              }}
+              label="审计日志 (Excel)"
+              fallbackName="audit-logs.xlsx"
+            />
           </>
         }
       />

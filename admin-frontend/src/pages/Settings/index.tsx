@@ -8,13 +8,13 @@ import { buildNav, firstGroupKey } from './settingsNav'
 /**
  * 系统设置：通用设置项（数据与保存逻辑在 `SettingsEditor`）。
  *
- * 分组由后端按 `surface="settings"` 下发 —— 登录 / 法律文档 / 支付 / 邮件 / AI 成本护栏
+ * 分组由后端按 `surface="settings"` 下发 —— 登录 / 法律文档 / 邮件 / AI 成本护栏
  * 都已抽成独立页面，这里的导航里不会再出现它们（同一批开关出现在两个页面、各自保存
  * 互相覆盖，是这类「抽模块」重构最容易留下的尾巴）。
  *
- * 布局：**左侧分类导航 + 右侧单组表单**。14 个分组平铺成一行 tab 时，
+ * 布局：**左侧分类导航 + 右侧单组表单**。分组平铺成一行 tab 时，
  * 找一项设置要先扫一遍整行；分类竖排后每屏最多 6 项，且能看出「哪一栏里有未保存的修改」。
- * 导航/面板组件在 `components/settings/SettingsNav.tsx`，与「支付与渠道」共用。
+ * 导航/面板组件在 `components/settings/SettingsNav.tsx`，与「登录管理 / 邮件通知」共用。
  */
 export default function SettingsPage() {
   const [activeKey, setActiveKey] = useState('')

@@ -4,10 +4,7 @@ import {
   combineQuotaTone,
   formatAge,
   formatCost,
-  formatPercent,
   normalizeAiUsage,
-  normalizeAttribution,
-  normalizeFunnel,
   labelStepFor,
   normalizeSystemStatus,
   normalizeScheduledJobs,
@@ -281,110 +278,6 @@ describe('formatAge', () => {
     const text = formatAge(60 * 86400, now)
     expect(text).not.toContain('天前')
     expect(text.length).toBeGreaterThan(4)
-  })
-})
-
-/**
- * 转化漏斗的纯逻辑回归。
- *
- * 核心是「未知 ≠ 0」：聚合失败时 count 是 null，若兜底成 0，运营会看到
- * 「免费耗尽 0 人」并据此判断「没人愿意付费」—— 结论完全相反。
- */
-describe('normalizeFunnel', () => {
-  it('空响应也能渲染：阶段为空、比率为 null', () => {
-    const f = normalizeFunnel(null)
-    expect(f.stages).toEqual([])
-    expect(f.retention).toEqual([])
-    expect(f.approvalRate).toBeNull()
-    expect(f.paidRate).toBeNull()
-    expect(f.days).toBe(30)
-  })
-
-  it('count=null 原样保留（不能兜底成 0）', () => {
-    const f = normalizeFunnel({
-      funnel: { stages: [{ key: 'registered', label: '注册', count: null }] },
-    })
-    expect(f.stages[0].count).toBeNull()
-  })
-
-  it('count=0 与 null 必须区分', () => {
-    const f = normalizeFunnel({ funnel: { stages: [{ key: 'consumed', count: 0 }] } })
-    expect(f.stages[0].count).toBe(0)
-  })
-
-  it('比率越界会被夹到 0~1（后端异常值不至于画出超出 100% 的条）', () => {
-    const f = normalizeFunnel({
-      funnel: { stages: [{ key: 'a', count: 1, rate_from_prev: 1.7, rate_from_start: -0.2 }] },
-    })
-    expect(f.stages[0].rateFromPrev).toBe(1)
-    expect(f.stages[0].rateFromStart).toBe(0)
-  })
-
-  it('留存行字段齐全，缺省回退', () => {
-    const f = normalizeFunnel({ retention: { days: 7, rows: [{ date: '2026-10-01', cohort: 3 }] } })
-    expect(f.retentionDays).toBe(7)
-    expect(f.retention[0]).toMatchObject({ date: '2026-10-01', cohort: 3, d1Active: null, d7Rate: null })
-  })
-})
-
-describe('formatPercent', () => {
-  it('null 显示「—」而不是 0%', () => {
-    expect(formatPercent(null)).toBe('—')
-    expect(formatPercent(undefined)).toBe('—')
-  })
-
-  it('真的为 0 才显示 0.0%', () => {
-    expect(formatPercent(0)).toBe('0.0%')
-  })
-
-  it('极小值不显示成 0%', () => {
-    expect(formatPercent(0.0005)).toBe('<0.1%')
-  })
-
-  it('常规值保留一位小数', () => {
-    expect(formatPercent(0.3333)).toBe('33.3%')
-    expect(formatPercent(1)).toBe('100.0%')
-  })
-})
-
-/**
- * 内容归因的纯逻辑回归。
- *
- * 两个「不能兜底」的点：
- * - `available=false`（还没采集）与「采集了但没数据」是相反结论；
- * - `rate=null`（没人看过）不能显示成 0%（那会被读成「看了都不转化」）。
- */
-describe('normalizeAttribution', () => {
-  it('空响应也能渲染', () => {
-    const a = normalizeAttribution(null)
-    expect(a.items).toEqual([])
-    expect(a.available).toBe(true)
-    expect(a.windowDays).toBe(7)
-    expect(a.totalViews).toBe(0)
-  })
-
-  it('available=false 原样保留（尚未采集 ≠ 没有数据）', () => {
-    expect(normalizeAttribution({ available: false }).available).toBe(false)
-  })
-
-  it('rate=null 与 rate=0 必须区分', () => {
-    const a = normalizeAttribution({
-      items: [
-        { target_type: 'tutorial', target_id: 1, title: 'A', viewers: 0, converted: 0, rate: null },
-        { target_type: 'tutorial', target_id: 2, title: 'B', viewers: 5, converted: 0, rate: 0 },
-      ],
-    })
-    expect(a.items[0].rate).toBeNull()
-    expect(a.items[1].rate).toBe(0)
-  })
-
-  it('比率越界会被夹到 0~1，标题缺省不影响渲染', () => {
-    const a = normalizeAttribution({
-      items: [{ target_type: 'resource', target_id: 9, rate: 1.8 }],
-    })
-    expect(a.items[0].rate).toBe(1)
-    expect(a.items[0].title).toBe('')
-    expect(a.items[0].type).toBe('resource')
   })
 })
 

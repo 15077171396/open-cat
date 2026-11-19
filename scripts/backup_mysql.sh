@@ -19,8 +19,8 @@
 #   MYSQL_DATABASE    库名              默认取 .env，兜底 ai_cat
 #   BACKUP_AFTER_HOOK 备份成功后的**离机上传**命令（默认空 = 不上传）。
 #                     脚本会以 BACKUP_FILE / BACKUP_NAME 两个环境变量把刚生成的备份传给它，例如：
-#                       BACKUP_AFTER_HOOK='rclone copy "$BACKUP_FILE" remote:ai-cat-backup/'
-#                       BACKUP_AFTER_HOOK='scp -q "$BACKUP_FILE" backup@10.0.0.9:/data/ai-cat/'
+#                       BACKUP_AFTER_HOOK='rclone copy "$BACKUP_FILE" remote:open-cat-backup/'
+#                       BACKUP_AFTER_HOOK='scp -q "$BACKUP_FILE" backup@10.0.0.9:/data/open-cat/'
 #                     ⚠️ 不配它 = 备份只与本机同盘（机器/磁盘坏了备份一起没），
 #                        这是当前最高优先级的运维缺口，见 docs 与 reviews 的闭环评估。
 #
@@ -38,7 +38,7 @@ BACKUP_KEEP_DAYS="${BACKUP_KEEP_DAYS:-30}"
 BACKUP_CRON="${BACKUP_CRON:-17 3 * * *}"
 BACKUP_MIN_TABLES="${BACKUP_MIN_TABLES:-10}"
 BACKUP_AFTER_HOOK="${BACKUP_AFTER_HOOK:-}"
-CRON_MARKER="# ai-cat-backup"          # crontab 中的唯一标记，卸载时按它定位
+CRON_MARKER="# open-cat-backup"          # crontab 中的唯一标记，卸载时按它定位
 
 COMPOSE_FILE="${PROJECT_DIR}/docker-compose.yml"
 ENV_FILE="${PROJECT_DIR}/.env"
@@ -93,7 +93,7 @@ mysql_container() {
     local cid
     cid="$(docker compose -f "${COMPOSE_FILE}" ps -q mysql 2>/dev/null || true)"
     if [[ -z "${cid}" ]]; then
-        cid="$(docker ps -q --filter 'name=ai-cat-mysql' 2>/dev/null || true)"
+        cid="$(docker ps -q --filter 'name=open-cat-mysql' 2>/dev/null || true)"
     fi
     echo "${cid}"
 }
@@ -131,7 +131,7 @@ do_backup() {
     local cid
     cid="$(mysql_container)"
     if [[ -z "${cid}" ]]; then
-        errf "mysql 容器未运行（compose 服务名 mysql / 容器名 ai-cat-mysql 都没找到）"
+        errf "mysql 容器未运行（compose 服务名 mysql / 容器名 open-cat-mysql 都没找到）"
         exit 1
     fi
 

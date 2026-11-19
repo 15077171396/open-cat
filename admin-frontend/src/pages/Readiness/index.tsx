@@ -26,7 +26,7 @@ import type { ReadinessData, ReadinessItem } from '../../types'
  * 的配置，界面上原本没有任何地方告诉他去填。
  *
  * 与「数据看板 → 系统状态」的分工：那边看依赖是否**活着**（MySQL/Redis/备份/心跳），
- * 这边看能力是否**可用**（存储/站点地址/邮件/短信/AI/支付）。
+ * 这边看能力是否**可用**（存储/站点地址/邮件/AI）。
  *
  * 判定全部在后端（`app/services/readiness_service.py`），本页只负责呈现与跳转 ——
  * 前端不重复判断，否则迟早出现「页面说好、实际报错」。
@@ -211,8 +211,8 @@ export default function Readiness() {
 
           <Typography.Text type="secondary" style={{ fontSize: 12 }}>
             提示：带「未做网络连通测试」的项只校验了凭据齐全，不代表服务端一定连得通
-            （例如 COS 的 bucket 名写错、微信支付的商户号未开通对应产品）。
-            上线前请各做一次真实动作：上传一张图、发一封测试邮件、用小额订单跑完支付回调。
+            （例如 COS 的 bucket 名写错、SMTP 授权码已过期）。
+            上线前请各做一次真实动作：上传一张图、发一封测试邮件、发一条 AI 对话。
             当前存储驱动：<strong>{data?.storage_driver ?? '未知'}</strong> · 环境：
             <strong>{data?.app_env ?? '未知'}</strong>
           </Typography.Text>

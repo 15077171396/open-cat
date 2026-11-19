@@ -27,10 +27,10 @@ const SUMMARY = {
   total: 5,
   groups: [
     {
-      key: 'auth_request',
-      label: '实名认证待审',
+      key: 'report',
+      label: '用户举报待处理',
       count: 2,
-      path: '/auth-requests',
+      path: '/moderation?tab=reports',
       severity: 'warning' as const,
       detail: '',
     },
@@ -71,7 +71,7 @@ describe('TodoBell', () => {
     const trigger = await screen.findByRole('button', { name: '待办 5 条' })
     await userEvent.click(trigger)
 
-    expect(screen.getByText('实名认证待审')).toBeInTheDocument()
+    expect(screen.getByText('用户举报待处理')).toBeInTheDocument()
     expect(screen.getByText('定时任务执行失败')).toBeInTheDocument()
     expect(screen.getByText('数据库备份上次执行失败')).toBeInTheDocument()
   })
@@ -81,9 +81,9 @@ describe('TodoBell', () => {
     renderBell()
 
     await userEvent.click(await screen.findByRole('button', { name: '待办 5 条' }))
-    await userEvent.click(screen.getByRole('button', { name: '实名认证待审，2 条' }))
+    await userEvent.click(screen.getByRole('button', { name: '用户举报待处理，2 条' }))
 
-    expect(screen.getByTestId('location')).toHaveTextContent('/auth-requests')
+    expect(screen.getByTestId('location')).toHaveTextContent('/moderation?tab=reports')
   })
 
   it('没有待办时显示空态而不是空白浮层', async () => {

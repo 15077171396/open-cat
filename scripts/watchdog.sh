@@ -60,7 +60,7 @@ WATCHDOG_BACKUP_MAX_AGE_HOURS="${WATCHDOG_BACKUP_MAX_AGE_HOURS:-48}"
 WATCHDOG_CRON="${WATCHDOG_CRON:-*/5 * * * *}"
 WATCHDOG_TIMEOUT="${WATCHDOG_TIMEOUT:-10}"
 
-CRON_MARKER="# ai-cat-watchdog"
+CRON_MARKER="# open-cat-watchdog"
 BACKUP_DIR="${BACKUP_DIR:-${PROJECT_DIR}/backups}"
 LOCK_FILE="${BACKUP_DIR}/.watchdog.lock"
 LOG_FILE="${BACKUP_DIR}/watchdog.log"
@@ -234,7 +234,7 @@ check_containers() {
     fi
 
     local exited
-    exited="$(docker ps -a --filter 'status=exited' --format '{{.Names}}' 2>/dev/null | grep -v 'ai-cat-migrate' || true)"
+    exited="$(docker ps -a --filter 'status=exited' --format '{{.Names}}' 2>/dev/null | grep -v 'open-cat-migrate' || true)"
     if [ -n "${exited}" ]; then
         PROBLEMS+=("容器已退出（非 migrate）：$(echo "${exited}" | tr '\n' ' ')")
     fi

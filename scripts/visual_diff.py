@@ -66,7 +66,7 @@ def main() -> int:
         os.path.splitext(f)[0] for f in os.listdir(BEFORE) if f.endswith(".png")
     )
     if not names:
-        print("没有 before 截图，先跑 scripts/shoot.sh before")
+        print("没有 before 截图（.visual/before/ 下无 PNG），请先自行准备对比截图")
         return 1
 
     bad = []

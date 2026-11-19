@@ -5,7 +5,7 @@ rem  生产由 compose 的 scheduler 容器常驻；本机没有那台容器，�
 rem  不开也能用后台「系统 → 定时任务」页：能看状态、能启停/改周期，
 rem  但「立即执行」会返回 503（没有进程消费命令队列），页面也会提示「调度器未运行」—— 那是准确的。
 
-title AI猫调度器 (scheduler)
+title 后台调度器 (scheduler)
 setlocal
 cd /d "%~dp0..\backend"
 

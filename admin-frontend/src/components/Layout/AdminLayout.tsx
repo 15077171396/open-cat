@@ -501,10 +501,7 @@ export default function AdminLayout() {
   )
 
   // 看板类页面直接在画布上铺卡片，不套白色页面卡（与 gi-demo 首页一致）
-  const isCanvasPage =
-    location.pathname === '/' ||
-    location.pathname === '/dashboard' ||
-    location.pathname === '/analysis'
+  const isCanvasPage = location.pathname === '/' || location.pathname === '/dashboard'
 
   // ---- 多标签页：路径 key + 菜单/页头标题，localStorage 持久化（与演示站 worktab 一致） ----
   const pageTitles = usePageTitleStore((s) => s.titles)
@@ -1196,7 +1193,7 @@ export default function AdminLayout() {
           aria-hidden="true"
           style={{
             backgroundImage: `url("data:image/svg+xml;utf8,${encodeURIComponent(
-              `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="140"><text x="10" y="90" fill="#909399" font-size="14" font-family="sans-serif" transform="rotate(-24 10 90)">${(account || 'AI Cat')
+              `<svg xmlns="http://www.w3.org/2000/svg" width="220" height="140"><text x="10" y="90" fill="#909399" font-size="14" font-family="sans-serif" transform="rotate(-24 10 90)">${(account || 'Admin')
                 .replace(/&/g, '&amp;')
                 .replace(/</g, '&lt;')
                 .replace(/>/g, '&gt;')}</text></svg>`

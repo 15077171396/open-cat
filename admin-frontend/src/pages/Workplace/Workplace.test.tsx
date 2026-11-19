@@ -27,7 +27,7 @@ const TODOS = {
   ],
 }
 
-const DASHBOARD = { today_registrations: 2, total_users: 6, today_downloads: 0 }
+const DASHBOARD = { today_registrations: 2, total_users: 6 }
 
 const AUDIT = {
   items: [

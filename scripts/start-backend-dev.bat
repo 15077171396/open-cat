@@ -14,7 +14,7 @@ rem    - 跑迁移（alembic upgrade）后：**必须重启**，因为已建立�
 rem
 rem  依赖：--reload 需要 watchfiles（已装入 backend\venv；若换机器请先
 rem        backend\venv\Scripts\python.exe -m pip install watchfiles）
-title AI猫后端-热重载 (0.0.0.0:8000)
+title 后端-热重载 (0.0.0.0:8000)
 setlocal
 cd /d "%~dp0..\backend"
 
