@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sess
 from sqlalchemy.orm import DeclarativeBase
 
 from app.config import settings
+from app.core.sql_metrics import install_sql_metrics
 
 # 会话时区锁定 UTC：created_at 等由 MySQL 按会话时区求值，与应用侧 UTC 比较不同源会静默偏差数小时；
 # 必须按连接显式 SET（生产 compose 设 TZ=UTC 恰好正常，本地 MySQL 跟随系统时区 +08:00 无任何报错）；
@@ -29,6 +30,9 @@ engine = create_async_engine(
     # 每条物理连接建立时执行一次（连接池复用期间会话变量保持）
     connect_args={"init_command": MYSQL_SESSION_TZ_INIT},
 )
+
+# 慢查询打点 + 池水位：纯事件监听，不建连接；只装本进程主引擎
+install_sql_metrics(engine)
 
 async_session = async_sessionmaker(
     engine,

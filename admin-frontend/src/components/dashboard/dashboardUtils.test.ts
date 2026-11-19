@@ -230,6 +230,34 @@ describe('normalizeSystemStatus', () => {
     expect(Number.isNaN(s.mysql.ms)).toBe(false)
   })
 
+  it('连接池水位与慢 SQL 计数：新后端原样透传，旧后端标记不可用', () => {
+    const withMetrics = normalizeSystemStatus({
+      db_pool: { size: 5, checked_in: 3, checked_out: 2, overflow: 0, status: 'Pool size: 5' },
+      sql: { total: 42, slow: 1, last_slow_ms: 230.5, last_slow_sql: 'SELECT SLEEP(1)', slow_threshold_ms: 200 },
+    })
+    expect(withMetrics.dbPool).toMatchObject({
+      available: true,
+      size: 5,
+      checked_in: 3,
+      checked_out: 2,
+      overflow: 0,
+    })
+    expect(withMetrics.sql).toMatchObject({
+      available: true,
+      total: 42,
+      slow: 1,
+      last_slow_ms: 230.5,
+      threshold_ms: 200,
+    })
+
+    // 旧后端没有这两个键：面板整段置灰（available=false），不能把「没下发」画成「0 慢查询」
+    const legacy = normalizeSystemStatus({})
+    expect(legacy.dbPool.available).toBe(false)
+    expect(legacy.sql.available).toBe(false)
+    expect(legacy.sql.total).toBe(0)
+    expect(legacy.sql.slow).toBe(0)
+  })
+
   it('任务与告警列表原样保留（含 stale 与 detail）', () => {
     const s = normalizeSystemStatus({
       jobs: [{ id: 'a', label: '任务A', stale: true, stale_reason: '无执行记录', ok: null }],

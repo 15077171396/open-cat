@@ -34,6 +34,8 @@ class Settings(BaseSettings):
     DB_NAME: str = "ai_cat"
     DB_USER: str = "root"
     DB_PASSWORD: str = "root"
+    # 慢 SQL 阈值（毫秒）：超过记 warning 并累计到系统状态页；0 = 全部记录（仅调试用）
+    SQL_SLOW_QUERY_MS: float = 200.0
 
     REDIS_HOST: str = "127.0.0.1"
     REDIS_PORT: int = 6379

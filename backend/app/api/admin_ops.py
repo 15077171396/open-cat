@@ -5,8 +5,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field
 from typing import Literal, Optional
 
-from app.database import get_db
+from app.database import get_db, engine
+from app.core.degrade import degrade_guard
 from app.core.permissions import require_admin
+from app.core.sql_metrics import pool_status, sql_metrics_snapshot
 from app.models.user import User
 from app.core.exceptions import success_response
 from app.schemas.common import ApiResponse
@@ -135,7 +137,12 @@ async def system_status(
     看板缓存 15 分钟且偏业务数据，而这里要的是「此刻服务是否健康」，
     缓存 30 秒即可；且它不依赖任何业务表，数据库故障时依然能回答「哪里坏了」。
     """
-    return success_response(await get_system_status())
+    status = await get_system_status()
+    # 池水位 / 慢 SQL 计数是瞬时值，不进 get_system_status 的缓存字典，路由层现读
+    with degrade_guard("system_status.pool_metrics", detail="连接池/慢 SQL 指标读取失败，标记未知"):
+        status["db_pool"] = pool_status(engine)
+        status["sql"] = sql_metrics_snapshot()
+    return success_response(status)
 
 
 @router.get("/readiness", response_model=ApiResponse[StatsResult])

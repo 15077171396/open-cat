@@ -63,7 +63,7 @@ class ModalityTests(unittest.IsolatedAsyncioTestCase):
         )
 
         paid = self.db.all_rows(AiModel)[1]
-        paid_row = self.db.get(AiModel, paid["id"])
+        paid_row = await self.db.get(AiModel, paid["id"])
         paid_row.is_enabled = True
         await self.db.flush()
         self.assertTrue(await ai_model_service.has_enabled_image_price(self.db))

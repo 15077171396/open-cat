@@ -626,6 +626,24 @@ export function normalizeSystemStatus(raw: SystemStatusData | null | undefined):
       release: String(env.release ?? ''),
       monitoring_enabled: toBool(env.monitoring_enabled),
     },
+    // 连接池水位 / 慢 SQL 计数：路由层现读的瞬时值。旧后端没有这两个键时
+    // available=false，面板整段置灰提示升级 —— 「没下发」和「0 慢查询」是两件事
+    dbPool: {
+      available: src.db_pool != null && typeof src.db_pool === 'object',
+      size: toNullableNumber(src.db_pool?.size),
+      checked_in: toNullableNumber(src.db_pool?.checked_in),
+      checked_out: toNullableNumber(src.db_pool?.checked_out),
+      overflow: toNullableNumber(src.db_pool?.overflow),
+      status: String(src.db_pool?.status ?? ''),
+    },
+    sql: {
+      available: src.sql != null && typeof src.sql === 'object',
+      total: toCount(src.sql?.total ?? 0),
+      slow: toCount(src.sql?.slow ?? 0),
+      last_slow_ms: toNullableNumber(src.sql?.last_slow_ms) ?? 0,
+      last_slow_sql: String(src.sql?.last_slow_sql ?? ''),
+      threshold_ms: toNullableNumber(src.sql?.slow_threshold_ms) ?? 0,
+    },
   }
 }
 

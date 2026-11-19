@@ -462,6 +462,30 @@ def _slice_rows(items: list, stmt) -> list:
     return items
 
 
+def _classify_statement(stmt) -> tuple[str, str]:
+    """把一条 SQLAlchemy 语句归类成 (kind, 目标表/实体名)，供语句流水/N+1 守卫读。"""
+    if isinstance(stmt, _DeleteStmt):
+        return "delete", stmt.table.name
+    if isinstance(stmt, _InsertStmt):
+        return "insert", stmt.table.name
+    if hasattr(stmt, "_values") and stmt._values is not None:
+        return "update", stmt.table.name
+    if hasattr(stmt, "column_descriptions"):
+        descriptions = list(stmt.column_descriptions or [])
+        target = ""
+        if descriptions:
+            entity = descriptions[0].get("entity")
+            if entity is not None:
+                target = getattr(entity, "__name__", "") or str(entity)
+            else:
+                # select(func.count()).select_from(Model)：列描述没有 entity，取 FROM 表名
+                froms = list(stmt.get_final_froms() or [])
+                if froms:
+                    target = getattr(froms[0], "name", "") or type(froms[0]).__name__
+        return "select", target or "?"
+    return "other", type(stmt).__name__
+
+
 class MemorySession:
     """最小 AsyncSession 仿真，覆盖资金链路实际用到的语句子集。
 
@@ -480,6 +504,10 @@ class MemorySession:
         self._undo: dict[tuple[str, int], tuple] = {}
         self.commits = 0
         self.flushes = 0
+        # 已执行语句流水：(kind, 目标表/实体名)，只记走 execute/scalars/scalar 的语句。
+        # N+1 守卫（test_n1_guards）靠它断言「一次列表调用语句数 ≤ 上限」；
+        # 不支持的语句也先记再抛（Unsupported），失败信息里能看到卡在哪条。
+        self.statements: list[tuple[str, str]] = []
 
     def new_session(self) -> "MemorySession":
         """新建一个共享同一库、但事务（pending）独立的会话。
@@ -699,6 +727,7 @@ class MemorySession:
         return result.scalar()
 
     def _execute(self, stmt, args=()):
+        self.statements.append(_classify_statement(stmt))
         if isinstance(stmt, _DeleteStmt):
             return self._do_delete(stmt)
         if isinstance(stmt, _InsertStmt):
@@ -941,5 +970,7 @@ class MemorySession:
     def all_rows(self, model) -> list[dict]:
         return list(self._table(model).rows.values())
 
-    def get(self, model, obj_id):
+    async def get(self, model, obj_id):
+        """AsyncSession.get 的替身：主键取行（与真实会话同为协程 —— 服务层
+        `await db.get(...)` 在真库与替身上行为一致；查无返回 None）。"""
         return self._table(model).objs.get(obj_id)

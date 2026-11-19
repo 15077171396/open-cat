@@ -321,6 +321,54 @@ export default function SystemStatusPanel({ data, loading, failed, onRefresh, on
         />
       </div>
 
+      {/* 数据库水位：连接池占用 + 慢 SQL 计数（路由层现读的瞬时值；旧后端无此键时整段置灰）。
+          性能基线的可视化端：没有数字就无法反驳「性能不行」—— 池水位对应 RuoYi「连接池监视」，
+          慢 SQL 阈值由 settings.SQL_SLOW_QUERY_MS 决定。 */}
+      <div className="sys-section">
+        <div className="sys-section__head">
+          <span className="sys-section__title">数据库水位</span>
+          {!data.dbPool.available || !data.sql.available ? (
+            <Tag>后端未提供</Tag>
+          ) : data.sql.slow > 0 ? (
+            <Tag color="warning">有慢 SQL</Tag>
+          ) : (
+            <Tag color="success">正常</Tag>
+          )}
+        </div>
+        {!data.dbPool.available || !data.sql.available ? (
+          <div className="sys-hint">当前后端版本未下发池水位 / 慢 SQL 指标（升级后端后可见）。</div>
+        ) : (
+          <div className="sys-details">
+            <DetailRow label="连接池">
+              {`池基数 ${data.dbPool.size ?? '—'} · 占用 ${data.dbPool.checked_out ?? '—'} · 空闲 ${
+                data.dbPool.checked_in ?? '—'
+              } · 溢出 ${data.dbPool.overflow ?? 0}`}
+            </DetailRow>
+            <DetailRow label="慢 SQL">
+              {data.sql.slow > 0 ? (
+                <Tooltip
+                  title={
+                    data.sql.last_slow_sql
+                      ? `最近一条慢 SQL（${data.sql.last_slow_ms}ms）：${data.sql.last_slow_sql}`
+                      : '暂无最近慢语句'
+                  }
+                >
+                  <span style={{ color: COLORS.warn }}>
+                    累计 {data.sql.slow} 条超阈（阈值 {data.sql.threshold_ms}ms），最近一条{' '}
+                    {data.sql.last_slow_ms}ms
+                  </span>
+                </Tooltip>
+              ) : (
+                <span style={{ color: COLORS.ok }}>暂无（阈值 {data.sql.threshold_ms}ms）</span>
+              )}
+            </DetailRow>
+            <DetailRow label="语句总数">
+              {data.sql.total}（本进程生命周期内经过引擎的语句数）
+            </DetailRow>
+          </div>
+        )}
+      </div>
+
       {/* 版本与升级：当前版本 / 迁移待执行 / 最新 release；升级前先备份 */}
       <div className="sys-section">
         <div className="sys-section__head">

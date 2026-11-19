@@ -279,6 +279,22 @@ export interface SystemStatusData {
   jobs?: SystemStatusJob[]
   env?: { app_env?: string; release?: string | null; monitoring_enabled?: boolean }
   warnings?: SystemStatusWarning[]
+  /** 连接池水位：路由层现读（不进状态缓存）；旧后端无此键 → 归一化为 available=false */
+  db_pool?: {
+    size?: number | null
+    checked_in?: number | null
+    checked_out?: number | null
+    overflow?: number | null
+    status?: string
+  }
+  /** 慢 SQL 计数：路由层现读；阈值语义见 settings.SQL_SLOW_QUERY_MS */
+  sql?: {
+    total?: number
+    slow?: number
+    last_slow_ms?: number
+    last_slow_sql?: string
+    slow_threshold_ms?: number
+  }
 }
 
 // ===== 版本与升级（GET /admin/version） =====
@@ -368,6 +384,23 @@ export interface NormalizedSystemStatus {
     available: boolean
     issue_total: number
     issues: { code: string; level: string; count: number; text: string }[]
+  }
+  dbPool: {
+    /** 后端是否下发了该键（旧版本后端没有 → 面板整段置灰） */
+    available: boolean
+    size: number | null
+    checked_in: number | null
+    checked_out: number | null
+    overflow: number | null
+    status: string
+  }
+  sql: {
+    available: boolean
+    total: number
+    slow: number
+    last_slow_ms: number
+    last_slow_sql: string
+    threshold_ms: number
   }
   jobs: {
     id: string
