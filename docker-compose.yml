@@ -41,8 +41,8 @@ services:
         VITE_SENTRY_ENVIRONMENT: ${SENTRY_ENVIRONMENT:-production}
         VITE_APP_RELEASE: ${APP_RELEASE:-}
         VITE_SENTRY_TRACES_SAMPLE_RATE: ${SENTRY_TRACES_SAMPLE_RATE:-0}
-    image: ai-cat-nginx
-    container_name: ai-cat-nginx
+    image: open-cat-nginx
+    container_name: open-cat-nginx
     ports:
       - "${NGINX_PORT:-80}:80"
     volumes:
@@ -57,15 +57,15 @@ services:
       - no-new-privileges:true
     mem_limit: 128m
     networks:
-      - ai-cat-net
+      - open-cat-net
 
   # ========== 数据库迁移（一次性任务，成功后退出） ==========
   # 种子数据**不**自动执行：需要时显式跑
   #   docker compose run --rm migrate python seed_data.py
   migrate:
     build: ./backend
-    image: ai-cat-backend
-    container_name: ai-cat-migrate
+    image: open-cat-backend
+    container_name: open-cat-migrate
     env_file:
       - .env
     environment:
@@ -92,13 +92,13 @@ services:
     command: alembic upgrade head
     <<: *default-hardening
     networks:
-      - ai-cat-net
+      - open-cat-net
 
   # ========== 后端 API ==========
   app:
     build: ./backend
-    image: ai-cat-backend
-    container_name: ai-cat-app
+    image: open-cat-backend
+    container_name: open-cat-app
     env_file:
       - .env
     environment:
@@ -141,13 +141,13 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - ai-cat-net
+      - open-cat-net
 
   # ========== 定时任务（日志清理、收录推送、数据质量检查等 8 个任务） ==========
   scheduler:
     build: ./backend
-    image: ai-cat-backend
-    container_name: ai-cat-scheduler
+    image: open-cat-backend
+    container_name: open-cat-scheduler
     env_file:
       - .env
     environment:
@@ -174,12 +174,12 @@ services:
     <<: *default-hardening
     mem_limit: 192m
     networks:
-      - ai-cat-net
+      - open-cat-net
 
   # ========== MySQL 8（需 ngram 中文全文索引） ==========
   mysql:
     image: mysql:8.0
-    container_name: ai-cat-mysql
+    container_name: open-cat-mysql
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -206,12 +206,12 @@ services:
       retries: 10
       start_period: 40s
     networks:
-      - ai-cat-net
+      - open-cat-net
 
   # ========== Redis 7（缓存 / 限流 / 调度心跳） ==========
   redis:
     image: redis:7-alpine
-    container_name: ai-cat-redis
+    container_name: open-cat-redis
     command: ["redis-server", "--appendonly", "yes", "--requirepass", "${REDIS_PASSWORD}"]
     volumes:
       - redis_data:/data
@@ -224,7 +224,7 @@ services:
       timeout: 3s
       retries: 5
     networks:
-      - ai-cat-net
+      - open-cat-net
 
 volumes:
   mysql_data:
@@ -232,5 +232,5 @@ volumes:
   uploads_data:
 
 networks:
-  ai-cat-net:
+  open-cat-net:
     driver: bridge

@@ -102,7 +102,7 @@ check_required_vars() {
 #
 # ⚠️ 必须在 check_required_vars **之后**调用 —— 那个函数才会把 .env 载入环境。
 check_alerting() {
-    local cron_marker="# ai-cat-watchdog" cron_state
+    local cron_marker="# open-cat-watchdog" cron_state
     if ! command -v crontab >/dev/null 2>&1; then
         cron_state="不可用（未装 crontab）"
     elif crontab -l 2>/dev/null | grep -q "${cron_marker}"; then
@@ -176,14 +176,12 @@ print_access_info() {
 # 线上其实一直是 502，却要等人自己发现。让脚本自己判定失败，成本低得多。
 #
 # 🚨 门禁必须同时满足两点（第三轮增量审查 2026-10-11 P0-3）：
-# ① **带 Host 头**：nginx 对 80 端口的默认 server 块是「裸域 301 收敛到 www」
-#    （`listen 80; server_name wdmao.cn; return 301 ...`；全文件无 default_server，
-#    nginx 取**第一个** server 块作默认）。探针写 `http://127.0.0.1:80/...` 必然
-#    命中它并拿到 301。
+# ① **带 Host 头**：避免探针命中 nginx 里与业务无关的默认 server 块（301/静态页）。
+#    换自己的域名时同步改这里。
 # ② **显式比对状态码**，不能用 `curl -f`：`-f` 只在 >=400 时失败、**3xx 视为成功**
 #    —— 于是门禁在第一次轮询就通过、约 3 秒后无条件打印「部署完成」，后端是否健康、
 #    是否 OOM、是否在 crash loop 全部不参与判断（P2-16 引入该门禁的收益被完全抵消）。
-HEALTH_HOST="${HEALTH_HOST:-www.wdmao.cn}"
+HEALTH_HOST="${HEALTH_HOST:-localhost}"
 
 # 探针：只输出 HTTP 状态码（连不上统一为 000）。**必须始终返回 0**，
 # 否则 `set -e` 下 `code="$(http_code ...)"` 会直接把脚本打断。
@@ -193,17 +191,6 @@ HEALTH_HOST="${HEALTH_HOST:-www.wdmao.cn}"
 http_code() {
     local out=""
     out="$(curl -sS --noproxy '*' -o /dev/null --max-time 5 -H "Host: ${HEALTH_HOST}" \
-        -w '%{http_code}' "$1" 2>/dev/null)" || true
-    printf '%s' "${out:-000}"
-}
-
-# 带**自定义 Host** 的探针变体（www 之外还有第二个 server 块要探）。
-# HEALTH_HOST 的说明、--noproxy 与「必须返回 0」的约束与 http_code 完全一致。
-http_code_host() {
-    local host="$1"
-    shift
-    local out=""
-    out="$(curl -sS --noproxy '*' -o /dev/null --max-time 5 -H "Host: ${host}" \
         -w '%{http_code}' "$1" 2>/dev/null)" || true
     printf '%s' "${out:-000}"
 }
@@ -227,38 +214,6 @@ wait_for_healthy() {
     done
     echo
     err "服务在 ${timeout}s 内未通过健康校验：${url} 最后一次返回 ${code}（期望 200）"
-    return 1
-}
-
-# 统计后台（tj.wdmao.cn）的存活门禁（缺口台账 P1-80②）。
-# 🚨 背景口径：2026-10-14 整域 500 的线上故障 —— auth_basic 口令文件权限问题让
-# tj. 域整体 500，而当时的发版门禁只探主站，「部署成功 + 统计后台奔溃」同时成立。
-# 探针仍**走本地直连**（127.0.0.1 + Host 头，同 wait_for_healthy 的两条铁律：
-# 不经 EdgeOne / 不吃代理环境变量），比探 https://tj.wdmao.cn 更可靠 ——
-# 出公网探活会把「本站没起」误判成「EdgeOne 或外网链路的问题」，报错原因此刻最宝贵。
-# Umami 启动比 app 慢（建库 + 迁移），单独放宽到 120s；探的是 `/`（报表入口），
-# 主站门禁照旧在其之前先行通过，故此处失败必是 tj 这个 server 块自身的问题。
-STATS_HOST="${STATS_HOST:-tj.wdmao.cn}"
-
-wait_for_stats() {
-    local url="$1" timeout="${2:-120}" interval=3 elapsed=0 code=""
-    if ! command -v curl >/dev/null 2>&1; then
-        warn "未检测到 curl，跳过统计后台健康校验"
-        return 0
-    fi
-    while [[ $elapsed -lt $timeout ]]; do
-        code="$(http_code_host "$STATS_HOST" "$url")"
-        if [[ "$code" == "200" ]]; then
-            echo
-            log "统计后台 ${STATS_HOST} 200"
-            return 0
-        fi
-        printf '.'
-        sleep "$interval"
-        elapsed=$((elapsed + interval))
-    done
-    echo
-    err "统计后台 ${STATS_HOST} 在 ${timeout}s 内未返回 200（最后 ${code}）—— tj. 整域故障曾静默上线（P1-80），本次发版按失败处理"
     return 1
 }
 
@@ -414,7 +369,7 @@ resolve_release_tag() {
 # 旧镜像配新库结构往往报错更多 —— 自动回滚会把「新版本挂了」变成「新旧都不行」。
 tag_previous_images() {
     local img
-    for img in ai-cat-backend ai-cat-nginx; do
+    for img in open-cat-backend open-cat-nginx; do
         if docker image inspect "${img}:latest" >/dev/null 2>&1; then
             if docker tag "${img}:latest" "${img}:prev" 2>/dev/null; then
                 log "已保存上一版镜像 ${img}:prev"
@@ -425,8 +380,8 @@ tag_previous_images() {
 
 rollback_hint() {
     warn "回滚方式（上一版镜像已存为 :prev）："
-    warn "  docker tag ai-cat-backend:prev ai-cat-backend"
-    warn "  docker tag ai-cat-nginx:prev ai-cat-nginx"
+    warn "  docker tag open-cat-backend:prev open-cat-backend"
+    warn "  docker tag open-cat-nginx:prev open-cat-nginx"
     warn "  docker compose up -d"
     warn "  ⚠️ 若本次已执行过迁移：先 alembic downgrade 或恢复发版前备份，否则旧代码可能读不了新表结构"
 }
@@ -449,7 +404,7 @@ build_all() {
 
     export COMPOSE_PARALLEL_LIMIT=1
     log "串行构建镜像 (低内存模式, 无并行)..."
-    # 后端服务名为 app (migrate/scheduler 共用同一镜像 ai-cat-backend)
+    # 后端服务名为 app (migrate/scheduler 共用同一镜像 open-cat-backend)
     docker compose build app
     docker compose build nginx
     unset COMPOSE_PARALLEL_LIMIT
@@ -518,12 +473,6 @@ case "$ACTION" in
             rollback_hint
             exit 1
         fi
-        # 主站门禁之后：统计后台的整域 500 不能静默上线（2026-10-14 复盘，P1-80②）
-        if ! wait_for_stats "http://127.0.0.1:${NGINX_PORT:-80}/"; then
-            diagnose
-            rollback_hint
-            exit 1
-        fi
         report_health_deep
         # 最后一道门禁：走真实业务链路的冒烟。详情页 500 是健康探针的盲区
         # （2026-10-20 教程全站 500 就是这么发出去的），必须阻断。
@@ -547,12 +496,6 @@ case "$ACTION" in
         compose_up_or_diagnose --force-recreate
         log "等待服务就绪 (最多 180s)"
         if ! wait_for_healthy "http://127.0.0.1:${NGINX_PORT:-80}/api/v1/health"; then
-            diagnose
-            rollback_hint
-            exit 1
-        fi
-        # 同上（P1-80②）：rebuild 的门禁两侧一致
-        if ! wait_for_stats "http://127.0.0.1:${NGINX_PORT:-80}/"; then
             diagnose
             rollback_hint
             exit 1

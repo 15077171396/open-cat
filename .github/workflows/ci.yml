@@ -308,7 +308,7 @@ jobs:
       - name: 校验 compose 语法与环境变量插值
         run: docker compose config -q
 
-      # app 与 migrate / scheduler 共用同一镜像 ai-cat-backend（见 compose 注释）
+      # app 与 migrate / scheduler 共用同一镜像 open-cat-backend（见 compose 注释）
       - name: 构建后端镜像
         run: docker compose build app
 

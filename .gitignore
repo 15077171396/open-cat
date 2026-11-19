@@ -102,15 +102,11 @@ backend/pip_version.txt
 .git-commit-msg.txt
 msg-check.txt
 
-# 本地隧道配置（含服务器地址等个人环境信息，不入库）
-# 见 scripts/tunnel.ps1 的取值说明：写入一行 $Server = "root@<服务器IP>"
-scripts/tunnel.local.ps1
-
 # 数据库备份产物（scripts/backup_mysql.sh 生成，含全量业务数据，绝不入库）
 backups/
 
 # 前端构建产物（`vite build --outDir dist-verify` 的校验目录，不入库）
 admin-frontend/dist-verify/
 
-# 视觉回归截图（scripts/shoot.sh 产出，仅本机比对用，不入库）
+# 视觉回归截图（仅本机比对用，不入库）
 .visual/
