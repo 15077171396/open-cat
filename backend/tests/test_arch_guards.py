@@ -38,6 +38,9 @@ ALLOWED_ROUTER_COMMITS = {
     # 邮件通道：① 配置经 runtime_config 注入 settings，必须提交后再应用；
     # ② 测试发信的审计在失败分支也要落库（否则事务回滚会把这条记录丢掉）
     "admin_mail_settings.py": ["# 邮件配置须在提交后应用；测试发信审计失败分支也要落库"],
+    # 危险操作二次校验（S5，2026-11-20）：grant 走 Redis 不占数据库会话，
+    # 审计行随路由显式提交（一条 insert，无业务事务可回滚）
+    "admin_elevation.py": ["# 审计行与授权动作无事务依赖（grant 走 Redis 不占会话），随路由显式提交"],
     "admin_users.py": [],
     "users.py": [],
 }

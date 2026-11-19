@@ -465,7 +465,8 @@ class TestSourceFieldWiring(unittest.TestCase):
             # → seed_content_security_permissions（login_log/moderation:words 补种）
             # → add_ops_metric_snapshots（快照表 + 任务种子）
             # 2026-11-19 IP 黑名单：seed_ip_blacklist_permission（ip_blacklist:view/update 补种）
-            ["seed_ip_blacklist_permission"],
+            # 2026-11-20 开放 API：add_open_api（api_tokens/webhooks 两表 + 四码补种）
+            ["add_open_api"],
             f"alembic head 不是最新迁移（当前 heads={heads}）—— 迁移链可能断开或挂错位置",
         )
 

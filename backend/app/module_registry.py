@@ -182,6 +182,14 @@ MODULES: tuple[ModuleDef, ...] = (
         path_prefixes=("/api/v1/admin/chat", "/api/v1/admin/ws/chat"),
         menu_keys=("/chat",),
     ),
+    ModuleDef(
+        key="open_api",
+        label="开放 API（访问令牌 / Webhook 订阅）",
+        default_enabled=True,
+        # 关掉 = 收回对外集成面：令牌认证依赖同样按此开关短路（内容 API 回归纯游客态）
+        path_prefixes=("/api/v1/admin/api-tokens", "/api/v1/admin/webhooks"),
+        menu_keys=("/api-tokens", "/webhooks"),
+    ),
 )
 
 _BY_KEY: dict[str, ModuleDef] = {m.key: m for m in MODULES}

@@ -22,13 +22,14 @@
 但付费解锁（`purchase_tutorial_endpoint`）属于交易，不进内容 API —— 见 `_WRITE_ENDPOINTS_ALLOWED`。
 """
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from fastapi.routing import APIRoute
 
 from app.api.announcements import router as announcements_router
 from app.api.categories import router as categories_router
 from app.api.home import router as home_router
 from app.api.tutorials import router as tutorials_router
+from app.dependencies import get_api_principal
 
 # 对外完整前缀（= api_router 的 /api/v1 + 本 router 的 /content）
 CONTENT_PREFIX = "/api/v1/content"
@@ -63,7 +64,10 @@ def _mount_read_only(target: APIRouter, source: APIRouter, prefix: str) -> list[
             summary=route.summary,
             description=route.description,
             name=route.name,
-            dependencies=route.dependencies,
+            # 内容命名空间统一追加 PAT 认证（2026-11-20）：人类 JWT/cookie 由
+            # route.dependencies 里的既有依赖处理，这里只认 Bearer oc_pat_…
+            # （无头 → None 游客态；无效令牌 → 401，不静默降级）
+            dependencies=[*(route.dependencies or []), Depends(get_api_principal)],
         )
         mounted.append(f"{prefix}{route.path}")
     return mounted

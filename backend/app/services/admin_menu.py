@@ -181,6 +181,19 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
             MenuItem("/chat", "站内聊天", "message", perm="chat:view"),
         ),
     ),
+    # 开放平台（2026-11-20）：对外集成面的两个入口。独立成组而不是塞进「系统」——
+    # 系统组已经 18 项了，而这两项的受众是「要把本站当平台用的开发者」，心智不同
+    MenuGroup(
+        key="open",
+        label="开放平台",
+        icon="api",
+        items=(
+            # 访问令牌（PAT）：机器客户端调内容 API 的长期凭据（签发一次、明文只现一次）
+            MenuItem("/api-tokens", "访问令牌", "key", perm="api_token:view"),
+            # Webhook 订阅：内容事件出站推送（教程发布/下架），签名可验证
+            MenuItem("/webhooks", "Webhook 订阅", "link", perm="webhook:view"),
+        ),
+    ),
 )
 
 # 分组之外的独立项（渲染在分组下方，与分组同级）。
@@ -200,6 +213,7 @@ MENU_LABELS_EN: dict[str, str] = {
     "monitor": "Monitoring",
     "users": "Users & Permissions",
     "system": "System",
+    "open": "Open Platform",
     # 顶级独立项
     "/": "Workplace",
     # 概览
@@ -245,6 +259,9 @@ MENU_LABELS_EN: dict[str, str] = {
     "/recycle-bin": "Recycle Bin",
     "/audit-logs": "Audit Log",
     "/chat": "Chat",
+    # 开放平台
+    "/api-tokens": "API Tokens",
+    "/webhooks": "Webhooks",
     # 分组之外
     "/profile": "Profile",
 }

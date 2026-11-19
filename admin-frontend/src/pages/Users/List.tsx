@@ -13,6 +13,7 @@ import UserRbacModal from './UserRbacModal'
 import { ROLE_META } from './roleMeta'
 import type { User, UserRole } from '../../types'
 import { getErrorMessage } from '../../utils/error'
+import { ensureElevation, invalidateElevation } from '../../utils/elevation'
 import { formatDate } from '../../utils/datetime'
 import { shouldRetreatOnePage } from '../../utils/pagination'
 import { DEFAULT_PAGE_SIZE } from '../../constants'
@@ -194,10 +195,17 @@ export default function UsersList() {
       cancelText: '取消',
       onOk: async () => {
         try {
-          await apiDelete(`/admin/users/${u.id}`)
+          // S5 危险操作二次校验：删除账号不可逆（进回收站），先重输密码换短时凭据
+          const elevationToken = await ensureElevation()
+          await apiDelete(`/admin/users/${u.id}`, {
+            headers: { 'X-Elevation-Token': elevationToken },
+          })
           toast.success('删除成功')
           load()
         } catch (err: unknown) {
+          if (String(getErrorMessage(err, '')).includes('二次校验')) {
+            invalidateElevation()
+          }
           toast.error(getErrorMessage(err, '删除失败'))
         }
       },
@@ -239,10 +247,12 @@ export default function UsersList() {
       onOk: async () => {
         setBatchLoading(true)
         try {
+          // S5 危险操作二次校验：批量删除 = 一次抹掉一批账号，先重输密码换短时凭据
+          const elevationToken = await ensureElevation()
           const data = await apiPost<{ deleted: number }>(
             '/admin/users/batch-delete',
             { ids: selectedIds },
-            idempotentConfig(idemKey),
+            { ...idempotentConfig(idemKey), headers: { 'X-Elevation-Token': elevationToken } },
           )
           toast.success(`已删除 ${data.deleted} 个用户`)
           setSelectedIds([])
@@ -255,6 +265,9 @@ export default function UsersList() {
             load()
           }
         } catch (err: unknown) {
+          if (String(getErrorMessage(err, '')).includes('二次校验')) {
+            invalidateElevation()
+          }
           toast.error(getErrorMessage(err, '批量删除失败'))
         } finally {
           setBatchLoading(false)

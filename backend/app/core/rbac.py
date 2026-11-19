@@ -61,6 +61,17 @@ _RULES: list[tuple[str, str, list[str]]] = [
     # IP 黑名单（2026-11-19）：拉黑/放行直接改变线上访问面，独立授权面
     ("GET", "/api/v1/admin/ip-blacklist", ["ip_blacklist:view"]),
     ("PUT", "/api/v1/admin/ip-blacklist", ["ip_blacklist:update"]),
+    # 开放 API（2026-11-20）：令牌与 Webhook 各自独立授权面 —— 集成面 ≠ 配置面
+    ("GET", "/api/v1/admin/api-tokens", ["api_token:view"]),
+    ("POST", "/api/v1/admin/api-tokens", ["api_token:manage"]),
+    ("DELETE", "/api/v1/admin/api-tokens/{token_id}", ["api_token:manage"]),
+    ("GET", "/api/v1/admin/webhooks", ["webhook:view"]),
+    ("POST", "/api/v1/admin/webhooks", ["webhook:manage"]),
+    ("POST", "/api/v1/admin/webhooks/{webhook_id}/test", ["webhook:manage"]),
+    ("PUT", "/api/v1/admin/webhooks/{webhook_id}", ["webhook:manage"]),
+    ("DELETE", "/api/v1/admin/webhooks/{webhook_id}", ["webhook:manage"]),
+    # 危险操作二次校验（S5）：任何管理员都能重新输密码自证身份
+    ("POST", "/api/v1/admin/elevation", []),
     # 用户批量导入（2026-11-19）：导入 = 批量建号，授权面与单账号创建一致（user:create）。
     # ⚠️ 必须登记在 /users/{user_id} 之前（FastAPI 按注册顺序匹配）
     ("POST", "/api/v1/admin/users/import", ["user:create"]),

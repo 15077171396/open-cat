@@ -1,9 +1,12 @@
 import type { ReactNode } from 'react'
 import {
+  ApiOutlined,
   ApartmentOutlined,
   AreaChartOutlined,
   AuditOutlined,
   BookOutlined,
+  KeyOutlined,
+  LinkOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CodeOutlined,
@@ -57,6 +60,11 @@ const MENU_ICON_MAP: Record<string, ReactNode> = {
   notification: <NotificationOutlined />,
   idcard: <IdcardOutlined />,
   control: <ControlOutlined />,
+  api: <ApiOutlined />,
+
+  // 开放平台（2026-11-20）
+  key: <KeyOutlined />,
+  link: <LinkOutlined />,
 
   // 叶子图标
   dashboard: <DashboardOutlined />,

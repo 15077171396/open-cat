@@ -150,6 +150,17 @@ AUDIT_ACTIONS: dict[str, str] = {
     "moderation_words_update": "维护敏感词库",
     # IP 黑名单（2026-11-19）：拉黑/放行直接改变线上访问面，必须可追溯
     "ip_blacklist_update": "更新 IP 黑名单",
+    # 开放 API（2026-11-20）：令牌是长期机器凭据、Webhook 是出站订阅 ——
+    # 签发/吊销/增删/启停都直接改变对外集成面，必须可追溯
+    "api_token_create": "签发访问令牌",
+    "api_token_revoke": "吊销访问令牌",
+    "webhook_create": "创建 Webhook 订阅",
+    "webhook_set_active": "启停 Webhook 订阅",
+    "webhook_delete": "删除 Webhook 订阅",
+    # 试投：不改配置，但一次外向动作（会暴露本站出站 IP/域名给订阅方）—— 与 mail_test_send 同按常规记
+    "webhook_test": "试投 Webhook 订阅",
+    # 密码二次校验：不改配置，但它是「接下来要做危险操作」的明确意图信号，留痕便于回溯
+    "elevation_granted": "密码二次校验授权危险操作",
 }
 
 # 目标类型（target_type）取值
@@ -184,6 +195,9 @@ AUDIT_TARGET_TYPES = (
     "audit_log",
     # 指标快照导出：target_id 留空（按类型整体审计）
     "ops_metric",
+    # 开放 API：令牌与订阅端点各是一行，target_id 即其主键
+    "api_token",
+    "webhook",
 )
 
 # 目标类型 → 中文名。**必须与 AUDIT_TARGET_TYPES 一一对应**（tests/test_audit_taxonomy.py 有守卫）：
@@ -220,6 +234,8 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "login_log": "登录日志",
     "audit_log": "审计日志导出",
     "ops_metric": "指标快照",
+    "api_token": "访问令牌",
+    "webhook": "Webhook 订阅",
 }
 
 # ---- 风险分级 ----
@@ -360,6 +376,17 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "ai_writing_prompt_reset": AUDIT_RISK_NORMAL,
     # 图库导入：不改配置，但会把外部图片与许可证信息落库
     "image_search_import": AUDIT_RISK_NORMAL,
+    # 开放 API：签发/吊销令牌直接改变对外集成面（谁拿着机器凭据在调内容 API）；
+    # Webhook 增删启停决定「站内事件推给谁」，删错即静默断流 —— 全部按高危记
+    "api_token_create": AUDIT_RISK_DANGER,
+    "api_token_revoke": AUDIT_RISK_DANGER,
+    "webhook_create": AUDIT_RISK_DANGER,
+    "webhook_set_active": AUDIT_RISK_DANGER,
+    "webhook_delete": AUDIT_RISK_DANGER,
+    # 试投不改配置，影响面与一次正常投递相同
+    "webhook_test": AUDIT_RISK_NORMAL,
+    # 授权本身不改任何配置
+    "elevation_granted": AUDIT_RISK_NORMAL,
 }
 
 # 未登记动作码的兜底等级：宁可标成「常规」也不报错 —— 审计不该反过来阻断业务写入

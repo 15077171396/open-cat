@@ -25,6 +25,8 @@ import MonitorErrors from './Monitor/Errors'
 import WordsTab from './Moderation/WordsTab'
 import IpBlacklistPage from './IpBlacklist'
 import MonitorApiStats from './Monitor/ApiStats'
+import ApiTokensPage from './OpenApi/ApiTokens'
+import WebhooksPage from './OpenApi/Webhooks'
 
 const getRaw = apiGet as unknown as ReturnType<typeof vi.fn>
 
@@ -160,5 +162,37 @@ describe('新增页面渲染冒烟', () => {
     })
     await expectText(<MonitorApiStats />, 'GET /api/v1/admin/users')
     await waitFor(() => expect(document.body.textContent || '').toContain('3.2s'))
+  })
+
+  it('访问令牌：空表渲染 + 一次性明文提示在场', async () => {
+    getRaw.mockResolvedValue({ items: [] })
+    await expectText(<ApiTokensPage />, '访问令牌')
+    await waitFor(() => expect(document.body.textContent || '').toContain('明文令牌只在签发时显示一次'))
+  })
+
+  it('访问令牌：渲染一条有效令牌（前缀截断展示）', async () => {
+    getRaw.mockResolvedValue({
+      items: [
+        { id: 7, name: '渲染站', prefix: 'oc_pat_abcdef12', scopes: ['content:read'], created_at: '2026-11-20T00:00:00', expires_at: null, last_used_at: null, revoked: false, expired: false },
+      ],
+    })
+    await expectText(<ApiTokensPage />, 'oc_pat_abcdef12')
+    await waitFor(() => expect(document.body.textContent || '').toContain('有效'))
+  })
+
+  it('Webhook 订阅：空表渲染 + 从未投递降级文案', async () => {
+    getRaw.mockResolvedValue({ items: [] })
+    await expectText(<WebhooksPage />, 'Webhook 订阅')
+    await waitFor(() => expect(document.body.textContent || '').toContain('还没有 Webhook 订阅'))
+  })
+
+  it('Webhook 订阅：渲染失败投递状态（连续失败计数）', async () => {
+    getRaw.mockResolvedValue({
+      items: [
+        { id: 3, name: '渲染站', url: 'https://example.com/hook', events: [], active: true, created_at: '2026-11-20T00:00:00', last_status: 'failed', last_event: 'tutorial.published', last_delivered_at: '2026-11-20T01:00:00', last_error: 'HTTP 500', failure_streak: 2 },
+      ],
+    })
+    await expectText(<WebhooksPage />, 'https://example.com/hook')
+    await waitFor(() => expect(document.body.textContent || '').toContain('连续失败 2 次'))
   })
 })

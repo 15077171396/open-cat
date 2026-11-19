@@ -19,6 +19,11 @@ from app.services.admin_audit_service import audit_changes, record_admin_action,
 from app.utils.sanitize import sanitize_content
 from app.services.search import TUTORIAL_SEARCH_COLS, apply_keyword_filter
 from app.services.content_cache import invalidate_tutorials
+from app.services.webhook_service import emit as webhook_emit
+from app.models.webhook import (
+    WEBHOOK_EVENT_TUTORIAL_PUBLISHED,
+    WEBHOOK_EVENT_TUTORIAL_UNPUBLISHED,
+)
 from app.services.content_soft_delete import (
     deleted_condition,
     mark_deleted,
@@ -161,6 +166,11 @@ async def create_tutorial(db: AsyncSession, data: dict, admin: User) -> dict:
     await db.commit()
     await invalidate_tutorials()
     await db.refresh(tutorial)
+    # 新建即发布（create_tutorial 固定 is_published=True）：同样发出站事件
+    await webhook_emit(
+        WEBHOOK_EVENT_TUTORIAL_PUBLISHED,
+        {"id": tutorial.id, "title": tutorial.title, "published_at": tutorial.published_at.isoformat() if tutorial.published_at else None},
+    )
     return {"id": tutorial.id}
 
 
@@ -247,6 +257,18 @@ async def toggle_publish(db: AsyncSession, tutorial_id: int, admin: User) -> dic
     )
     await db.commit()
     await invalidate_tutorials()
+    # Webhook 出站事件（2026-11-20）：emit 自带独立会话与 degrade_guard，
+    # 投递成败不牵连发布主流程；未注册事件名会被 emit 直接跳过
+    if tutorial.is_published:
+        await webhook_emit(
+            WEBHOOK_EVENT_TUTORIAL_PUBLISHED,
+            {"id": tutorial.id, "title": tutorial.title, "published_at": tutorial.published_at.isoformat() if tutorial.published_at else None},
+        )
+    else:
+        await webhook_emit(
+            WEBHOOK_EVENT_TUTORIAL_UNPUBLISHED,
+            {"id": tutorial.id, "title": tutorial.title},
+        )
     return {"is_published": tutorial.is_published}
 
 
@@ -423,4 +445,10 @@ async def batch_publish_tutorials(
     )
     await db.commit()
     await invalidate_tutorials()
+    # 批量出站事件：emit 自带独立会话与降级收口，按最终状态逐篇发（幂等订阅方按 id 去重）
+    for t in tutorials:
+        await webhook_emit(
+            WEBHOOK_EVENT_TUTORIAL_PUBLISHED if publish else WEBHOOK_EVENT_TUTORIAL_UNPUBLISHED,
+            {"id": t.id, "title": t.title, "published_at": t.published_at.isoformat() if (publish and t.published_at) else None},
+        )
     return {"updated": len(tutorials)}

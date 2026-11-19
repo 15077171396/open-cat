@@ -24,6 +24,7 @@ from app.core.api_stats import ApiStatsMiddleware
 from app.core.ip_guard import IPBlacklistMiddleware
 from app.core.rate_limit import RateLimitMiddleware
 from app.core.request_context import REQUEST_ID_HEADER, RequestIdMiddleware
+from app.core.origin_check import OriginCheckMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.api.router import api_router
 from app.database import dispose_engine
@@ -145,6 +146,10 @@ def create_app() -> FastAPI:
     # （tests/test_request_id.py 钉住），否则 429 等响应带不上关联 ID。
     # 本中间件仍包住限流与 CORS，429 / 预检响应同样能带上安全头。
     app.add_middleware(SecurityHeadersMiddleware)
+
+    # 写请求 Origin 校验（2026-11-20，CSRF 显式化）：注册在 CORS **外层**，
+    # 恶意跨站来源直接 403，不给它 CORS 响应头（预检 OPTIONS 不受影响）。
+    app.add_middleware(OriginCheckMiddleware, allowlist=settings.cors_origins_list)
 
     # 最后注册 = 最外层：429 / 500 / 预检等所有响应都带得上 X-Request-Id
     app.add_middleware(RequestIdMiddleware)

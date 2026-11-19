@@ -12,7 +12,7 @@ from app.utils.verification import ACCOUNT_FORMAT_ERROR, is_email_or_phone
 from app.models.user import User
 from app.core.exceptions import success_response
 from app.schemas.common import ApiResponse, KEYWORD_MAX_LENGTH
-from app.api._admin_shared import router
+from app.api._admin_shared import require_elevation, router
 
 from app.services.admin_user_service import (
     list_users,
@@ -131,10 +131,15 @@ async def admin_import_users(
 @router.post("/users/batch-delete", response_model=ApiResponse[DeletedResult])
 async def admin_batch_delete_users(
     req: UserBatchDeleteRequest,
+    _: None = Depends(require_elevation),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """批量删除用户（软删除，与用户注销一致）"""
+    """批量删除用户（软删除，与用户注销一致）
+
+    S5 危险操作二次校验：批量删除 = 一次动作抹掉一批账号的可见性，
+    前端确认弹窗之外再要求重输密码（5 分钟窗口内复用）。
+    """
     result = await batch_delete_users(db, admin, req.ids)
     return success_response(result, f"已删除 {result['deleted']} 个用户")
 
@@ -185,9 +190,10 @@ async def admin_update_user(
 @router.delete("/users/{user_id}", response_model=ApiResponse[None])
 async def admin_delete_user(
     user_id: int,
+    _: None = Depends(require_elevation),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """删除用户（软删除，与用户注销一致）"""
+    """删除用户（软删除，与用户注销一致；S5 要求密码二次校验）"""
     await delete_user(db, admin, user_id)
     return success_response(message="用户已删除")

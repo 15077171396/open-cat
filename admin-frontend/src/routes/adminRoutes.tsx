@@ -44,6 +44,8 @@ const MonitorCachePage = lazy(() => import('../pages/Monitor/Cache'))
 const MonitorErrorsPage = lazy(() => import('../pages/Monitor/Errors'))
 const MonitorApiStatsPage = lazy(() => import('../pages/Monitor/ApiStats'))
 const LoginLogsList = lazy(() => import('../pages/LoginLogs/List'))
+const ApiTokensPage = lazy(() => import('../pages/OpenApi/ApiTokens'))
+const WebhooksPage = lazy(() => import('../pages/OpenApi/Webhooks'))
 const LoginSettingsPage = lazy(() => import('../pages/LoginSettings'))
 const LegalDocumentsPage = lazy(() => import('../pages/LegalDocuments'))
 const MailSettingsPage = lazy(() => import('../pages/MailSettings'))
@@ -101,6 +103,9 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/dicts', element: <DictionariesPage />, perm: 'setting:view' },
   // IP 黑名单：运营级访问封禁，保存即时生效（独立授权面，2026-11-19）
   { path: '/ip-blacklist', element: <IpBlacklistPage />, perm: 'ip_blacklist:view' },
+  // 开放平台（2026-11-20）：令牌与 Webhook 各自独立授权面（集成面 ≠ 配置面）
+  { path: '/api-tokens', element: <ApiTokensPage />, perm: 'api_token:view' },
+  { path: '/webhooks', element: <WebhooksPage />, perm: 'webhook:view' },
   // 代码生成：表结构内省与生成物都属于数据外带，统一要求保存设置权限
   { path: '/codegen', element: <CodegenPage />, perm: 'setting:update' },
   // 登录管理：登录方式与人机验证开关的独立模块，权限码独立

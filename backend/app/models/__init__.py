@@ -6,6 +6,7 @@ from app.models.admin_audit_log import AdminAuditLog
 from app.models.ai_model import AiModel
 from app.models.ai_writing_prompt import AiWritingPrompt
 from app.models.announcement import Announcement, NotificationSetting
+from app.models.api_token import PersonalAccessToken
 from app.models.category import Category, CategoryGroup
 from app.models.chat import ChatConversation, ChatMember, ChatMessage
 from app.models.comment import ContentComment
@@ -28,6 +29,7 @@ from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
 from app.models.user_ui_preference import UserUiPreference
+from app.models.webhook import WebhookEndpoint
 
 __all__ = [
     "AdminAuditLog",
@@ -35,6 +37,8 @@ __all__ = [
     "AiWritingPrompt",
     "Announcement",
     "NotificationSetting",
+    "PersonalAccessToken",
+    "WebhookEndpoint",
     "Category",
     "ChatConversation",
     "ChatMember",

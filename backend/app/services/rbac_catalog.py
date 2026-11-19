@@ -151,6 +151,14 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     # 保存（拉黑/放行）直接改变线上访问面，单独成码 + 补种迁移（0084）。
     PermissionDef("ip_blacklist:view", "IP 黑名单查看", "menu", "ip_blacklist", "IP 黑名单", 163),
     PermissionDef("ip_blacklist:update", "IP 黑名单维护", "button", "ip_blacklist", "IP 黑名单", 164),
+
+    # 开放 API（2026-11-20）：访问令牌（PAT）与 Webhook 订阅。两者都是「对外集成面」：
+    # 令牌签发/吊销决定谁拿机器凭据调内容 API，Webhook 增删决定事件推给谁 ——
+    # 与 setting:update 分开授权（集成面 ≠ 配置面），配套补种迁移（0085）。
+    PermissionDef("api_token:view", "访问令牌查看", "menu", "api_token", "访问令牌", 165),
+    PermissionDef("api_token:manage", "访问令牌管理", "button", "api_token", "访问令牌", 166),
+    PermissionDef("webhook:view", "Webhook 查看", "menu", "webhook", "Webhook 订阅", 167),
+    PermissionDef("webhook:manage", "Webhook 管理", "button", "webhook", "Webhook 订阅", 168),
 ]
 
 # 全部权限码集合（快速校验用）
@@ -188,6 +196,8 @@ MODULE_NAMES_EN: dict[str, str] = {
     "report": "Report",
     "login_log": "Login Log",
     "ip_blacklist": "IP Blacklist",
+    "api_token": "API Token",
+    "webhook": "Webhook",
 }
 
 ACTION_NAMES_EN: dict[str, str] = {
