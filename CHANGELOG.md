@@ -6,6 +6,45 @@
 
 ### 新增
 
+- **开放 API：访问令牌（PAT）**：新「开放平台」菜单组。机器客户端可持有 `oc_pat_`
+  前缀的长期凭据调用内容 API（`/api/v1/content/*`）——库里只存 SHA-256 摘要与展示前缀，
+  明文仅在签发响应出现一次；作用域白名单（v1 `content:read`）、可过期、可吊销（幂等）。
+  PAT 由内容命名空间挂载层的统一依赖认证：无效 / 吊销 / 过期 / 缺作用域一律 401
+  （不静默降级为游客），且**永远不会**进入管理端路由（拿 PAT 打 `/admin/*` 会被
+  JWT 解码拒绝）。签发 / 吊销独立授权 `api_token:view/manage`，全部写审计。
+- **开放 API：Webhook 订阅**：教程发布 / 下架事件出站推送。回调地址仅 https，
+  签名密钥 Fernet 加密落库（明文只在创建响应出现一次），投递带
+  `X-OpenCat-Signature`（HMAC-SHA256）与事件 / 投递 ID 头，3 次指数退避、10s 超时；
+  投递是尽力而为（独立会话 + `degrade_guard`，绝不牵连发布主流程），最近状态与
+  连续失败数在面板可见，「测试」按钮真实试投一次（写审计）。独立授权
+  `webhook:view/manage`。事件发射点：教程新建、单条切换发布、批量发布。
+- **性能基线三件套**：① `scripts/bench.py` 对运行中服务压测关键端点，输出
+  P50/P95/P99，超预算退出码 1；② N+1 守卫测试——`fake_db` 新增语句流水
+  （`MemorySession.statements`），断言列表服务单次调用语句数不随行数增长
+  （评论列表 = 4、审计列表 = 2，棘轮只紧不松）；③ 慢 SQL 打点
+  （`SQL_SLOW_QUERY_MS`，超阈值记 warning 并累计）与连接池水位进
+  `/admin/ops/system-status`（路由层现读、不进缓存字典），系统状态卡新增
+  「数据库水位」区块（旧后端无此键时整段置灰）。
+- **OpenAPI 契约管线**：`scripts/export_openapi.py` 导出全量契约（208 路径）到
+  `admin-frontend/src/types/openapi.json`，快照守卫测试保证「后端契约一变、当次提交即红」；
+  `npm run gen:api`（openapi-typescript）生成 `api.gen.d.ts`——前后端字段漂移从
+  「靠人眼」变成结构性防护。手写 `types/index.ts` 按页渐进迁移，不在本版一次性替换。
+- **危险操作二次校验**：删除用户（单个 / 批量）、吊销访问令牌、删除 Webhook 等
+  不可逆动作，前端确认弹窗之外要求**重新输入登录密码**：`POST /admin/elevation`
+  校验密码后签发 5 分钟短时凭据（Redis 单槽，最新一次覆盖上一次；Redis 故障
+  fail-closed），请求携带 `X-Elevation-Token` 由 `require_elevation` 依赖逐请求校验。
+  前端 5 分钟窗口内一组危险操作只输一次密码。授权动作本身写审计
+  （`elevation_granted`）。新端点按同一依赖挂载即可。
+- **写请求 Origin 显式校验**：纯 ASGI 中间件（CORS 外层）——POST/PUT/PATCH/DELETE
+  带 Origin 头时：同源（Origin 与 Host 一致）或 CORS 白名单来源放行，其余 403；
+  无 Origin 的请求（curl / 服务器间调用 / PAT 机器客户端）不受影响。
+  与 refresh cookie 的 `SameSite=Lax` 构成双层 CSRF 防线，不再依赖浏览器默认行为。
+- **JPEG 隐私元数据剥离**：上传的 JPEG 无损切除 APP1（EXIF / GPS 定位 / XMP）、
+  APP13（Photoshop 编辑历史）、COM（注释）段，保留 ICC 色彩配置（剥了会偏色）；
+  二进制段拼接、零重编码零画质损失，解析异常降级为原图上传。编辑器图片与通用
+  附件两条上传链路统一生效。magic bytes 嗅探、解压炸弹防护、SVG 双白名单封禁
+  原已存在。
+
 - **登录日志**：监控管理新增 `/login-logs`。登录成功 / 失败 / 登出各留一行安全遥测
   （账号 `mask_account` 脱敏、IP / UA / 失败原因、request_id 与应用日志串线索）——
   排查「账号是不是被人试过」不再只能翻会滚动的应用日志。写入走独立会话 + `degrade_guard`

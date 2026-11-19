@@ -37,7 +37,7 @@ Use it to run content and users; use its API to render your own site.
 | Menu entry exists, page returns 403 | Permission codes are declared **once** and derive menu / route / API / button — inconsistency is physically impossible |
 | A new endpoint ships without a permission check | Route rule table is **fail-closed**: unregistered requests get 403 |
 | Nobody can tell who changed what | Write operations **must** be audited; a missing audit record turns tests red |
-| Shared accounts, unclear accountability | 67 permission codes, 3 built-in roles, customizable down to the button |
+| Shared accounts, unclear accountability | 62 permission codes, 3 built-in roles, customizable down to the button |
 | Third-party keys stored in plain text | Keys are **encrypted with Fernet** in the DB, only a masked value is returned |
 | The editor is dumb, images are found by hand | Quill 2 + AI rewrite/continue/illustrate + image library search |
 
@@ -86,9 +86,8 @@ already has real content unless you pass `--yes`.
 | **Content (sample domain)** | Tutorials (multi-level chapter tree) / categories / media library — a **copyable reference implementation**: list, chapter tree, editor, review, recycle bin |
 | **Editing** | Quill 2 rich text (tables, code blocks, captions, TOC, Markdown paste), AI rewrite/continue/illustrate, image library search, draft preview |
 | **Moderation** | Machine-review trail, user reports, comment governance (deletable and restorable, never editable) |
-| **Users** | CRUD, ban, soft delete and restore, role assignment |
-| **Users** | CRUD, ban, soft delete/restore, **CSV bulk import** (atomic: any invalid row cancels the batch; same password policy) |
-| **Permissions** | Roles / permission tree / departments / positions, 70 permission codes, button-level |
+| **Users** | CRUD, ban, soft delete/restore, **CSV bulk import** (atomic: any invalid row cancels the batch; same password policy); irreversible actions such as deletion require **password re-confirmation** |
+| **Permissions** | Roles / permission tree / departments / positions, 62 permission codes, button-level |
 | **Audit** | Every write is recorded; high-risk actions keep a **field-level diff** (old → new, secrets masked, long values truncated), searchable by module / actor / time / result; **CSV export** for offline archiving (field-level diff deliberately excluded) |
 | **Experience** | Global command palette (Ctrl/Cmd + K): jump to pages, search users / tutorials, switch theme / layout; results land on filtered lists or edit pages. Below 767px the menu becomes a drawer, and comments / moderation / feedback prioritize content columns |
 | **Workplace** | Aggregated page under Overview: permission-aware quick actions, pending to-dos, today's signups / total users, recent audit events and tutorials |
