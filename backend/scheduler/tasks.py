@@ -1,4 +1,4 @@
-"""定时任务 - VIP 过期降级、百度收录推送等
+"""定时任务 - 回收站清理、IndexNow 推送等
 
 调度方式（2026-10-27 起）：
     任务**不是**写死 `add_job` 的，而是「代码里注册 handler（`JOB_FUNCS`）+ 库里的配置表
@@ -24,30 +24,29 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from loguru import logger
-from sqlalchemy import select, update
+from sqlalchemy import select
 
 from app.config import settings
+from app.core.degrade import degrade_guard
 from app.core.monitoring import init_monitoring
 from app.database import async_session
 from app.models.scheduled_job_config import ScheduledJobConfig
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
-from app.models.user import User
 from app.redis import log_redis_degraded, redis_client
 from app.services import scheduled_job_service as sjs
 from app.services.admin_audit_service import (
     AUDIT_LOG_RETENTION_DAYS,
     cleanup_expired_audit_logs,
 )
-from app.services.baidu_push_service import push_urls_to_baidu
-from app.services import recycle_bin_service
+from app.services import ops_metric_service, recycle_bin_service
 from app.services.content_cache import invalidate_tutorials
 from app.services.data_quality_service import collect_issues
-from app.services.search_log_service import SEARCH_LOG_RETENTION_DAYS, cleanup_old as cleanup_search_logs_db
-from app.services.content_view_service import (
-    CONTENT_VIEW_RETENTION_DAYS,
-    cleanup_old as cleanup_content_views_db,
+from app.services.login_log_service import (
+    LOGIN_LOG_RETENTION_DAYS,
+    cleanup_expired as cleanup_login_logs_db,
 )
+from app.services.search_log_service import SEARCH_LOG_RETENTION_DAYS, cleanup_old as cleanup_search_logs_db
 from app.services.indexnow_service import push_urls_to_indexnow
 from app.services.system_status_service import record_data_quality, record_job_run
 from app.services.view_counter import flush_pending_views
@@ -124,35 +123,6 @@ def _with_heartbeat(job_id: str, fn):
     return _runner
 
 
-async def check_vip_expiry():
-    """VIP 过期降级任务 - 每日凌晨 02:00 (北京时间) 执行"""
-    logger.info("开始执行 VIP 过期检查...")
-    now = datetime.now(timezone.utc)
-
-    try:
-        async with async_session() as db:
-            result = await db.execute(
-                update(User)
-                .where(
-                    User.role == "vip",
-                    User.vip_expire_time < now,
-                )
-                .values(role="user", vip_expire_time=None)
-            )
-            updated = result.rowcount
-
-            await db.commit()
-            if updated:
-                logger.info(f"VIP 过期降级完成，共处理 {updated} 个用户")
-                return f"降级 {updated} 个用户"
-            logger.info("无过期 VIP 用户")
-            return "无过期用户"
-    except Exception:
-        # 任务异常仅记日志，不影响下一次调度（与 push_new_urls_to_baidu 的保护策略一致）
-        logger.exception("VIP 过期检查任务执行失败")
-        return False
-
-
 async def cleanup_audit_logs():
     """审计日志保留期清理任务 - 每日凌晨 04:00（北京时间）执行。
     审计表只增不减，保留 365 天；删除逻辑在 admin_audit_service（可单测），本任务只负责开会话+提交。"""
@@ -173,13 +143,13 @@ async def cleanup_audit_logs():
 
 
 # 每个板块单次推送的 URL 上限：无 LIMIT 时一次批量导入/分类改名会把全部存量页当「最近更新」
-# 推出去，烧光百度当日配额，还会让调度器次日抛 MaxInstancesReachedError；
+# 推出去，烧光 IndexNow 当日配额，还会让调度器次日抛 MaxInstancesReachedError；
 # 各板块取最近更新的 N 条，被截断的存量页靠 sitemap 兜底发现（推送只是加速通道）
 _MAX_PUSH_URLS_PER_TYPE = 500
 
 
 async def collect_recent_urls(hours: int = 26) -> list[str]:
-    """收集最近 N 小时内新增/更新的内容页 URL（百度/IndexNow 推送共用）。
+    """收集最近 N 小时内新增/更新的内容页 URL（IndexNow 推送用）。
 
     比自然日多 2 小时冗余，规避任务执行时刻漂移导致的边界漏推。
     """
@@ -208,34 +178,11 @@ async def collect_recent_urls(hours: int = 26) -> list[str]:
     return list(dict.fromkeys(urls))
 
 
-async def push_new_urls_to_baidu():
-    """百度收录推送任务 - 每日凌晨 03:00
-
-    推送最近 26 小时内新增/更新的内容页 URL。存量页面的发现依赖 sitemap
-    提交，本任务只负责加速新内容被发现。未配置 token 时自动跳过。
-    """
-    if not settings.BAIDU_PUSH_TOKEN:
-        return "未配置 BAIDU_PUSH_TOKEN，跳过"
-
-    logger.info("开始执行百度收录推送...")
-    try:
-        urls = await collect_recent_urls()
-        if not urls:
-            logger.info("近 26 小时无新增/更新内容，跳过百度推送")
-            return "近 26 小时无更新"
-
-        result = await push_urls_to_baidu(urls)
-        logger.info(f"百度推送任务结束: 待推 {len(urls)} 条, 成功 {result['success']} 条")
-        return f"推送 {result['success']}/{len(urls)} 条"
-    except Exception as e:  # noqa: BLE001 推送失败不影响其它定时任务
-        logger.warning(f"百度推送任务异常（已忽略）: {e}")
-        return False
-
-
 async def push_new_urls_to_indexnow():
     """Bing IndexNow 推送任务 - 每日凌晨 03:10（北京时间）
 
-    与百度推送共用 URL 收集逻辑。未配置密钥时自动跳过。
+    推送最近 26 小时内新增/更新的内容页 URL。存量页面的发现依赖 sitemap
+    提交，本任务只负责加速新内容被发现。未配置密钥时自动跳过。
     """
     if not settings.INDEXNOW_KEY:
         return "未配置 INDEXNOW_KEY，跳过"
@@ -276,7 +223,7 @@ async def data_quality_check():
     """数据质量只读巡检 - 每日 05:00（北京时间）执行。
 
     只查不删（见 services/data_quality_service 的模块说明）：
-    负积分、过期未降级的 VIP、指向已删内容的孤儿收藏/下载/学习记录。
+    指向已删内容的孤儿收藏/学习记录。
     结果写 Redis，由后台「系统状态」卡展示；有问题时打 WARNING 便于 Sentry 带走。
     """
     logger.info("开始执行数据质量巡检...")
@@ -318,28 +265,10 @@ async def cleanup_search_logs():
         return False
 
 
-async def cleanup_content_views():
-    """内容浏览归因记录清理 - 每日 04:40（北京时间），保留 180 天。
-
-    保留期比搜索词（90 天）长：归因要看「申请认证前看过什么」，
-    而「看内容 → 决定付费」的周期通常以周计，太短会把有效归因删掉。
-    """
-    logger.info("开始清理过期内容浏览记录...")
-    try:
-        async with async_session() as db:
-            deleted = await cleanup_content_views_db(db, CONTENT_VIEW_RETENTION_DAYS)
-            await db.commit()
-        return f"清理 {deleted} 条" if deleted else "无过期记录"
-    except Exception:
-        logger.exception("内容浏览记录清理任务执行失败")
-        return False
-
-
 async def purge_recycle_bin():
     """回收站到期清理 - 每日 04:50（北京时间）。
 
-    只清教程与评论：用户账号不自动清理（恢复账号是人工决策）；有购买记录的教程
-    跳过，避免删掉用户已经付费的内容。教程先清章节/网盘链接再删主行。
+    只清教程与评论：用户账号不自动清理（恢复账号是人工决策）。教程先清章节再删主行。
     """
     logger.info("开始清理过期回收站...")
     try:
@@ -362,21 +291,50 @@ async def purge_recycle_bin():
         return False
 
 
+async def cleanup_login_logs():
+    """登录日志保留期清理 - **每 60 分钟**执行。
+
+    登录日志是安全遥测（每条登录尝试都写一行），量大而回溯价值集中在近期；
+    保留 90 天。删除逻辑在 login_log_service（可单测），本任务只负责开会话+提交。
+    """
+    deleted = 0
+    with degrade_guard("job.cleanup_login_logs", detail="登录日志清理任务执行失败"):
+        async with async_session() as db:
+            deleted = await cleanup_login_logs_db(db, LOGIN_LOG_RETENTION_DAYS)
+            await db.commit()
+        # 走到这里 = 成功路径；异常已被 guard 在 with 边界吞掉，直接落到下面的 return False
+        return f"清理 {deleted} 条" if deleted else "无过期记录"
+    return False
+
+
+async def ops_metric_snapshot():
+    """核心指标快照 - **每 60 分钟**执行。
+
+    把用户/内容/待办积压/登录失败等读数写入 ops_metric_snapshots 一行，
+    供看板「系统指标趋势」回看历史水位；写入前顺带清理 180 天前的旧行。
+    """
+    with degrade_guard("job.ops_metric_snapshot", detail="核心指标快照任务执行失败"):
+        async with async_session() as db:
+            metrics = await ops_metric_service.take_snapshot(db)
+            await db.commit()
+        return f"采样 {len(metrics)} 项指标"
+    return False
+
+
 # ---------------------------------------------------------------------------
 # 任务注册表：id → handler
 # ---------------------------------------------------------------------------
 # **这是唯一可被调度的任务集合**。后台能改的只有「跑不跑 / 什么周期」，
 # 不能凭空造出新任务 —— 新增任务必须在这里注册 + 在 JOB_SPECS 里声明（测试双向比对）。
 JOB_FUNCS: dict[str, object] = {
-    "check_vip_expiry": check_vip_expiry,
-    "push_new_urls_to_baidu": push_new_urls_to_baidu,
     "push_new_urls_to_indexnow": push_new_urls_to_indexnow,
     "cleanup_audit_logs": cleanup_audit_logs,
     "cleanup_search_logs": cleanup_search_logs,
-    "cleanup_content_views": cleanup_content_views,
     "purge_recycle_bin": purge_recycle_bin,
     "flush_view_counts": flush_view_counts,
     "data_quality_check": data_quality_check,
+    "cleanup_login_logs": cleanup_login_logs,
+    "ops_metric_snapshot": ops_metric_snapshot,
 }
 
 # 进程内「正在执行」的任务（调度触发与手动触发共用，见 _run_guarded）
@@ -412,7 +370,7 @@ def _trigger_for(cfg: sjs.JobConfig):
     """配置 → APScheduler 触发器。
 
     daily 显式指定 Asia/Shanghai：容器系统时区通常是 UTC，不指定会整体晚 8 小时
-    （VIP 过期用户会多享受 8 小时付费权益）。
+    （按日统计的口径会错位）。
     """
     if cfg.kind == "interval":
         return IntervalTrigger(minutes=cfg.interval_minutes)

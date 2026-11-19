@@ -1,6 +1,6 @@
-"""管理后台 - 用户管理（含 RBAC 分配与积分流水）"""
+"""管理后台 - 用户管理（含 RBAC 分配）"""
 
-from fastapi import Depends, Query
+from fastapi import Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel, Field, field_validator
 from typing import Literal, Optional
@@ -8,10 +8,9 @@ from typing import Literal, Optional
 from app.database import get_db
 from app.core.data_scope import resolve_data_scope
 from app.core.permissions import require_admin
-from app.utils.time import parse_iso_to_naive_utc
 from app.utils.verification import ACCOUNT_FORMAT_ERROR, is_email_or_phone
 from app.models.user import User
-from app.core.exceptions import AppException, success_response
+from app.core.exceptions import success_response
 from app.schemas.common import ApiResponse, KEYWORD_MAX_LENGTH
 from app.api._admin_shared import router
 
@@ -25,12 +24,8 @@ from app.services.admin_user_service import (
     create_user as create_user_by_admin,
 )
 from app.services.rbac_service import assign_user_rbac
-from app.services.point_service import (
-    list_user_transactions,
-    list_all_transactions,
-)
+from app.services.user_import_service import import_users
 from app.schemas.content import PageResult
-from app.schemas.user_content import PointTransactionItem
 from app.schemas.admin import AdminUserItem, CreatedResult, DeletedResult
 
 
@@ -65,7 +60,7 @@ async def admin_list_users(
 class UserCreateRequest(BaseModel):
     account: str = Field(..., min_length=1, max_length=100, description="手机号或邮箱")
     password: str = Field(..., min_length=6, max_length=50, description="密码(6-50位)")
-    role: Literal["user", "vip", "admin"] = "user"
+    role: Literal["user", "admin"] = "user"
     # RBAC：管理后台角色与部门归属（角色权限仅对业务角色 admin 生效）
     rbac_role_ids: list[int] = Field(default_factory=list, max_length=20)
     department_id: int | None = Field(None, ge=1, description="部门ID(空=不归属)")
@@ -117,6 +112,22 @@ async def admin_create_user(
     return success_response(result, "用户创建成功")
 
 
+@router.post("/users/import", response_model=ApiResponse[CreatedResult])
+async def admin_import_users(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """批量导入用户（CSV：account,password,role,nickname）。
+
+    原子语义：任一行校验失败则整体取消（400 + 行级报告），校验全过才写库。
+    授权面与单账号创建一致（user:create）；导入完成写一条汇总审计。
+    """
+    raw = await file.read()
+    result = await import_users(db, admin, raw)
+    return success_response(result, f"导入完成：成功创建 {result['imported']} 个账号")
+
+
 @router.post("/users/batch-delete", response_model=ApiResponse[DeletedResult])
 async def admin_batch_delete_users(
     req: UserBatchDeleteRequest,
@@ -134,9 +145,9 @@ async def admin_restore_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """恢复已注销用户（清软删除标记，积分/VIP/关联数据原样保留）
+    """恢复已注销用户（清软删除标记，关联数据原样保留）
 
-    与用户自助注册的「复活」不同：那条路径会清空个人数据并重置 VIP 与免费时长，
+    与用户自助注册的「复活」不同：那条路径会清空个人数据，
     这里一律保留 —— 语义是「撤销删除」，不是「重开新账号」。
     """
     result = await restore_user(db, admin, user_id)
@@ -155,15 +166,8 @@ async def admin_get_user(
 
 
 class UserUpdateRequest(BaseModel):
-    role: Optional[Literal["user", "vip", "admin"]] = None
-    vip_expire_time: Optional[str] = Field(None, max_length=40)  # ISO 字符串；空串表示清除
+    role: Optional[Literal["user", "admin"]] = None
     avatar_url: Optional[str] = Field(None, max_length=500)  # 空串表示清除
-    reset_free_seconds: Optional[bool] = None  # True 表示重置为 0
-    points: Optional[int] = Field(None, ge=0, le=10_000_000)  # 兼容旧参数：积分余额直接设置为该值
-    # 积分调整（推荐）：set 设置为 / grant 充值 / deduct 扣减，均写流水
-    points_action: Optional[Literal["set", "grant", "deduct"]] = None
-    points_value: Optional[int] = Field(None, ge=0, le=10_000_000)
-    points_note: Optional[str] = Field(None, max_length=200)
 
 
 @router.put("/users/{user_id}", response_model=ApiResponse[None])
@@ -173,52 +177,9 @@ async def admin_update_user(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """更新用户信息（角色 / VIP 到期 / 头像 / 重置免费时长 / 积分调整）"""
+    """更新用户信息（角色 / 头像）"""
     await update_user(db, admin, user_id, req.model_dump(exclude_unset=False))
     return success_response(message="用户信息已更新")
-
-
-@router.get("/users/{user_id}/points", response_model=ApiResponse[PageResult[PointTransactionItem]])
-async def admin_user_points(
-    user_id: int,
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    """用户积分流水（时间倒序）"""
-    result = await list_user_transactions(db, user_id, page, page_size)
-    return success_response(result)
-
-
-@router.get("/points/transactions", response_model=ApiResponse[PageResult[PointTransactionItem]])
-async def admin_all_points(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    keyword: str = Query(None, max_length=KEYWORD_MAX_LENGTH),
-    type: str = Query(None),
-    direction: str = Query(None, description="收支方向：income / expense；不传表示全部"),
-    start_at: str = Query(None, max_length=40, description="起始时间 ISO 字符串（含时区偏移）"),
-    end_at: str = Query(None, max_length=40, description="结束时间 ISO 字符串（含时区偏移）"),
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    """全站积分流水（keyword 按用户账号，type 按流水类型，direction 按收支方向，start_at/end_at 按时间闭区间）
-
-    时间参数由前端 `toISOString()` 产出（带偏移），这里统一换算成 **naive UTC** 再进查询 ——
-    库内时间列是 naive UTC，直接比较在东八区会差 8 小时。
-    """
-    try:
-        start_dt = parse_iso_to_naive_utc(start_at)
-        end_dt = parse_iso_to_naive_utc(end_at)
-    except ValueError:
-        raise AppException(code=400, message="时间范围格式无效，请使用标准日期时间")
-    if start_dt and end_dt and start_dt > end_dt:
-        raise AppException(code=400, message="开始时间不能晚于结束时间")
-    result = await list_all_transactions(
-        db, page, page_size, keyword, type, direction, start_dt, end_dt
-    )
-    return success_response(result)
 
 
 @router.delete("/users/{user_id}", response_model=ApiResponse[None])

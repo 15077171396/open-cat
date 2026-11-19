@@ -6,8 +6,8 @@
 
 ## 字段是怎么来的
 
-不是猜的：`Announcement` / `Feedback` / `AdminAuditLog` / `RedemptionCode` /
-`RedemptionRecord` / `ContentComment` / `Role` / `Department` / `Permission`
+不是猜的：`Announcement` / `Feedback` / `AdminAuditLog` / `ContentComment` /
+`Role` / `Department` / `Permission`
 这些模型的字段直接取自 **ORM 表的列名**（后台列表就是把这些列序列化出去的）。
 
 ## 三条安全约定
@@ -186,31 +186,6 @@ class AuditLogItem(_Item):
     created_at: Optional[str] = None
 
 
-class RedemptionCodeItem(_Item):
-    """兑换码（`/admin/redemption-codes`）。"""
-
-    id: Optional[int] = None
-    code: Optional[str] = None
-    points: Optional[int] = None
-    max_uses: Optional[int] = None
-    used_count: Optional[int] = None
-    status: Optional[str] = None
-    expires_at: Optional[str] = None
-    note: Optional[str] = None
-    created_at: Optional[str] = None
-
-
-class RedemptionRecordItem(_Item):
-    """兑换记录（`/admin/redemption-codes/{id}/records`）。"""
-
-    id: Optional[int] = None
-    code_id: Optional[int] = None
-    code: Optional[str] = None
-    user_id: Optional[int] = None
-    points: Optional[int] = None
-    created_at: Optional[str] = None
-
-
 class AdminCommentItem(_Item):
     """评论（后台视角：含 `deleted_at` 软删标记）。"""
 
@@ -265,9 +240,7 @@ class AdminUserItem(_Item):
     account: Optional[str] = None
     nickname: Optional[str] = None
     role: Optional[str] = None
-    points: Optional[int] = None
     is_active: Optional[bool] = None
-    vip_expire_time: Optional[str] = None
     created_at: Optional[str] = None
     # 软删除时间：非空 = 该账号已注销/被删除。列表页据此显示「已注销」标记与「恢复」入口
     deleted_at: Optional[str] = None

@@ -1,5 +1,5 @@
 """管理后台 - 用户管理服务（从 admin.py 抽取的 ORM 操作，响应格式与原路由一致；
-list/detail 均返回 has_pending_auth_code 布尔而非裸字段；删除为软删除；时间统一 UTC）"""
+删除为软删除；时间统一 UTC）"""
 
 from datetime import datetime, timezone
 
@@ -8,15 +8,11 @@ from sqlalchemy import delete, select, func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.core.data_scope import DataScope, apply_scope
 from app.core.security import bump_token_version
 from app.models.user import User
-from app.models.auth_request import AuthRequest
 from app.models.rbac import Department, Role, UserRole
 from app.core.exceptions import AppException
-from app.services.timer_service import get_free_time_status
-from app.services.point_service import adjust_points
 from app.services import setting_service
 from app.services.admin_audit_service import record_admin_action, summarize_ids
 from app.services.rbac_service import invalidate_user_rbac_cache
@@ -49,25 +45,6 @@ async def _batch_rbac_info(db: AsyncSession, user_ids: list[int]) -> tuple[dict,
     ).all()
     dept_map = {d.id: d.name for d in dept_rows}
     return roles_map, dept_map
-
-
-def _free_time_fields(user: User) -> dict:
-    """管理后台展示口径的免费时长字段。
-
-    「已用时长」按自然时间倒计时消耗（now - free_started_at，封顶 3 小时），
-    与前台剩余时长口径一致（timer_service 统一实现）；
-    VIP/admin 不限时：free_remaining_seconds 返回 None，已用仅展示实际学习统计。
-    """
-    if user.role in ("vip", "admin"):
-        return {
-            "free_used_seconds": user.free_used_seconds,
-            "free_remaining_seconds": None,
-        }
-    status = get_free_time_status(user)
-    return {
-        "free_used_seconds": settings.FREE_TIME_LIMIT - status["free_remaining_seconds"],
-        "free_remaining_seconds": status["free_remaining_seconds"],
-    }
 
 
 async def list_users(
@@ -125,33 +102,13 @@ async def list_users(
     )
     users = (await db.execute(query)).scalars().all()
 
-    # 批量查询认证记录，避免 N+1
     user_ids = [u.id for u in users]
-    auth_map: dict = {}
-    if user_ids:
-        auth_rows = (
-            await db.execute(
-                select(AuthRequest)
-                .where(AuthRequest.user_id.in_(user_ids))
-                .order_by(AuthRequest.created_at.desc())
-            )
-        ).scalars().all()
-        for ar in auth_rows:
-            uid = ar.user_id
-            existing = auth_map.get(uid)
-            # 优先 approved；同状态下保留最新（已按时间倒序，先到的是最新）
-            if existing is None:
-                auth_map[uid] = ar
-            elif ar.status == "approved" and existing.status != "approved":
-                auth_map[uid] = ar
 
     def _user_base(u: User) -> dict:
         return {
             "id": u.id,
             "account": u.account,
             "role": u.role,
-            "points": u.points or 0,
-            "vip_expire_time": u.vip_expire_time.isoformat() if u.vip_expire_time else None,
             "created_at": u.created_at.isoformat() if u.created_at else None,
             "avatar_url": u.avatar_url,
             # 非空 = 已注销/被删除（account_status=deleted|all 时才有值）
@@ -164,15 +121,6 @@ async def list_users(
     items = [
         {
             **_user_base(u),
-            **_free_time_fields(u),
-            # SEC-014: 不返回裸 pending_auth_code
-            "has_pending_auth_code": bool(u.pending_auth_code),
-            "auth_status": auth_map[u.id].status if u.id in auth_map else None,
-            "star_code": (
-                auth_map[u.id].star_code
-                if u.id in auth_map and auth_map[u.id].status == "approved"
-                else None
-            ),
             # RBAC：管理后台角色与部门归属
             "rbac_roles": roles_map.get(u.id, []),
             "department_id": u.department_id,
@@ -199,15 +147,6 @@ async def get_user(db: AsyncSession, user_id: int, scope: DataScope | None = Non
     if not user:
         raise AppException(code=404, message="用户不存在")
 
-    auth_history = (
-        await db.execute(
-            select(AuthRequest)
-            .where(AuthRequest.user_id == user_id)
-            .order_by(AuthRequest.created_at.desc())
-            .limit(20)
-        )
-    ).scalars().all()
-
     # RBAC：管理后台角色与部门归属（编辑弹窗回显用）
     roles_map, dept_map = await _batch_rbac_info(db, [user.id])
     department_name = dept_map.get(user.department_id) if user.department_id else None
@@ -216,42 +155,25 @@ async def get_user(db: AsyncSession, user_id: int, scope: DataScope | None = Non
         "id": user.id,
         "account": user.account,
         "role": user.role,
-        "points": user.points or 0,
-        **_free_time_fields(user),
-        "vip_expire_time": user.vip_expire_time.isoformat() if user.vip_expire_time else None,
         "created_at": user.created_at.isoformat() if user.created_at else None,
         "avatar_url": user.avatar_url,
-        # SEC-014: 不返回裸 pending_auth_code
-        "has_pending_auth_code": bool(user.pending_auth_code),
         "rbac_roles": roles_map.get(user.id, []),
         "department_id": user.department_id,
         "department_name": department_name,
-        "auth_history": [
-            {
-                "id": ar.id,
-                "star_code": ar.star_code,
-                "status": ar.status,
-                "vip_duration": ar.vip_duration,
-                "reject_reason": ar.reject_reason,
-                "created_at": ar.created_at.isoformat() if ar.created_at else None,
-                "reviewed_at": ar.reviewed_at.isoformat() if ar.reviewed_at else None,
-            }
-            for ar in auth_history
-        ],
     }
 
 
 async def update_user(db: AsyncSession, admin: User, user_id: int, updates: dict) -> None:
-    """更新用户信息（角色 / VIP 到期 / 头像 / 重置免费时长 / 积分余额）
+    """更新用户信息（角色 / 头像）
 
-    updates 字段全部可选：role/vip_expire_time/avatar_url/reset_free_seconds/points
+    updates 字段全部可选：role/avatar_url
     """
     if user_id == admin.id and updates.get("role") is not None and updates["role"] != "admin":
         raise AppException(code=400, message="不能取消自己的管理员角色")
 
-    # 与 get_user 口径一致：过滤已软删除用户，防止对注销账号改角色/VIP 留下脏状态
-    # SELECT ... FOR UPDATE 行锁：本函数是「读内存值 → 绝对值写回」，与 tool_service 的原子
-    # UPDATE 并发时会丢失更新；行锁与原子 UPDATE 互斥，保证积分/角色/VIP 调整账实一致
+    # 与 get_user 口径一致：过滤已软删除用户，防止对注销账号改角色留下脏状态
+    # SELECT ... FOR UPDATE 行锁：本函数是「读内存值 → 绝对值写回」，与其他写入口的原子
+    # UPDATE 并发时会丢失更新；行锁与原子 UPDATE 互斥，保证角色调整账实一致
     user = (
         await db.execute(
             select(User)
@@ -265,7 +187,7 @@ async def update_user(db: AsyncSession, admin: User, user_id: int, updates: dict
     role = updates.get("role")
     role_changed = False
     if role is not None:
-        if role not in ("user", "vip", "admin"):
+        if role not in ("user", "admin"):
             raise AppException(code=400, message="角色无效")
         if role != user.role:
             if (
@@ -300,66 +222,9 @@ async def update_user(db: AsyncSession, admin: User, user_id: int, updates: dict
                 await invalidate_user_rbac_cache(user.id)
         user.role = role
 
-    vip_expire_time = updates.get("vip_expire_time")
-    if vip_expire_time is not None:
-        _old_vip = user.vip_expire_time
-        # 空字符串表示清除 VIP
-        if vip_expire_time == "":
-            user.vip_expire_time = None
-        else:
-            try:
-                # 兼容带/不带时区的 ISO 字符串
-                dt = datetime.fromisoformat(vip_expire_time.replace("Z", "+00:00"))
-            except ValueError:
-                raise AppException(code=400, message="VIP 到期时间格式无效")
-            # 带 +08:00 等非 UTC 偏移的输入须归一化为 UTC 再以 naive 入库，
-            # 否则被「naive=UTC」读取端解释后 VIP 实际到期时间偏差 8 小时
-            if dt.tzinfo is not None:
-                dt = dt.astimezone(timezone.utc)
-            user.vip_expire_time = dt.replace(tzinfo=None)
-        # 审计：VIP 到期时间直接决定付费权益，延长/清除都需可追溯
-        record_admin_action(
-            db,
-            admin,
-            "user_update_vip",
-            target_type="user",
-            target_id=user.id,
-            summary=(
-                f"清除用户 {user.id} 的会员到期时间"
-                if user.vip_expire_time is None
-                else f"设置用户 {user.id} 会员到期时间: {user.vip_expire_time.isoformat()}"
-            ),
-            detail={
-                "changes": {
-                    "vip_expire_time": [
-                        _old_vip.isoformat() if _old_vip else None,
-                        user.vip_expire_time.isoformat() if user.vip_expire_time else None,
-                    ]
-                }
-            },
-        )
-
     avatar_url = updates.get("avatar_url")
     if avatar_url is not None:
         user.avatar_url = avatar_url if avatar_url != "" else None
-
-    if updates.get("reset_free_seconds"):
-        # 重置 = 重新赠送 3 小时：重设自然时间起点，并清零实际学习统计
-        user.free_used_seconds = 0
-        user.free_started_at = datetime.now(timezone.utc)
-
-    # 积分调整：新参数 points_action(set/grant/deduct)+points_value+points_note 优先；
-    # 兼容旧参数 points（直接设置为该值），两者均写流水
-    points_action = updates.get("points_action")
-    if points_action is not None:
-        points_value = updates.get("points_value")
-        if points_value is None:
-            raise AppException(code=400, message="积分调整方式存在时必须提供积分数量")
-        await adjust_points(db, admin, user, points_action, int(points_value), updates.get("points_note"))
-    else:
-        points = updates.get("points")
-        if points is not None:
-            await adjust_points(db, admin, user, "set", int(points), updates.get("points_note"))
 
     # 显式提交：确保响应返回前事务已落库（get_db teardown 的 commit 晚于响应发送）
     await db.commit()
@@ -370,9 +235,7 @@ async def update_user(db: AsyncSession, admin: User, user_id: int, updates: dict
 
 
 async def delete_user(db: AsyncSession, admin: User, user_id: int) -> None:
-    """删除用户（软删除）：仅标记 deleted_at 并清理认证相关状态，与用户注销逻辑一致"""
-    from app.services.audit_service import cleanup_auth_data_on_deactivation
-
+    """删除用户（软删除）：仅标记 deleted_at，与用户注销逻辑一致"""
     if user_id == admin.id:
         raise AppException(code=400, message="不能删除自己")
     # 仅允许删除正常状态用户（重复软删除无意义，与 get_user/update_user 口径一致）
@@ -382,7 +245,6 @@ async def delete_user(db: AsyncSession, admin: User, user_id: int) -> None:
     if not user:
         raise AppException(code=404, message="用户不存在")
     user.deleted_at = datetime.now(timezone.utc)
-    await cleanup_auth_data_on_deactivation(db, user)
     # 敏感操作审计：删号必须可追溯（账号快照进审计行，事后才能回答「删的是谁」）
     logger.bind(
         event="admin_delete_user", admin_id=admin.id,
@@ -406,10 +268,9 @@ async def restore_user(db: AsyncSession, admin: User, user_id: int) -> dict:
     """恢复已注销/被删除的用户（清 deleted_at，数据原样保留）
 
     「原样恢复」的边界（**别指望它把注销流程清掉的东西变回来**）：
-    - 保留：积分余额、VIP 到期时间与 role、收藏/学习/下载/消息/工具日志等全部关联数据；
-    - 不恢复：注销时已清理的 `pending_auth_code` 与 pending 认证申请、
-      已吊销的 token（用户必须重新登录）。
-    与「用户自助注册复活」的区别：复活会清空个人数据并重置 VIP/免费时长，
+    - 保留：role、收藏/学习/消息等全部关联数据；
+    - 不恢复：已吊销的 token（用户必须重新登录）。
+    与「用户自助注册复活」的区别：复活会清空个人数据，
     这里全部保留 —— 恢复的语义是「撤销删除」，不是「重开一个新账号」。
 
     ⚠️ 不 bump_token_version：注销/删除时已经 bump 过一次，用户手上不可能持有
@@ -446,8 +307,6 @@ async def batch_delete_users(db: AsyncSession, admin: User, user_ids: list[int])
 
     部分 id 已不存在/已注销时不报错，按实际存在的删除并返回数量。
     """
-    from app.services.audit_service import cleanup_auth_data_on_deactivation
-
     if admin.id in user_ids:
         raise AppException(code=400, message="不能删除自己")
     users = (
@@ -460,7 +319,6 @@ async def batch_delete_users(db: AsyncSession, admin: User, user_ids: list[int])
     now = datetime.now(timezone.utc)
     for user in users:
         user.deleted_at = now
-        await cleanup_auth_data_on_deactivation(db, user)
         logger.bind(
             event="admin_delete_user", admin_id=admin.id,
             target_user_id=user.id, account=user.account,
@@ -523,6 +381,10 @@ async def create_user(
             )
 
     account = data["account"].strip()
+    # 密码强度策略（2026-11-19）：管理员建号与注册同口径（配置在「密码策略」可调）
+    from app.core.password_policy import validate_password_strength
+
+    validate_password_strength(data["password"])
     existing = (
         await db.execute(select(User).where(User.account == account))
     ).scalar_one_or_none()
@@ -547,9 +409,6 @@ async def create_user(
         account=account,
         password_hash=await hash_password_async(data["password"]),
         role=role,
-        free_used_seconds=0,
-        # 新用户注册起 3 小时自然时间倒计时，与注册口径一致
-        free_started_at=datetime.now(timezone.utc),
     )
     db.add(user)
     # SAVEPOINT 包裹 flush：并发创建同一账号时撞唯一约束降级为幂等业务错误

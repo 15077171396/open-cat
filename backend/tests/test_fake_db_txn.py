@@ -16,27 +16,27 @@ from app.models.user import User
 from tests.fake_db import MemorySession
 
 
-def _user(points: int = 100) -> User:
-    return User(id=4001, account="u4001@example.com", password_hash="x", role="user", points=points)
+def _user(nickname: str = "origin") -> User:
+    return User(id=4001, account="u4001@example.com", password_hash="x", role="user", nickname=nickname)
 
 
 class RollbackFidelityTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.db = MemorySession()
-        self.db.seed(_user(100))
+        self.db.seed(_user())
 
     async def test_update_is_reverted(self):
         table = self.db._tables["users"]
         obj = table.objs[4001]  # seed 时已进 identity map
         self.assertIsNotNone(obj)
-        obj.points = 70
+        obj.nickname = "changed"
         await self.db.flush()
-        self.assertEqual(table.rows[4001]["points"], 70, "flush 后必须先看到新值，否则本用例什么都没测到")
+        self.assertEqual(table.rows[4001]["nickname"], "changed", "flush 后必须先看到新值，否则本用例什么都没测到")
         await self.db.rollback()
-        self.assertEqual(table.rows[4001]["points"], 100, "rollback 后权威行必须回到事务开始前的值")
+        self.assertEqual(table.rows[4001]["nickname"], "origin", "rollback 后权威行必须回到事务开始前的值")
 
     async def test_insert_is_reverted(self):
-        self.db.add(User(id=4002, account="u4002@example.com", password_hash="x", role="user", points=5))
+        self.db.add(User(id=4002, account="u4002@example.com", password_hash="x", role="user", nickname="new"))
         await self.db.flush()
         self.assertIn(4002, self.db._tables["users"].rows)
         await self.db.rollback()
@@ -48,16 +48,16 @@ class RollbackFidelityTests(unittest.IsolatedAsyncioTestCase):
         await self.db.delete(obj)
         self.assertNotIn(4001, table.rows)
         await self.db.rollback()
-        self.assertEqual(table.rows[4001]["points"], 100, "已删除的行必须整行还原")
+        self.assertEqual(table.rows[4001]["nickname"], "origin", "已删除的行必须整行还原")
         self.assertIs(table.objs.get(4001), obj, "identity map 也要还原，否则后续断言拿到的是已删对象")
 
     async def test_commit_closes_the_snapshot(self):
         table = self.db._tables["users"]
         obj = table.objs[4001]
-        obj.points = 70
+        obj.nickname = "changed"
         await self.db.commit()
         await self.db.rollback()
-        self.assertEqual(table.rows[4001]["points"], 70, "已提交的事务不可能被 rollback 撤销")
+        self.assertEqual(table.rows[4001]["nickname"], "changed", "已提交的事务不可能被 rollback 撤销")
 
 
 class SnapshotNotVacuousTests(unittest.IsolatedAsyncioTestCase):
@@ -65,18 +65,18 @@ class SnapshotNotVacuousTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_other_session_rollback_does_not_undo_mine(self):
         db_a = MemorySession()
-        db_a.seed(_user(100))
+        db_a.seed(_user())
         table = db_a._tables["users"]
         obj = table.objs[4001]
-        obj.points = 70
+        obj.nickname = "changed"
         await db_a.flush()
 
         other = db_a.new_session()
         await other.rollback()
-        self.assertEqual(table.rows[4001]["points"], 70, "别的会话不该有本事撤销本会话已 flush 的写入")
+        self.assertEqual(table.rows[4001]["nickname"], "changed", "别的会话不该有本事撤销本会话已 flush 的写入")
 
         await db_a.rollback()
-        self.assertEqual(table.rows[4001]["points"], 100)
+        self.assertEqual(table.rows[4001]["nickname"], "origin")
 
 
 class DirtyColumnOnlyWriteTests(unittest.IsolatedAsyncioTestCase):
@@ -89,19 +89,19 @@ class DirtyColumnOnlyWriteTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_stale_object_does_not_clobber_other_writes(self):
         db = MemorySession()
-        db.seed(_user(100))
+        db.seed(_user())
         table = db._tables["users"]
         obj = table.objs[4001]
-        # 模拟「另一个会话已经把 points 改成 130 并提交了」，
-        # 而本会话手里的对象还停在 100（陈旧快照，且基线也是 100 → points 不算脏列）
-        table.rows[4001]["points"] = 130
-        obj.role = "vip"  # 本会话真正改动的列
+        # 模拟「另一个会话已经把 nickname 改成 newer 并提交了」，
+        # 而本会话手里的对象还停在 origin（陈旧快照，且基线也是 origin → nickname 不算脏列）
+        table.rows[4001]["nickname"] = "newer"
+        obj.role = "admin"  # 本会话真正改动的列
 
         await db.flush()
 
-        self.assertEqual(obj.points, 100, "前提：本会话的对象确实是陈旧的")
-        self.assertEqual(table.rows[4001]["points"], 130, "陈旧对象的旧值不得覆盖权威行")
-        self.assertEqual(table.rows[4001]["role"], "vip", "真正改动的列必须写进去")
+        self.assertEqual(obj.nickname, "origin", "前提：本会话的对象确实是陈旧的")
+        self.assertEqual(table.rows[4001]["nickname"], "newer", "陈旧对象的旧值不得覆盖权威行")
+        self.assertEqual(table.rows[4001]["role"], "admin", "真正改动的列必须写进去")
 
 
 if __name__ == "__main__":

@@ -11,11 +11,12 @@
 import unittest
 from unittest import mock
 
-from app.models.auth_request import AuthRequest
 from app.models.feedback import Feedback
 from app.models.moderation import ContentModerationLog, ContentReport
 from app.models.user import User
-from app.services import admin_todo_service, ai_usage_service, rbac_service, system_status_service
+from app.config import settings
+from app.services import admin_todo_service
+from app.services import login_log_service, ai_usage_service, rbac_service, system_status_service
 from tests.conftest import FakeRedis
 from tests.fake_db import MemorySession
 
@@ -26,9 +27,6 @@ def _admin(uid: int = 1) -> User:
 
 def _seed_all(db: MemorySession) -> None:
     db.seed(
-        AuthRequest(id=1, user_id=10, star_code="s1", status="pending", pending_key="pending"),
-        AuthRequest(id=2, user_id=11, star_code="s2", status="pending", pending_key="pending"),
-        AuthRequest(id=3, user_id=12, star_code="s3", status="approved", pending_key=None),
         Feedback(id=4, user_id=10, content="反馈 A", status="pending"),
         Feedback(id=5, user_id=11, content="反馈 B", status="resolved"),
         ContentReport(
@@ -71,20 +69,42 @@ class AdminTodoServiceTests(unittest.IsolatedAsyncioTestCase):
             ai_usage_service, "get_quota_pressure", mock.AsyncMock(return_value=pressure)
         )
 
-    async def _load(self, perms: list[str], *, super_admin: bool = False, jobs=None, quota=None):
-        with self._rbac(perms, super_admin=super_admin), self._jobs(jobs or []), self._quota(quota):
+    async def _load(
+        self,
+        perms: list[str],
+        *,
+        super_admin: bool = False,
+        jobs=None,
+        quota=None,
+        login_failures: int | None = None,
+    ):
+        patches = [
+            self._rbac(perms, super_admin=super_admin),
+            self._jobs(jobs or []),
+            self._quota(quota),
+        ]
+        if login_failures is not None:
+            patches.append(
+                mock.patch.object(
+                    login_log_service, "count_failed_since", new=mock.AsyncMock(return_value=login_failures)
+                )
+            )
+        with patches[0], patches[1], patches[2]:
+            if len(patches) > 3:
+                with patches[3]:
+                    return await admin_todo_service.get_admin_todos(self.db, self.user)
             return await admin_todo_service.get_admin_todos(self.db, self.user)
 
     async def test_counts_only_pending_records(self):
         _seed_all(self.db)
         data = await self._load(
-            ["auth_request:view", "feedback:view", "moderation:view", "report:view"]
+            ["feedback:view", "moderation:view", "report:view"]
         )
         self.assertEqual(
             [(g["key"], g["count"]) for g in data["groups"]],
-            [("auth_request", 2), ("report", 1), ("moderation", 1), ("feedback", 1)],
+            [("report", 1), ("moderation", 1), ("feedback", 1)],
         )
-        self.assertEqual(data["total"], 5, "已处理 / 已通过的记录不得计入待办")
+        self.assertEqual(data["total"], 3, "已处理 / 已通过的记录不得计入待办")
 
     async def test_groups_without_permission_are_hidden(self):
         _seed_all(self.db)
@@ -97,12 +117,12 @@ class AdminTodoServiceTests(unittest.IsolatedAsyncioTestCase):
         data = await self._load([], super_admin=True)
         self.assertEqual(
             {g["key"] for g in data["groups"]},
-            {"auth_request", "report", "moderation", "feedback"},
+            {"report", "moderation", "feedback"},
         )
 
     async def test_empty_database_returns_empty_list(self):
         data = await self._load(
-            ["auth_request:view", "feedback:view", "moderation:view", "report:view"]
+            ["feedback:view", "moderation:view", "report:view"]
         )
         self.assertEqual(data, {"total": 0, "groups": []})
 
@@ -131,6 +151,28 @@ class AdminTodoServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("95/100", by_key["ai_quota"]["detail"])
         self.assertEqual(data["total"], 2)
 
+    async def test_login_failures_above_threshold_is_reported(self):
+        """近 1 小时失败数超过阈值 → 顶栏出现 error 级待办（跳登录日志排查）"""
+        with mock.patch.object(settings, "LOGIN_FAIL_ALERT_THRESHOLD", 50):
+            data = await self._load(["dashboard:view"], login_failures=80)
+
+        by_key = {g["key"]: g for g in data["groups"]}
+        self.assertEqual(by_key["login_failures"]["count"], 80)
+        self.assertEqual(by_key["login_failures"]["severity"], "error")
+        self.assertEqual(by_key["login_failures"]["path"], "/login-logs")
+        self.assertIn("疑似撞库", by_key["login_failures"]["detail"])
+
+    async def test_login_failures_below_threshold_is_hidden(self):
+        with mock.patch.object(settings, "LOGIN_FAIL_ALERT_THRESHOLD", 50):
+            data = await self._load(["dashboard:view"], login_failures=30)
+        self.assertNotIn("login_failures", {g["key"] for g in data["groups"]})
+
+    async def test_login_failures_zero_threshold_disables_alert(self):
+        """阈值 0 = 禁用告警（哪怕失败数很高）"""
+        with mock.patch.object(settings, "LOGIN_FAIL_ALERT_THRESHOLD", 0):
+            data = await self._load(["dashboard:view"], login_failures=999)
+        self.assertNotIn("login_failures", {g["key"] for g in data["groups"]})
+
     async def test_no_job_failure_and_no_quota_means_no_groups(self):
         data = await self._load(
             ["dashboard:view"],
@@ -140,15 +182,15 @@ class AdminTodoServiceTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(data, {"total": 0, "groups": []})
 
     async def test_job_or_quota_reader_failure_does_not_break_other_groups(self):
-        """定时任务读不到时返回空表，实名 / 反馈等数据库计数照常可用。"""
+        """定时任务读不到时返回空表，反馈等数据库计数照常可用。"""
         _seed_all(self.db)
         with (
-            self._rbac(["auth_request:view", "dashboard:view"]),
+            self._rbac(["feedback:view", "dashboard:view"]),
             self._jobs([]),
             self._quota(None),
         ):
             data = await admin_todo_service.get_admin_todos(self.db, self.user)
-        self.assertEqual([g["key"] for g in data["groups"]], ["auth_request"])
+        self.assertEqual([g["key"] for g in data["groups"]], ["feedback"])
 
 
 class QuotaPressureTests(unittest.IsolatedAsyncioTestCase):

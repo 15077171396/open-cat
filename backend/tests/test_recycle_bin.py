@@ -1,10 +1,9 @@
 """统一回收站的契约：权限裁剪、保留期口径、批量恢复与到期清理。
 
-最容易静默出错的四件事：
+最容易静默出错的三件事：
 1. 没权限的类型出现在汇总里（点进去 403）；
-2. 把「有购买记录的教程」当成普通内容清掉（用户已付费的权益消失）；
-3. 恢复顶层评论时把「后来单独删掉」的回复也一起放回来；
-4. 批次恢复只恢复了一部分，却显示成功。
+2. 恢复顶层评论时把「后来单独删掉」的回复也一起放回来；
+3. 批次恢复只恢复了一部分，却显示成功。
 """
 
 import unittest
@@ -13,7 +12,7 @@ from unittest import mock
 
 from app.models.admin_audit_log import AdminAuditLog
 from app.models.comment import ContentComment
-from app.models.tutorial import Tutorial, TutorialNetdiskLink, TutorialPurchase
+from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
 from app.services import (
@@ -133,21 +132,18 @@ class SummaryTests(_PermissionMixin, unittest.IsolatedAsyncioTestCase):
 
 
 class ListTests(_PermissionMixin, unittest.IsolatedAsyncioTestCase):
-    async def test_tutorial_list_locks_purchased_items(self):
+    async def test_tutorial_list_shows_retention_countdown(self):
         db = MemorySession()
         db.seed(
             _tutorial(1, 1),
             _tutorial(2, 2),
             _tutorial(3, None),
-            TutorialPurchase(id=1, user_id=9, tutorial_id=2, points_paid=10),
         )
         with self._rbac(["tutorial:view"], super_admin=True):
             data = await recycle_bin_service.list_tutorials(db, _admin(), 1, 20)
         self.assertEqual(data["total"], 2)
         by_id = {item["id"]: item for item in data["items"]}
         self.assertEqual(by_id[1]["remaining_days"], 89)
-        self.assertIsNone(by_id[2]["retention_days"], "有购买记录的教程不能显示倒计时")
-        self.assertIn("购买", by_id[2]["retention_note"])
 
     async def test_comment_list_maps_content_and_author(self):
         db = MemorySession()
@@ -267,24 +263,20 @@ class PurgeTests(unittest.IsolatedAsyncioTestCase):
         await self.db.commit()
         return result
 
-    async def test_purges_old_tutorial_and_comments_but_keeps_guarded_rows(self):
+    async def test_purges_old_tutorial_and_comments(self):
         self.db.seed(
             _tutorial(1, 91),
             _tutorial(2, 10),
             TutorialNode(id=1, tutorial_id=1, title="章", content="正文", sort=0),
-            TutorialNetdiskLink(id=1, tutorial_id=1, platform="other", url="https://x"),
-            TutorialPurchase(id=1, user_id=9, tutorial_id=3, points_paid=10),
             _tutorial(3, 91),
             _comment(1, deleted_days_ago=31, target_id=1),
             _comment(2, deleted_days_ago=10, target_id=2),
         )
         result = await self._run()
-        self.assertEqual(result["tutorials"], 1)
+        self.assertEqual(result["tutorials"], 2)
         self.assertEqual(result["comments"], 1)
-        self.assertEqual(result["tutorials_skipped"], 1)
-        self.assertEqual({row["id"] for row in self.db.all_rows(Tutorial)}, {2, 3})
+        self.assertEqual({row["id"] for row in self.db.all_rows(Tutorial)}, {2})
         self.assertEqual(self.db.all_rows(TutorialNode), [])
-        self.assertEqual(self.db.all_rows(TutorialNetdiskLink), [])
         self.assertEqual({row["id"] for row in self.db.all_rows(ContentComment)}, {2})
 
 

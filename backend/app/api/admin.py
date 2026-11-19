@@ -37,7 +37,6 @@ from app.api import (  # noqa: F401
     admin_sessions,
     # 本人界面偏好（跨浏览器恢复）+ 锁屏口令（bcrypt / 短期解锁令牌）
     admin_preferences,
-    admin_redeem_codes,
     admin_announcements,
     admin_feedbacks,
     # 站内消息通知：给用户发系统通知（全站 / 指定用户），消息中心「系统通知」的数据来源
@@ -59,12 +58,13 @@ from app.api import (  # noqa: F401
     admin_legal_documents,
     # 邮件通知：SMTP 通道（验证码发信）从「系统设置 → 邮件通知」抽出的独立模块
     admin_mail_settings,
-    # 支付与渠道：从「系统设置 → 支付与渠道」抽出的独立模块（资金链路配置，单独授权）
-    admin_payment_settings,
-    admin_payments,
     admin_comments,
     # 站内聊天：管理员间私聊/群聊（REST 部分；WS 端点在 api/router.py 独立注册）
     admin_chat,
+    # 登录日志：登录成功/失败/登出的安全遥测（与操作审计互补）
+    admin_login_logs,
+    # IP 黑名单：运营级访问封禁（保存即时生效，独立授权面）
+    admin_ip_blacklist,
 )
 
 __all__ = ["router"]

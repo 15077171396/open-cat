@@ -122,7 +122,7 @@ async def _latest_release() -> dict:
         headers = {
             "Accept": "application/vnd.github+json",
             "X-GitHub-Api-Version": "2022-11-28",
-            "User-Agent": "ai-cat-admin",
+            "User-Agent": "open-cat-admin",
         }
         if settings.GITHUB_TOKEN:
             headers["Authorization"] = f"Bearer {settings.GITHUB_TOKEN}"

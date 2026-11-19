@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     JWT_ALGORITHM: str = "HS256"
     JWT_ACCESS_EXPIRE_MINUTES: int = 120
     JWT_REFRESH_EXPIRE_DAYS: int = 7
+    # 会话绝对存活上限（2026-11-19）：refresh 链超过该天数一律拒绝并吊销会话，
+    # 防「refresh 无限续期」；后台「登录管理」可调，0 表示不启用（不推荐）
+    SESSION_MAX_DAYS: int = 30
 
     # 数据库 (MySQL)
     DB_HOST: str = "127.0.0.1"
@@ -70,8 +73,6 @@ class Settings(BaseSettings):
     IMAGE_SEARCH_PIXABAY_ENABLED: bool = True
     IMAGE_SEARCH_GIPHY_ENABLED: bool = True
     IMAGE_SEARCH_TENOR_ENABLED: bool = False
-    IMAGE_SEARCH_BAIDU_ENABLED: bool = False
-    IMAGE_SEARCH_SOGOU_ENABLED: bool = False
     IMAGE_SEARCH_DOUTUPK_ENABLED: bool = False
     IMAGE_SEARCH_EMOJI_ENABLED: bool = False
     IMAGE_SEARCH_PAGE_SIZE: int = 24
@@ -119,15 +120,13 @@ class Settings(BaseSettings):
     SMTP_PASSWORD: str = ""  # 授权码 (非邮箱登录密码)
     SMTP_USE_TLS: bool = True  # 587 端口使用 STARTTLS; 465 端口应设为 False 并改用 SSL
     SMTP_FROM_EMAIL: str = ""  # 留空则使用 SMTP_USERNAME
-    SMTP_SENDER_NAME: str = "AI学习猫"
+    SMTP_SENDER_NAME: str = "后台管理系统"
 
     CORS_ORIGINS: str = "http://localhost:5173"
 
     # SEO
-    # 对外站点根地址（sitemap 生成与百度推送 URL 拼接用）
-    SITE_BASE_URL: str = "https://www.wdmao.cn"
-    # 百度搜索资源平台「普通收录-API推送」token，留空则每日推送任务自动跳过
-    BAIDU_PUSH_TOKEN: str = ""
+    # 对外站点根地址（sitemap 生成与 IndexNow 推送 URL 拼接用）
+    SITE_BASE_URL: str = "http://localhost:5175"
     # Bing IndexNow 即时收录密钥（openssl rand -hex 16），留空则推送任务与密钥文件路由同时停用
     INDEXNOW_KEY: str = ""
 
@@ -161,29 +160,6 @@ class Settings(BaseSettings):
     # 留空 = 默认信任回环 + RFC1918 私网（容器部署时 nginx 位于 docker 私网）
     TRUSTED_PROXIES: str = ""
 
-    # 免费时长上限 (3小时 = 10800秒)
-    FREE_TIME_LIMIT: int = 10800
-
-    # 微信小程序登录；未配置时开发环境用 mock openid 联调，生产环境登录接口返回 503
-    WECHAT_MINI_APPID: str = ""
-    WECHAT_MINI_SECRET: str = ""
-    # 小程序内嵌 H5 / 图片素材的 CDN 域名（选填）
-    MINI_ASSET_BASE_URL: str = ""
-
-    # ---- Stripe 支付（默认渠道）----
-    # 密钥只允许放在 backend/.env（已被 gitignore），绝不写进源码/前端/文档/提交记录。
-    # 后台「支付与渠道」页可覆盖这些默认值；secret key 仅在服务端使用。
-    STRIPE_MODE: str = "test"  # test / live，仅用于展示与密钥前缀提醒
-    STRIPE_SECRET_KEY: str = ""
-    STRIPE_PUBLISHABLE_KEY: str = ""
-    STRIPE_WEBHOOK_SECRET: str = ""
-    STRIPE_CURRENCY: str = "cny"
-    # 支付成功 / 取消回跳地址（前端页面）；留空则由 SITE_BASE_URL 派生
-    STRIPE_SUCCESS_URL: str = ""
-    STRIPE_CANCEL_URL: str = ""
-    # 默认支付渠道：stripe / alipay / wechat / mock；渠道不可用时自动回退到首个可用渠道
-    DEFAULT_PAYMENT_PROVIDER: str = "stripe"
-
     # 限流 (固定窗口计数器)
     RATE_LIMIT_GUEST: int = 120  # 游客每分钟请求上限
     RATE_LIMIT_USER: int = 300   # 登录用户每分钟请求上限
@@ -201,24 +177,42 @@ class Settings(BaseSettings):
     # 追加敏感词（逗号分隔，在内置基线词库之上追加，调整词库无需发版）
     MODERATION_EXTRA_WORDS: str = ""
 
-    # GitHub (管理后台扩展编辑拉取 README 用)
+    # ---- 访问安全 ----
+    # IP 黑名单（2026-11-19）：每行一个 IPv4/IPv6 地址或 CIDR 网段；命中即 403。
+    # 后台「IP 黑名单」页可维护（保存即时生效），env 只是初始默认值
+    IP_BLACKLIST: str = ""
+    # 密码强度策略（2026-11-19）：最小长度与「必须同时含字母和数字」开关，
+    # 对注册 / 管理员建号 / 修改密码生效；后台「系统设置 → 密码策略」可调
+    PASSWORD_MIN_LENGTH: int = 8
+    PASSWORD_REQUIRE_MIXED: bool = True
+    # 接口调用统计（2026-11-19）：小时桶聚合进 Redis（零 DB 写入），
+    # 慢请求（超过阈值毫秒数）逐条进环形明细；后台「系统设置 → 访问限流」可调
+    API_STATS_ENABLED: bool = True
+    API_SLOW_MS: int = 1000
+    # 平台名称（2026-11-19）：邮件模板 / 前台标题共用；后台「基础设置」可调
+    SITE_NAME: str = "后台管理系统"
+    # 登录页左栏副标题（2026-11-19）：留空使用内置 i18n 文案；后台「基础设置」可调
+    LOGIN_HERO_DESC: str = ""
+    # 验证码邮件模板（2026-11-19）：支持 {{code}} / {{site_name}} / {{expire_minutes}} 变量；
+    # 后台「系统设置 → SMTP 通道」可编辑。渲染时缺 {{code}} 会自动回退内置模板（防事故）
+    MAIL_VERIFY_SUBJECT: str = "【{{site_name}}】注册验证码 {{code}}"
+    MAIL_VERIFY_BODY: str = "您的注册验证码为 {{code}}，{{expire_minutes}} 分钟内有效。"
+    # 登录时段限制（2026-11-19）：HH:MM-HH:MM（北京时间，支持跨天），空 = 不限制；
+    # 后台「登录管理」可调。解析失败按不限制处理（fail-open，坏配置不能锁死全站）
+    LOGIN_TIME_WINDOW: str = ""
+    # 登录失败告警阈值（2026-11-19）：近 1 小时失败数超过该值时，待办中心出现
+    # 「登录失败异常」条目（0 = 禁用）。跳转登录日志页排查
+    LOGIN_FAIL_ALERT_THRESHOLD: int = 50
+    # 站内通知模板（2026-11-19）：JSON 数组 [{name,title,content}]，上限 20 条；
+    # 群发通知弹窗一键套用，后台「消息通知」页维护
+    MESSAGE_TEMPLATES: str = ""
+
+    # GitHub (升级检查拉取最新 release 用)
     # 可选 Personal Access Token，配置后可提升 API 匿名速率上限 (60次/小时)
     GITHUB_TOKEN: str = ""
-    # 可选 GitHub 出站代理（仅对 GitHub 域名请求生效），适用于 SSH 反向隧道借用本地代理：
-    # 本地 ssh -R 172.17.0.1:7890:127.0.0.1:7890 后填 http://172.17.0.1:7890（docker0 网桥地址，容器可达且不暴露公网）
-    GITHUB_PROXY: str = ""
-    # 可选 GitHub 加速镜像前缀（需以 / 结尾）；拉取顺序: jsDelivr → 官方 API → 官方 API(经代理) → 本镜像
-    GITHUB_MIRROR_PREFIX: str = ""
-
-    # 可选 HuggingFace Token（匿名拉公开资源已够用，配置后可拉受限 Gated 资源并提升速率限制）；
-    # 拉取顺序: hf-mirror.com 镜像 → 官方直连 → 官方 API(经 GITHUB_PROXY)
-    HF_TOKEN: str = ""
-
-    # 可选国外文章平台出站代理，仅对国内无法直连的国外社区平台 (X/Twitter、Reddit、Medium、Hacker News) 生效，格式同 GITHUB_PROXY
-    ARTICLE_PROXY: str = ""
 
     # ---- 模块开关 ----
-    # 逗号分隔的模块 key；留空 = 按各模块默认（支付/积分/实名为默认关闭）。
+    # 逗号分隔的模块 key；留空 = 按各模块默认。
     # 非空时**只启用列出的模块**（核心模块始终启用），用于给不同站点做裁剪。
     # 可选值见 app/module_registry.py 的 MODULES。
     ENABLED_MODULES: str = ""

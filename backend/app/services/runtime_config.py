@@ -85,7 +85,6 @@ class RuntimeKey:
 # AI_TIMEOUT_SECONDS（Provider 实例按 fingerprint 缓存，改了要重建实例才生效）。
 RUNTIME_KEYS: tuple[RuntimeKey, ...] = (
     # ---- 业务规则 ----
-    RuntimeKey("free_time_hours", "FREE_TIME_LIMIT", "int", scale=3600, min_value=0, max_value=720),
     RuntimeKey("ai_daily_limit_per_user", "AI_DAILY_LIMIT_PER_USER", "int", min_value=0, max_value=100000),
     RuntimeKey("ai_retry_count", "AI_RETRY_COUNT", "int", min_value=0, max_value=5),
     RuntimeKey("ai_total_budget_seconds", "AI_TOTAL_BUDGET_SECONDS", "int", min_value=5, max_value=300),
@@ -93,6 +92,15 @@ RUNTIME_KEYS: tuple[RuntimeKey, ...] = (
     RuntimeKey("moderation_enabled", "MODERATION_ENABLED", "bool"),
     RuntimeKey("moderation_action", "MODERATION_ACTION", "str"),
     RuntimeKey("moderation_extra_words", "MODERATION_EXTRA_WORDS", "str"),
+    # ---- 访问安全（2026-11-19）----
+    # IP 黑名单：每行一个 IP/CIDR，命中即 403；后台「IP 黑名单」页维护，保存即时生效
+    RuntimeKey("ip_blacklist", "IP_BLACKLIST", "str"),
+    # 密码强度策略：注册 / 建号 / 改密统一走 password_policy 校验
+    RuntimeKey("password_min_length", "PASSWORD_MIN_LENGTH", "int", min_value=6, max_value=64),
+    RuntimeKey("password_require_mixed", "PASSWORD_REQUIRE_MIXED", "bool"),
+    # 接口调用统计：小时桶聚合 + 慢请求明细（monitor/api-stats 页消费）
+    RuntimeKey("api_stats_enabled", "API_STATS_ENABLED", "bool"),
+    RuntimeKey("api_slow_ms", "API_SLOW_MS", "int", min_value=100, max_value=60000),
     # ---- 上传限制 ----
     RuntimeKey("upload_max_file_mb", "COS_MAX_FILE_SIZE", "int", scale=_MB, min_value=1, max_value=200),
     RuntimeKey("upload_max_image_mb", "COS_IMAGE_MAX_SIZE", "int", scale=_MB, min_value=1, max_value=50),
@@ -109,14 +117,9 @@ RUNTIME_KEYS: tuple[RuntimeKey, ...] = (
     RuntimeKey("search_max_keyword_len", "SEARCH_MAX_KEYWORD_LEN", "int", min_value=8, max_value=256),
     # ---- 站点与 SEO ----
     RuntimeKey("site_base_url", "SITE_BASE_URL", "str"),
-    RuntimeKey("baidu_push_token", "BAIDU_PUSH_TOKEN", "str", secret=True),
+    RuntimeKey("site_name", "SITE_NAME", "str"),
+    RuntimeKey("login_hero_desc", "LOGIN_HERO_DESC", "str"),
     RuntimeKey("indexnow_key", "INDEXNOW_KEY", "str", secret=True),
-    # ---- 第三方导入 ----
-    RuntimeKey("github_token", "GITHUB_TOKEN", "str", secret=True),
-    RuntimeKey("github_proxy", "GITHUB_PROXY", "str"),
-    RuntimeKey("github_mirror_prefix", "GITHUB_MIRROR_PREFIX", "str"),
-    RuntimeKey("hf_token", "HF_TOKEN", "str", secret=True),
-    RuntimeKey("article_proxy", "ARTICLE_PROXY", "str"),
     # ---- 对象存储 ----
     RuntimeKey("cos_secret_id", "COS_SECRET_ID", "str", secret=True),
     RuntimeKey("cos_secret_key", "COS_SECRET_KEY", "str", secret=True),
@@ -131,10 +134,24 @@ RUNTIME_KEYS: tuple[RuntimeKey, ...] = (
     RuntimeKey("s3_region", "STORAGE_S3_REGION", "str"),
     RuntimeKey("s3_public_base", "STORAGE_S3_PUBLIC_BASE", "str"),
     RuntimeKey("s3_addressing", "STORAGE_S3_ADDRESSING", "str"),
-    # ---- 小程序 ----
-    RuntimeKey("wechat_mini_appid", "WECHAT_MINI_APPID", "str"),
-    RuntimeKey("wechat_mini_secret", "WECHAT_MINI_SECRET", "str", secret=True),
     # ---- 邮件通知 ----
+    # 验证码邮件模板（2026-11-19）：变量 {{code}} / {{site_name}} / {{expire_minutes}}，
+    # 渲染缺 {{code}} 自动回退内置模板（core/mail_templates）
+    RuntimeKey("mail_verify_subject", "MAIL_VERIFY_SUBJECT", "str"),
+    RuntimeKey("mail_verify_body", "MAIL_VERIFY_BODY", "str"),
+    # 登录时段限制（2026-11-19）：HH:MM-HH:MM，空 = 不限制（core/login_time fail-open）
+    RuntimeKey("login_time_window", "LOGIN_TIME_WINDOW", "str"),
+    # 登录失败告警阈值（2026-11-19）：待办中心联动，0 = 禁用
+    RuntimeKey("login_fail_alert_threshold", "LOGIN_FAIL_ALERT_THRESHOLD", "int",
+               min_value=0, max_value=100000),
+    # 站内通知模板（2026-11-19）：JSON 数组，群发弹窗一键套用（message_template_service）
+    RuntimeKey("message_templates", "MESSAGE_TEMPLATES", "str"),
+    # ---- 会话有效期策略（2026-11-19）----
+    # TTL 改动只影响**新签发**的 token（存量 token 按签发时的 exp 自然过期）
+    RuntimeKey("session_access_minutes", "JWT_ACCESS_EXPIRE_MINUTES", "int", min_value=5, max_value=1440),
+    RuntimeKey("session_refresh_days", "JWT_REFRESH_EXPIRE_DAYS", "int", min_value=1, max_value=90),
+    # 会话绝对存活上限：refresh 续期超过该天数一律拒绝（防无限续期链）
+    RuntimeKey("session_max_days", "SESSION_MAX_DAYS", "int", min_value=1, max_value=365),
     RuntimeKey("smtp_host", "SMTP_HOST", "str"),
     RuntimeKey("smtp_port", "SMTP_PORT", "int", min_value=1, max_value=65535),
     RuntimeKey("smtp_username", "SMTP_USERNAME", "str"),

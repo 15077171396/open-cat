@@ -105,7 +105,11 @@ APP = os.path.join(REPO, 'app')
 # 141 → 142（2026-11-04，站内聊天）：`api/admin_chat.py` 的 WS 扇出 **1 处** ——
 # 逐连接 send 的失败（对端断开/缓冲满）只能就地摘除该连接，单个坏连接不该
 # 阻断给其他成员的推送，也不能让 REST 发消息接口 500（消息已落库，实时性降级）。
-BROAD_EXCEPT_BASELINE = 142
+# 142 → 126（2026-11-18）：funnel_service（转化漏斗）等商业化遗留模块已在
+# 0080_drop_commercial_modules 中整体删除（-16 处）；同期清理的 legacy 捕获点
+# 随删除一并消失。新增模块（登录日志/指标快照/错误日志）一律用 degrade_guard，
+# 不推高基线。
+BROAD_EXCEPT_BASELINE = 126
 
 
 def _count_broad_except() -> int:
@@ -210,7 +214,6 @@ class DegradeGuardTests(unittest.TestCase):
         watched = (
             "services/system_status_service.py",
             "services/data_quality_service.py",
-            "services/funnel_service.py",
             "services/search_log_service.py",
         )
         offenders = []

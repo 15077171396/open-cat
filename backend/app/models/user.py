@@ -1,7 +1,7 @@
 """用户模型"""
 
 from datetime import datetime
-from sqlalchemy import BigInteger, String, Integer, DateTime, Boolean, JSON, func
+from sqlalchemy import BigInteger, String, DateTime, Boolean, JSON, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, generate_id
@@ -14,35 +14,16 @@ class User(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=False, default=generate_id)
     account: Mapped[str] = mapped_column(String(100), unique=True, index=True, comment="手机号或邮箱")
     password_hash: Mapped[str] = mapped_column(String(255), comment="bcrypt 加密密码")
-    role: Mapped[str] = mapped_column(String(20), default="user", index=True, comment="user/vip/admin")
+    role: Mapped[str] = mapped_column(String(20), default="user", index=True, comment="user/admin")
     nickname: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="昵称")
     bio: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="个人简介")
-    free_used_seconds: Mapped[int] = mapped_column(Integer, default=0, comment="免费已用时长(秒)")
-    free_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, comment="免费时长起点(注册时间)")
-    points: Mapped[int] = mapped_column(Integer, default=0, server_default="0", comment="积分余额(运行积分工具消耗)")
-    vip_expire_time: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True, comment="VIP过期时间")
-    pending_auth_code: Mapped[str | None] = mapped_column(String(50), nullable=True, comment="待审核星球号")
     avatar_url: Mapped[str | None] = mapped_column(String(500), nullable=True, comment="头像URL")
-    invite_code: Mapped[str | None] = mapped_column(String(16), nullable=True, unique=True, index=True, comment="专属邀请码(访问邀请页时惰性生成)")
-    referrer_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True, comment="邀请人ID(注册时通过邀请码绑定)")
-    # 手机号：与 account 解耦——邮箱账号也能绑定手机号登录；历史「account 即手机号」由迁移回填。
+    # 手机号：与 account 解耦——邮箱账号也能绑定手机号；历史「account 即手机号」由迁移回填。
     phone: Mapped[str | None] = mapped_column(
         String(20), nullable=True, unique=True, index=True, comment="手机号(唯一, 可与 account 不同)"
     )
     phone_verified_at: Mapped[datetime | None] = mapped_column(
         DateTime, nullable=True, comment="手机号验证通过时间"
-    )
-    # 微信小程序登录标识（wx.login 的 code 换取的 openid）。
-    # 仅由 miniapp 登录/绑定接口写入，Web 端账号恒为 NULL，不影响既有账号体系。
-    wechat_openid: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True, index=True, comment="微信小程序 openid(仅小程序登录写入)")
-    # 微信开放平台 UnionID：同一开放平台下 PC 网站 / 小程序 / 公众号可合并为一个账号。
-    # 仅有小程序 openid 时无法跨应用识别，登录查号优先 unionid，其次各自 openid。
-    wechat_unionid: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, unique=True, index=True, comment="微信 UnionID(跨应用账号合并)"
-    )
-    # PC 网站应用扫码登录的 openid（与小程序 openid 不是同一套 AppID）
-    wechat_web_openid: Mapped[str | None] = mapped_column(
-        String(64), nullable=True, unique=True, index=True, comment="微信开放平台网站应用 openid"
     )
     # 部门归属（RBAC 组织架构展示用，不参与权限判定）
     department_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, index=True, comment="部门ID(组织归属)")
@@ -73,10 +54,6 @@ class User(Base):
             "role": self.role,
             "nickname": self.nickname,
             "bio": self.bio,
-            "free_used_seconds": self.free_used_seconds,
-            "points": self.points or 0,
-            "vip_expire_time": self.vip_expire_time.isoformat() if self.vip_expire_time else None,
-            "pending_auth_code": self.pending_auth_code,
             "avatar_url": self.avatar_url,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

@@ -3,7 +3,7 @@
 这套机制的三个契约（写错任何一个都表现为「后台保存成功但线上没变化」）：
 
 1. **env 是默认值**：后台清空某项后，下次刷新必须把 env 原值写回来；
-2. **单位换算**：小时→秒、MB→字节，换算错会让「免费 3 小时」变成 3 秒；
+2. **单位换算**：MB/KB→字节，换算错会让「30 MB」变成 30 字节；
 3. **失败不覆盖**：DB/Redis 读不到时保持当前生效值，绝不能用「读不到」推导出
    「配置为空」—— 那会把限流阈值刷成 0，全站立刻 429。
 """
@@ -81,10 +81,6 @@ class RuntimeConfigTests(unittest.IsolatedAsyncioTestCase):
 
     # ---------- 1. 单位换算 ----------
 
-    async def test_hours_are_converted_to_seconds(self):
-        await runtime_config.apply_runtime_settings({"free_time_hours": "1.5"})
-        self.assertEqual(settings.FREE_TIME_LIMIT, 5400)
-
     async def test_megabytes_are_converted_to_bytes(self):
         await runtime_config.apply_runtime_settings({"upload_max_file_mb": "30"})
         self.assertEqual(settings.COS_MAX_FILE_SIZE, 30 * 1024 * 1024)
@@ -108,12 +104,12 @@ class RuntimeConfigTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_clearing_a_key_restores_env_default(self):
         """后台清空 = 恢复默认。这里最容易写错成「保持上次覆盖值」"""
-        env_default = runtime_config._ENV_DEFAULTS["free_time_hours"]
-        await runtime_config.apply_runtime_settings({"free_time_hours": "1"})
-        self.assertEqual(settings.FREE_TIME_LIMIT, 3600)
+        env_default = runtime_config._ENV_DEFAULTS["rate_limit_guest"]
+        await runtime_config.apply_runtime_settings({"rate_limit_guest": "999"})
+        self.assertEqual(settings.RATE_LIMIT_GUEST, 999)
 
         await runtime_config.apply_runtime_settings({})
-        self.assertEqual(settings.FREE_TIME_LIMIT, env_default)
+        self.assertEqual(settings.RATE_LIMIT_GUEST, env_default)
 
     async def test_invalid_values_fall_back_to_env(self):
         """脏值（手改库 / 老版本遗留）不能让服务用上荒谬阈值"""
@@ -134,8 +130,8 @@ class RuntimeConfigTests(unittest.IsolatedAsyncioTestCase):
     # ---------- 3. 失败不覆盖 ----------
 
     async def test_db_failure_keeps_current_values(self):
-        await runtime_config.apply_runtime_settings({"free_time_hours": "2"})
-        self.assertEqual(settings.FREE_TIME_LIMIT, 7200)
+        await runtime_config.apply_runtime_settings({"rate_limit_guest": "777"})
+        self.assertEqual(settings.RATE_LIMIT_GUEST, 777)
 
         def _boom():
             raise RuntimeError("db down")
@@ -146,7 +142,7 @@ class RuntimeConfigTests(unittest.IsolatedAsyncioTestCase):
         result = await runtime_config.apply_runtime_settings()
         self.assertEqual(result, {})
         # 关键：不能被「读不到」清成 env 默认值
-        self.assertEqual(settings.FREE_TIME_LIMIT, 7200)
+        self.assertEqual(settings.RATE_LIMIT_GUEST, 777)
 
     async def test_db_failure_backs_off(self):
         def _boom():
@@ -169,14 +165,14 @@ class RuntimeConfigTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.counter["queries"], 1, "300s 内应只回源一次 DB")
 
     async def test_invalidate_forces_reload(self):
-        self._db({"free_time_hours": "1"})
+        self._db({"rate_limit_guest": "100"})
         await runtime_config.apply_runtime_settings()
-        self.assertEqual(settings.FREE_TIME_LIMIT, 3600)
+        self.assertEqual(settings.RATE_LIMIT_GUEST, 100)
 
-        self._db({"free_time_hours": "2"})
+        self._db({"rate_limit_guest": "150"})
         await runtime_config.invalidate_runtime_settings_cache()
         await runtime_config.apply_runtime_settings()
-        self.assertEqual(settings.FREE_TIME_LIMIT, 7200)
+        self.assertEqual(settings.RATE_LIMIT_GUEST, 150)
 
     # ---------- 5. 副作用 ----------
 
@@ -274,9 +270,7 @@ class RuntimeSettingValidationTests(unittest.TestCase):
             "ratelimit",
             "search",
             "seo",
-            "fetch",
             "storage",
-            "miniapp",
             "mail",
         ):
             with self.subTest(group=group):
@@ -285,8 +279,7 @@ class RuntimeSettingValidationTests(unittest.TestCase):
     def test_switch_like_settings_use_bool_type(self):
         """「开关」类配置必须用 bool 类型 —— 后台会渲染成 Switch
 
-        用 text 类型时后台是一个文本框，让运营填「1 / 0」，既不好理解也容易填错
-        （曾出现「邀请返利开关（1=开启，0=关闭）」这种表单）。
+        用 text 类型时后台是一个文本框，让运营填「1 / 0」，既不好理解也容易填错。
         """
         offenders = [
             d.key
@@ -294,14 +287,6 @@ class RuntimeSettingValidationTests(unittest.TestCase):
             if "开关" in d.label and d.type != "bool"
         ]
         self.assertFalse(offenders, f"这些开关项应改为 bool 类型：{offenders}")
-
-    def test_invite_switch_is_bool_and_reward_is_number(self):
-        defs = {d.key: d for d in setting_service.SETTING_DEFINITIONS}
-        self.assertEqual(defs["invite_enabled"].type, "bool")
-        self.assertEqual(defs["invite_reward_points"].type, "number")
-        # 存储格式必须保持 "1"/"0" 与十进制串：invite_service 按 `== "1"` 判断
-        self.assertEqual(self._check("invite_enabled", "true"), "1")
-        self.assertEqual(self._check("invite_reward_points", "80"), "80")
 
     def test_every_runtime_key_has_a_definition(self):
         """登记进 RUNTIME_KEYS 却没定义 = 后台看不到、也永远改不了（静默失效）"""

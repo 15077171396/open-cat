@@ -6,7 +6,7 @@
 
 这里钉住三件事：
 1. 列表能按 `account_status` 查到已注销账号，且**默认仍只返回正常账号**（不改变既有语义）；
-2. 恢复只清 `deleted_at`，**不触碰积分 / 角色 / VIP**（「原样恢复」的语义边界）；
+2. 恢复只清 `deleted_at`，**不触碰昵称 / 角色**（「原样恢复」的语义边界）；
 3. 权限码、路由规则、审计动作三处登记齐全 —— 漏任何一处都是「上线即 403 / 审计缺行」。
 
 替身说明：`MemorySession` 不支持两实体 JOIN，而 `list_users` 内部会批量查 RBAC 角色，
@@ -38,10 +38,10 @@ def _user(
     account: str,
     *,
     deleted_at: datetime | None = None,
-    points: int = 0,
+    nickname: str = "n",
     role: str = "user",
 ) -> User:
-    user = User(id=uid, account=account, password_hash="x", role=role, points=points)
+    user = User(id=uid, account=account, password_hash="x", role=role, nickname=nickname)
     user.deleted_at = deleted_at
     return user
 
@@ -99,17 +99,17 @@ class RestoreUserTests(unittest.IsolatedAsyncioTestCase):
         return next(r for r in self.db.all_rows(User) if r["id"] == user_id)
 
     async def test_restore_clears_flag_and_keeps_data(self):
-        """原样恢复：只清 deleted_at，积分/角色/VIP 一概不动"""
+        """原样恢复：只清 deleted_at，昵称/角色一概不动"""
         self.db.seed(
-            _user(7, "back@example.com", deleted_at=DELETED_AT, points=120, role="vip")
+            _user(7, "back@example.com", deleted_at=DELETED_AT, nickname="老王", role="user")
         )
         result = await restore_user(self.db, self.admin, 7)
 
         self.assertEqual(result["account"], "back@example.com")
         row = self._row(7)
         self.assertIsNone(row["deleted_at"])
-        self.assertEqual(row["points"], 120, "恢复不能顺手清积分")
-        self.assertEqual(row["role"], "vip", "恢复不能降级原 VIP 用户")
+        self.assertEqual(row["nickname"], "老王", "恢复不能顺手清昵称")
+        self.assertEqual(row["role"], "user", "恢复不能改变角色")
         self.assertEqual(self.db.commits, 1)
 
     async def test_restore_writes_audit_row(self):

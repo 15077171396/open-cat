@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 class ImageImportRequest(BaseModel):
     source: Literal[
-        "pexels", "pixabay", "giphy", "tenor", "so360", "baidu", "sogou",
+        "pexels", "pixabay", "giphy", "tenor", "so360",
         "duitang", "doutupk", "adoutu", "memecub", "emoji", "local",
     ]
     source_id: str = Field(..., min_length=1, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")

@@ -32,7 +32,6 @@ from app.services.tutorial_node_service import (
     admin_move_node as move_tutorial_node,
     admin_delete_node as delete_tutorial_node,
 )
-from app.api._admin_shared import NetdiskLinkItem
 from app.schemas.content import TutorialDetail
 from app.schemas.admin import ActionAck, AffectedResult, CreatedResult, DeletedResult
 
@@ -49,17 +48,12 @@ class TutorialCreateRequest(BaseModel):
     content: Optional[str] = Field(None, min_length=1)
     cover_image: Optional[str] = Field(None, max_length=500)
     status: Optional[Literal["updating", "completed"]] = "updating"
-    # 阅读权限（均需登录）：free=免费阅读 / vip=会员专享（非会员可积分购买）
-    access_mode: Optional[Literal["free", "vip"]] = "free"
-    # 会员教程积分购买价：0=不支持积分购买；免费模式下会被归一为 0
-    points_price: Optional[int] = Field(None, ge=0, le=1_000_000)
     is_pinned: Optional[bool] = False
     is_recommended: Optional[bool] = False
     # SEO 信息：仅写入页面 meta 标签供搜索引擎抓取，前台页面不展示
     seo_title: Optional[str] = Field(None, max_length=200)
     seo_description: Optional[str] = Field(None, max_length=500)
     seo_keywords: Optional[str] = Field(None, max_length=500)
-    netdisk_links: Optional[list[NetdiskLinkItem]] = None
 
 
 class TutorialUpdateRequest(BaseModel):
@@ -70,15 +64,12 @@ class TutorialUpdateRequest(BaseModel):
     content: Optional[str] = Field(None, min_length=1)
     cover_image: Optional[str] = Field(None, max_length=500)
     status: Optional[Literal["updating", "completed"]] = None
-    access_mode: Optional[Literal["free", "vip"]] = None
-    points_price: Optional[int] = Field(None, ge=0, le=1_000_000)
     is_pinned: Optional[bool] = None
     is_recommended: Optional[bool] = None
     # SEO 信息：允许清空（传空串 = 清除，前台回落默认标题/简介）
     seo_title: Optional[str] = Field(None, max_length=200)
     seo_description: Optional[str] = Field(None, max_length=500)
     seo_keywords: Optional[str] = Field(None, max_length=500)
-    netdisk_links: Optional[list[NetdiskLinkItem]] = None
 
 
 @router.get("/tutorials", response_model=ApiResponse[PageResult[ContentListItem]])
@@ -89,19 +80,18 @@ async def admin_list_tutorials(
     category: str = Query(None, max_length=50),
     status: Literal["updating", "completed"] = Query(None),
     is_published: Optional[bool] = Query(None),
-    access_mode: Literal["free", "vip"] = Query(None),
     deleted: Literal["active", "deleted", "all"] = Query(
         "active", description="回收站视图：active=正常内容（默认）/ deleted=回收站 / all=全部"
     ),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """教程列表（支持标题/简介搜索与分类/更新状态/发布状态/阅读权限筛选）
+    """教程列表（支持标题/简介搜索与分类/更新状态/发布状态筛选）
 
     `deleted` 是**视图**而非筛选项：默认只看正常内容，回收站里的内容不会混进日常列表。
     """
     result = await list_tutorials(
-        db, page, page_size, keyword, category, status, is_published, access_mode, deleted
+        db, page, page_size, keyword, category, status, is_published, deleted
     )
     return success_response(result)
 
@@ -135,7 +125,7 @@ async def admin_batch_delete_tutorials(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """批量删除教程（**移入回收站**，可恢复；章节/购买记录保留）"""
+    """批量删除教程（**移入回收站**，可恢复；章节保留）"""
     result = await batch_delete_tutorials(db, req.ids, admin)
     return success_response(result, f"已删除 {result['deleted']} 篇教程（可在回收站恢复）")
 

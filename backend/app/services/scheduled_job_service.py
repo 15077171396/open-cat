@@ -73,9 +73,11 @@ CATEGORY_LABELS: dict[str, str] = {
 }
 
 # 超期阈值：比调度周期留足余量。
-# 日报任务 26h（容忍一次 misfire 补跑 + 时区误差 + 执行耗时）；每分钟任务 30min（容忍容器重启）。
+# 日报任务 26h（容忍一次 misfire 补跑 + 时区误差 + 执行耗时）；每分钟任务 30min（容忍容器重启）；
+# 每小时任务 3h（容忍调度器重启 + 一次执行耗时）。
 _DAILY_STALE_SECONDS = 26 * 3600
 _INTERVAL_STALE_SECONDS = 30 * 60
+_HOURLY_STALE_SECONDS = 3 * 3600
 
 
 class JobSpec(NamedTuple):
@@ -124,30 +126,10 @@ class JobSpec(NamedTuple):
 
 JOB_SPECS: tuple[JobSpec, ...] = (
     JobSpec(
-        id="check_vip_expiry",
-        label="VIP 过期降级",
-        category=CATEGORY_USER,
-        desc="把到期未降级的 VIP 账号改回普通用户，避免过期后仍享付费权益",
-        kind="daily",
-        hour=2,
-        minute=0,
-    ),
-    JobSpec(
-        id="push_new_urls_to_baidu",
-        label="百度收录推送",
-        category=CATEGORY_DISTRIBUTION,
-        desc="把近 26 小时新增/更新的内容页推给百度，加速被收录（存量页靠 sitemap 兜底）",
-        kind="daily",
-        hour=3,
-        minute=0,
-        requires=("BAIDU_PUSH_TOKEN",),
-        note="未配置 token 时任务会直接跳过并返回「已跳过」，不算失败",
-    ),
-    JobSpec(
         id="push_new_urls_to_indexnow",
         label="IndexNow 收录推送",
         category=CATEGORY_DISTRIBUTION,
-        desc="同上，推送给 Bing 等支持 IndexNow 的搜索引擎",
+        desc="把近 26 小时新增/更新的内容页推给 Bing 等支持 IndexNow 的搜索引擎，加速被收录（存量页靠 sitemap 兜底）",
         kind="daily",
         hour=3,
         minute=10,
@@ -175,24 +157,24 @@ JOB_SPECS: tuple[JobSpec, ...] = (
         note="保留 90 天",
     ),
     JobSpec(
-        id="cleanup_content_views",
-        label="浏览归因清理",
-        category=CATEGORY_STORAGE,
-        desc="清理过期的内容浏览归因记录（「看过什么 → 7 天内申请认证」的数据源）",
-        kind="daily",
-        hour=4,
-        minute=40,
-        note="保留 180 天：看内容到决定付费的周期通常以周计，太短会删掉有效归因",
-    ),
-    JobSpec(
         id="purge_recycle_bin",
         label="回收站清理",
         category=CATEGORY_STORAGE,
-        desc="硬删除超过保留期的回收站教程与评论；用户账号与有购买记录的教程不自动清理",
+        desc="硬删除超过保留期的回收站教程与评论；用户账号不自动清理",
         kind="daily",
         hour=4,
         minute=50,
-        note="教程 90 天 / 评论 30 天；有购买记录的教程跳过，避免破坏用户已购权益",
+        note="教程 90 天 / 评论 30 天",
+    ),
+    JobSpec(
+        id="cleanup_login_logs",
+        label="登录日志清理",
+        category=CATEGORY_STORAGE,
+        desc="按保留期删除过期的登录日志（每条登录尝试都写一行，量大而回溯价值集中在近期）",
+        kind="interval",
+        interval_minutes=60,
+        stale_seconds=_HOURLY_STALE_SECONDS,
+        note="保留 90 天；每小时执行一次",
     ),
     JobSpec(
         id="flush_view_counts",
@@ -208,11 +190,21 @@ JOB_SPECS: tuple[JobSpec, ...] = (
         id="data_quality_check",
         label="数据质量巡检",
         category=CATEGORY_QUALITY,
-        desc="只查不删：负积分、过期未降级的 VIP、指向已删内容的孤儿收藏/下载/学习记录",
+        desc="只查不删：指向已删内容的孤儿收藏/学习记录等数据一致性异常",
         kind="daily",
         hour=5,
         minute=0,
         note="结果写入 Redis，由「系统状态」卡展示明细",
+    ),
+    JobSpec(
+        id="ops_metric_snapshot",
+        label="核心指标快照",
+        category=CATEGORY_QUALITY,
+        desc="每小时把用户/内容/待办积压/登录失败等读数写入 ops_metric_snapshots，供看板回看趋势",
+        kind="interval",
+        interval_minutes=60,
+        stale_seconds=_HOURLY_STALE_SECONDS,
+        note="快照保留 180 天；每小时执行一次",
     ),
 )
 

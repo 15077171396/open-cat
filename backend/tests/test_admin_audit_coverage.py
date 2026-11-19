@@ -16,8 +16,7 @@ AUDIT_EXEMPT = {
     "app.services.setting_service.invalidate_public_settings_cache",
     "app.services.setting_service.invalidate_legal_documents_cache",
     "app.services.ai_config_service.invalidate_ai_config_cache",
-    # 翻译任务：只把译文回给编辑器，落库仍走教程/章节的 content_update（那里有审计）
-    "app.services.translate_service.submit_translate_task",
+    # 翻译任务：条目已随 0080_drop_commercial_modules 删除 translate_service 一并失效（2026-11-18 清理）
     # AI 写作执行流（POST /ai/writing/run）：生成结果只回给编辑器，正文/配图落库仍走
     # 教程/章节/百科的内容写接口（那里已有审计）。这里涉及的全是额度与用量计数，
     # 属于「计量」而不是「内容/权益变更」，逐次生成写审计行只会淹没真正的配置变更；

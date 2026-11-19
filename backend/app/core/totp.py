@@ -113,7 +113,7 @@ def verify_totp(
     return False
 
 
-def provisioning_uri(secret: str, account: str, issuer: str = "AI学习猫") -> str:
+def provisioning_uri(secret: str, account: str, issuer: str = "Open Cat Admin") -> str:
     """生成 otpauth:// URI（扫码即绑定）。
 
     参数顺序与编码方式按 Key Uri Format 规范：`issuer` 同时出现在 label 前缀

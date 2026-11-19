@@ -21,7 +21,55 @@ from app.models.feedback import (
 )
 from app.services.admin_feedback_service import admin_list_feedbacks
 from app.services.feedback_service import to_dict
-from tests.test_points_ledger import _RecordingSession
+
+
+class _StubScalars:
+    def __init__(self, value):
+        self._value = value
+
+    def all(self):
+        return self._value
+
+
+class _StubResult:
+    def __init__(self, value):
+        self._value = value
+
+    def scalar(self):
+        return self._value
+
+    def all(self):
+        return self._value
+
+    def scalars(self):
+        # 有的 service 用 `.scalars().all()`（审计列表）而非 `.all()`，两者都要支持
+        return _StubScalars(self._value)
+
+
+class _RecordingSession:
+    """只记录语句、不执行：断言「条件真的进了 SQL」。
+
+    为什么不用 tests.fake_db.MemorySession：这里要验证的是「筛选真的下推进 SQL」，
+    内存仿真返回的是造出来的数据，看它等于自证。改自原 test_points_ledger
+    （积分模块下线后本类迁到此处，test_audit_taxonomy 继续复用）。
+    """
+
+    def __init__(self, total: int = 0):
+        self.calls: list[tuple[str, dict]] = []
+        self._total = total
+
+    async def execute(self, stmt):
+        compiled = stmt.compile()
+        self.calls.append((str(compiled), dict(compiled.params)))
+        return _StubResult(self._total if len(self.calls) == 1 else [])
+
+    @property
+    def sql(self) -> str:
+        return " ".join(text for text, _ in self.calls)
+
+    @property
+    def bound_values(self) -> list:
+        return [value for _, params in self.calls for value in params.values()]
 
 
 class StatusLabelTests(unittest.TestCase):

@@ -31,6 +31,10 @@ def _overview(tree: dict) -> dict:
     return next(group for group in tree["groups"] if group["key"] == "overview")
 
 
+def _content(tree: dict) -> dict:
+    return next(group for group in tree["groups"] if group["key"] == "content")
+
+
 class MenuSettingsTests(unittest.TestCase):
     def test_default_tree_contains_code_catalog(self):
         db = MemorySession()
@@ -67,13 +71,13 @@ class MenuSettingsTests(unittest.TestCase):
     def test_hide_item_and_group(self):
         db = MemorySession()
         admin = _admin()
-        _run(menu_setting_service.update_override(db, admin, "/analysis", {"visible": False}))
+        _run(menu_setting_service.update_override(db, admin, "/tutorials", {"visible": False}))
         tree = admin_menu.menu_tree(overrides=_run(menu_setting_service.load_overrides(db)))
-        self.assertNotIn("/analysis", {item["key"] for item in _overview(tree)["items"]})
+        self.assertNotIn("/tutorials", {item["key"] for item in _content(tree)["items"]})
 
-        _run(menu_setting_service.update_override(db, admin, "overview", {"visible": False}))
+        _run(menu_setting_service.update_override(db, admin, "content", {"visible": False}))
         tree = admin_menu.menu_tree(overrides=_run(menu_setting_service.load_overrides(db)))
-        self.assertNotIn("overview", {group["key"] for group in tree["groups"]})
+        self.assertNotIn("content", {group["key"] for group in tree["groups"]})
 
     def test_reorder_items(self):
         db = MemorySession()
@@ -83,20 +87,20 @@ class MenuSettingsTests(unittest.TestCase):
                 db,
                 admin,
                 [
-                    {"key": "/analysis", "sort_order": 0},
-                    {"key": "/dashboard", "sort_order": 1},
+                    {"key": "/categories", "sort_order": 0},
+                    {"key": "/tutorials", "sort_order": 1},
                 ],
             )
         )
         tree = admin_menu.menu_tree(overrides=_run(menu_setting_service.load_overrides(db)))
-        keys = [item["key"] for item in _overview(tree)["items"]]
-        self.assertEqual(keys[:2], ["/analysis", "/dashboard"])
+        keys = [item["key"] for item in _content(tree)["items"]]
+        self.assertEqual(keys[:2], ["/categories", "/tutorials"])
 
     def test_reset_one_and_all(self):
         db = MemorySession()
         admin = _admin()
         _run(menu_setting_service.update_override(db, admin, "/", {"label_zh": "首页"}))
-        _run(menu_setting_service.update_override(db, admin, "/analysis", {"label_zh": "分析"}))
+        _run(menu_setting_service.update_override(db, admin, "/tutorials", {"label_zh": "教程"}))
         self.assertEqual(_run(menu_setting_service.settings_tree(db))["custom_count"], 2)
 
         _run(menu_setting_service.reset_one(db, admin, "/"))

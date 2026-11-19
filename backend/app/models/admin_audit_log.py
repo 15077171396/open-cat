@@ -30,6 +30,8 @@ AUDIT_ACTIONS: dict[str, str] = {
     "user_adjust_points": "调整用户积分",
     "user_delete": "删除用户",
     "user_batch_delete": "批量删除用户",
+    # 批量导入（2026-11-19）：一次授出一批访问权，必须能回答「谁导入了哪些账号」
+    "user_batch_import": "批量导入用户",
     # 恢复已注销账号 = 把访问权还给一个已被处置的账号，敏感度与删除同级
     "user_restore": "恢复用户",
     # 强制下线 = 让一个正在使用中的账号立刻失去访问权（改密 / 疑似盗号 / 离职交接）
@@ -78,6 +80,8 @@ AUDIT_ACTIONS: dict[str, str] = {
     # 站内消息（2026-10-28）：群发系统通知是**面向全体用户**的触达能力，
     # 发错一次就是全站可见事故，必须能回答「谁在什么时候发了什么、发给多少人」
     "message_send": "发送系统通知",
+    # 通知模板（2026-11-19）：模板口径最终以管理员名义群发，增删必须可追溯
+    "message_template_update": "更新站内通知模板",
     # 内容新增与编辑（此前只有删除有审计，「谁改的」无法回答）
     "content_create": "新建内容",
     "content_update": "编辑内容",
@@ -140,6 +144,12 @@ AUDIT_ACTIONS: dict[str, str] = {
     "ai_writing_prompt_reset": "恢复 AI 写作提示词默认值",
     # 图库导入（2026-10-29）：把第三方图片转存进站内正文，需能回答「谁导入了什么、授权是什么」
     "image_search_import": "导入图库图片",
+    # 登录日志（2026-11-18）：删除登录日志 = 抹掉「谁试过登录」的安全线索，必须可追溯
+    "login_log_delete": "删除登录日志",
+    # 敏感词库（2026-11-18）：词库内容直接决定 UGC 拦截边界（能改词库就能「放行某类内容」）
+    "moderation_words_update": "维护敏感词库",
+    # IP 黑名单（2026-11-19）：拉黑/放行直接改变线上访问面，必须可追溯
+    "ip_blacklist_update": "更新 IP 黑名单",
 }
 
 # 目标类型（target_type）取值
@@ -168,6 +178,12 @@ AUDIT_TARGET_TYPES = (
     "backup",
     # 代码生成：下载生成包，target_id 留空（一次可含多个文件），范围在 detail 里
     "codegen",
+    # 登录日志：按 ID 批量删除（target_id 留空，删除的 ID 列表在 detail 里）
+    "login_log",
+    # 审计日志导出：target_id 留空（一次导出一批记录，筛选条件在 detail 里）
+    "audit_log",
+    # 指标快照导出：target_id 留空（按类型整体审计）
+    "ops_metric",
 )
 
 # 目标类型 → 中文名。**必须与 AUDIT_TARGET_TYPES 一一对应**（tests/test_audit_taxonomy.py 有守卫）：
@@ -201,6 +217,9 @@ AUDIT_TARGET_TYPE_LABELS: dict[str, str] = {
     "image_asset": "图片素材",
     "backup": "数据库备份",
     "codegen": "代码生成",
+    "login_log": "登录日志",
+    "audit_log": "审计日志导出",
+    "ops_metric": "指标快照",
 }
 
 # ---- 风险分级 ----
@@ -231,6 +250,8 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "user_adjust_points": AUDIT_RISK_MONEY,
     "user_delete": AUDIT_RISK_DANGER,
     "user_batch_delete": AUDIT_RISK_DANGER,
+    # 批量导入 = 一次授出一批访问权，敏感度与批量删除同级
+    "user_batch_import": AUDIT_RISK_DANGER,
     "user_restore": AUDIT_RISK_DANGER,
     # 强制下线是「让别人立刻失去访问权」，与删除/改角色同属高危操作
     "user_force_logout": AUDIT_RISK_DANGER,
@@ -278,6 +299,8 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "feedback_reply": AUDIT_RISK_NORMAL,
     # 站内消息：群发是面向全体用户的触达，发错一次就是全站可见事故 —— 与公告同级
     "message_send": AUDIT_RISK_DANGER,
+    # 通知模板：模板内容最终以管理员名义群发，口径变更与发送同级
+    "message_template_update": AUDIT_RISK_DANGER,
     # 内容
     "content_create": AUDIT_RISK_NORMAL,
     "content_update": AUDIT_RISK_NORMAL,
@@ -304,6 +327,12 @@ AUDIT_ACTION_RISK: dict[str, str] = {
     "content_restore": AUDIT_RISK_DANGER,
     # 系统设置：可改 AI 供应商密钥与 base_url、邀请奖励额度、对外公示的法律文档 HTML
     "settings_update": AUDIT_RISK_DANGER,
+    # 删除登录日志 = 抹安全线索（排查盗号/撞库时这条是唯一证据）
+    "login_log_delete": AUDIT_RISK_DANGER,
+    # 敏感词库：改词库直接改变 UGC 拦截边界（删词 = 放行一类内容）
+    "moderation_words_update": AUDIT_RISK_DANGER,
+    # IP 黑名单：误操作会把合法用户/监控探针挡在门外
+    "ip_blacklist_update": AUDIT_RISK_DANGER,
     # 登录配置：关掉某个渠道会让一批用户再也登不进来；填错短信/微信凭据则全员登录失败
     "login_setting_update": AUDIT_RISK_DANGER,
     # 法律文档：对外公示的合规文本，改错等于对外的承诺变了（同属高危）

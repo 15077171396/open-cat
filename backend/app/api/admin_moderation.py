@@ -1,4 +1,4 @@
-"""管理后台 - 内容审核中心（机器判定留痕 + 人工举报）"""
+"""管理后台 - 内容审核中心（机器判定留痕 + 人工举报 + 敏感词库）"""
 
 from fastapi import Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -20,13 +20,13 @@ from app.schemas.common import ApiResponse
 from app.api._admin_shared import router
 from app.services.admin_audit_service import record_admin_action
 
-from app.services import moderation_service, report_service
+from app.services import moderation_service, moderation_words_service, report_service
 from app.schemas.content import PageResult
 from app.schemas.admin import ActionAck, ModerationLogItem, ReportItem, StatsResult
 
 
-# 敏感词库通过 .env 的 MODERATION_EXTRA_WORDS 维护，不提供写接口——
-# 词库属部署配置，走环境变量比走数据库更容易在容器环境下复现与审计
+# 敏感词库（2026-11-18 起提供管理界面）：读写与热重载逻辑在
+# moderation_words_service（路由层禁 ORM，见 test_rbac 架构守卫）。
 
 @router.get("/moderation/logs", response_model=ApiResponse[PageResult[ModerationLogItem]])
 async def admin_list_moderation_logs(
@@ -132,3 +132,51 @@ async def admin_moderation_summary(
         "pending_logs": await moderation_service.count_pending(db),
         "pending_reports": await report_service.count_pending(db),
     })
+
+
+# ---------------------------------------------------------------------------
+# 敏感词库（2026-11-18）：词库 = 内置兜底词 + 后台可维护的自定义词
+# ---------------------------------------------------------------------------
+
+
+class ModerationWordsSaveRequest(BaseModel):
+    """保存自定义词（**全量覆盖**：界面把当前词表整体提交）"""
+
+    extra_words: list[str] = Field(default_factory=list, max_length=600)
+
+
+class ModerationWordsTestRequest(BaseModel):
+    text: str = Field(..., min_length=1, max_length=2000, description="待检测文本")
+
+
+@router.get("/moderation/words", response_model=ApiResponse[ActionAck])
+async def admin_list_moderation_words(
+    admin: User = Depends(require_admin),
+):
+    """词库清单（内置兜底词 + 自定义词，界面分组展示）"""
+    return success_response(moderation_words_service.list_words())
+
+
+@router.put("/moderation/words", response_model=ApiResponse[ActionAck])
+async def admin_save_moderation_words(
+    req: ModerationWordsSaveRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """保存自定义敏感词（全量覆盖）。上限 500 个，保存后立即生效并写审计。
+
+    事务边界在 service 层（保存 + 审计 + 提交 + 热生效），API 层不手工 commit。
+    """
+    result = await moderation_words_service.save_words_with_audit(db, admin, req.extra_words)
+    return success_response(
+        {"ok": True, "changed": result["changed"], "words": result["words"]}
+    )
+
+
+@router.post("/moderation/words/test", response_model=ApiResponse[ActionAck])
+async def admin_test_moderation_words(
+    req: ModerationWordsTestRequest,
+    admin: User = Depends(require_admin),
+):
+    """命中测试：对任意文本跑一次当前生效词库（内置 + 自定义），返回命中词。"""
+    return success_response({"hits": moderation_words_service.test_text(req.text)})

@@ -16,7 +16,6 @@ from app.services.tutorial_service import (
     get_tutorial_detail,
     track_learning,
     check_tutorial_read_access,
-    purchase_tutorial,
 )
 from app.services.tutorial_node_service import get_node_tree, get_node_detail
 from app.schemas.admin import ActionAck
@@ -48,7 +47,7 @@ async def tutorial_intro(
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
-    """教程介绍页 (公开；正文不返回，目录由后端抽取；网盘链接需具备阅读权限)"""
+    """教程介绍页 (公开；正文不返回，目录由后端抽取)"""
     result = await get_tutorial_intro(db, tutorial_id, current_user)
     return success_response(result)
 
@@ -71,7 +70,7 @@ async def tutorial_node_detail(
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
-    """单章正文 (需登录；免费教程登录即读，会员教程需 VIP 有效或已积分购买)"""
+    """单章正文 (需登录)"""
     await check_tutorial_read_access(db, current_user, tutorial_id)
     result = await get_node_detail(db, tutorial_id, node_id, count_view=count_view)
     return success_response(result)
@@ -83,7 +82,7 @@ async def tutorial_detail(
     db: AsyncSession = Depends(get_db),
     current_user: User | None = Depends(get_current_user_optional),
 ):
-    """教程详情 (需登录；免费教程登录即读，会员教程需 VIP 有效或已积分购买；兼容旧整篇阅读)
+    """教程详情 (需登录；兼容旧整篇阅读)
 
     权限校验在 get_tutorial_detail 内完成（复用同一次行加载，避免重复投影查询）
     """
@@ -102,18 +101,6 @@ async def track_tutorial(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    """上报学习时长（纯统计：学习记录 + 实际学习时长，不再作为阅读门槛）"""
+    """上报学习时长（纯统计：学习记录 + 实际学习时长）"""
     result = await track_learning(db, current_user, tutorial_id, req.duration)
     return success_response(result)
-
-
-@router.post("/{tutorial_id}/purchase", response_model=ApiResponse[ActionAck])
-async def purchase_tutorial_endpoint(
-    tutorial_id: int,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """积分购买会员教程（非会员购买后永久可读；幂等，重复购买不扣分）"""
-    result = await purchase_tutorial(db, current_user, tutorial_id)
-    message = "已购买过该教程" if result.get("already_purchased") else "购买成功，已解锁永久阅读"
-    return success_response(result, message)

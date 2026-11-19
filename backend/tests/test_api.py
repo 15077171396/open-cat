@@ -20,34 +20,19 @@ class HealthTests(unittest.IsolatedAsyncioTestCase):
 
 
 class MeEndpointTests(unittest.IsolatedAsyncioTestCase):
-    """SEC-014: /me 不得返回 pending_auth_code 原文。"""
+    """/me 基础契约：需要登录态，且只回基本资料（历史敏感字段不得回流）。"""
 
-    async def test_me_returns_has_pending_auth_code_bool(self):
-        user = make_user(pending_auth_code="12345678")
+    async def test_me_returns_profile_only(self):
+        user = make_user()
         async with async_client(user=user) as client:
             resp = await client.get("/api/v1/auth/me")
         self.assertEqual(resp.status_code, 200)
         data = resp.json()["data"]
-        self.assertIn("has_pending_auth_code", data)
-        self.assertTrue(data["has_pending_auth_code"])
-        # 不得泄露原文
-        self.assertNotIn("pending_auth_code", data)
-        self.assertEqual(data["auth_status"], "pending")
-
-    async def test_me_without_pending_code(self):
-        user = make_user(pending_auth_code=None)
-        async with async_client(user=user) as client:
-            resp = await client.get("/api/v1/auth/me")
-        data = resp.json()["data"]
-        self.assertFalse(data["has_pending_auth_code"])
-        self.assertEqual(data["auth_status"], "none")
-
-    async def test_me_vip_shows_approved(self):
-        user = make_user(role="vip", pending_auth_code="9999")
-        async with async_client(user=user) as client:
-            resp = await client.get("/api/v1/auth/me")
-        data = resp.json()["data"]
-        self.assertEqual(data["auth_status"], "approved")
+        self.assertEqual(data["account"], user.account)
+        # 已下线模块的字段不得重新出现在响应里
+        for legacy in ("pending_auth_code", "has_pending_auth_code", "auth_status",
+                       "points", "free_used_seconds", "vip_expire_time"):
+            self.assertNotIn(legacy, data)
 
     async def test_me_requires_auth(self):
         async with async_client(include_auth=False) as client:

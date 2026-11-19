@@ -5,10 +5,7 @@
 各域模块从这里 import router 注册路由；prefix 由 router.py include 时统一添加。
 """
 
-from typing import Optional
-
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
 
 from app.core.rbac import check_route_permission
 
@@ -16,11 +13,3 @@ from app.core.rbac import check_route_permission
 # check_route_permission 按 core/rbac.py 规则表做细粒度权限校验
 # （super_admin 绕过；未登记规则的新端点 fail-closed 403）
 router = APIRouter(dependencies=[Depends(check_route_permission)])
-
-
-# 嵌套条目模型（教程网盘链接）
-# 长度上限与 DB 列定义对齐（TutorialNetdiskLink），超限请求直接 422，避免入库时 DataError 导致 500。
-class NetdiskLinkItem(BaseModel):
-    platform: str = Field(..., min_length=1, max_length=50)
-    url: str = Field(..., min_length=1, max_length=1000)
-    extract_code: Optional[str] = Field(None, max_length=20)

@@ -16,7 +16,6 @@ from app.api.stats import router as stats_router
 from app.api.home import router as home_router
 from app.api.announcements import router as announcements_router
 from app.api.uploads import router as uploads_router
-from app.api.images import router as images_router
 from app.api.sitemap import router as sitemap_router
 from app.api.llms_txt import router as llms_txt_router
 from app.api.indexnow_key import router as indexnow_key_router
@@ -25,7 +24,6 @@ from app.api.feedbacks import router as feedbacks_router
 from app.api.reports import router as reports_router
 from app.api.comments import router as comments_router
 from app.api.content import content_router
-from app.api.payments import router as payments_router
 from app.api.setup import router as setup_router
 from app.api.admin_chat import chat_ws_router
 from app.schemas.admin import ActionAck
@@ -57,11 +55,9 @@ api_router.include_router(settings_router, prefix="/settings", tags=["系统设�
 api_router.include_router(feedbacks_router, prefix="/feedbacks", tags=["问题反馈"])
 api_router.include_router(reports_router, prefix="/reports", tags=["内容举报"])
 api_router.include_router(comments_router, prefix="/comments", tags=["内容评论"])
-api_router.include_router(payments_router, prefix="/payments", tags=["支付"])
 # 安装向导：必须在 /admin 之外（admin 路由有 fail-closed 权限依赖，
 # 系统里还没有管理员时会把自己锁死）
 api_router.include_router(setup_router, prefix="/setup", tags=["安装向导"])
-api_router.include_router(images_router, tags=["图片代理"])
 api_router.include_router(sitemap_router, tags=["SEO"])
 api_router.include_router(llms_txt_router, tags=["SEO"])
 api_router.include_router(indexnow_key_router, tags=["SEO"])

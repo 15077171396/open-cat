@@ -10,10 +10,12 @@
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.auth_request import AuthRequest
 from app.models.feedback import Feedback
 from app.models.moderation import ContentModerationLog, ContentReport
 from app.models.user import User
+from app.core.degrade import degrade_guard
+from app.config import settings
+from app.utils.time import utcnow
 from app.services import ai_usage_service, rbac_service, system_status_service
 
 
@@ -51,11 +53,6 @@ async def get_admin_todos(db: AsyncSession, user: User) -> dict:
         return is_super or code in permissions
 
     groups: list[dict] = []
-
-    if can("auth_request:view"):
-        count = await _count_pending(db, AuthRequest)
-        if count:
-            groups.append(_group("auth_request", "实名认证待审", count, "/auth-requests"))
 
     if can("report:view"):
         count = await _count_pending(db, ContentReport)
@@ -96,6 +93,32 @@ async def get_admin_todos(db: AsyncSession, user: User) -> dict:
                     detail=f"{names}{more}上次执行失败",
                 )
             )
+
+        # 登录失败异常（2026-11-19）：近 1 小时失败数超过阈值（LOGIN_FAIL_ALERT_THRESHOLD，
+        # 0 = 禁用）时顶栏提醒，跳转登录日志排查。实时计数（不依赖每小时快照），
+        # 读取失败按「无异常」处理 —— 待办是提醒，不能因为计数抖动误报或报错。
+        threshold = settings.LOGIN_FAIL_ALERT_THRESHOLD
+        if threshold > 0:
+            from datetime import timedelta
+
+            from app.services import login_log_service
+
+            failed = 0
+            with degrade_guard("todo.login_failures", detail="登录失败计数读取失败（按无异常处理）"):
+                failed = await login_log_service.count_failed_since(
+                    db, utcnow() - timedelta(hours=1)
+                )
+            if failed > threshold:
+                groups.append(
+                    _group(
+                        "login_failures",
+                        "登录失败异常增多",
+                        failed,
+                        "/login-logs",
+                        severity="error",
+                        detail=f"近 1 小时登录失败 {failed} 次，超过告警阈值 {threshold}（疑似撞库或口令泄露）",
+                    )
+                )
 
         pressure = await ai_usage_service.get_quota_pressure()
         if pressure:

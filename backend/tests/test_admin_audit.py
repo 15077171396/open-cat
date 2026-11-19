@@ -23,13 +23,12 @@ from unittest import mock
 
 from app.core.rbac import match_route_permission
 from app.models.admin_audit_log import AUDIT_ACTIONS, AdminAuditLog
-from app.models.payment import PaymentProduct
 from app.models.rbac import Role, UserRole
 from app.models.tutorial import Tutorial
 from app.models.user import User
 from app.services import admin_audit_service as aas
 from app.services import admin_tutorial_service as ats
-from app.services import payment_service, rbac_service
+from app.services import rbac_service
 from app.services.rbac_catalog import ALL_PERMISSION_CODES, PERMISSION_CATALOG, SYSTEM_ROLES
 from tests.conftest import FakeRedis
 from tests.fake_db import MemorySession
@@ -460,8 +459,13 @@ class TestSourceFieldWiring(unittest.TestCase):
             # → seed_ai_playground_permission（ai_playground:view 补种）
             # 2026-11-04 站内聊天：add_chat_tables（三张表）→ seed_chat_permission（chat:view 补种）
             # 2026-11-04 界面偏好/锁屏：add_user_ui_preferences（单表，无新权限码）
-            # 2026-11-06 Stripe 会员支付：add_stripe_payment_fields（订单加 currency / provider_session_id）
-            ["add_stripe_payment_fields"],
+            # 2026-11-18 开源裁剪：0080_drop_commercial_modules 删除商业化遗留
+            # （Stripe 迁移随模块一并移除，此前的 head add_stripe_payment_fields 不复存在）
+            # 2026-11-18 登录日志 + 指标快照：add_login_logs（表 + 任务种子）
+            # → seed_content_security_permissions（login_log/moderation:words 补种）
+            # → add_ops_metric_snapshots（快照表 + 任务种子）
+            # 2026-11-19 IP 黑名单：seed_ip_blacklist_permission（ip_blacklist:view/update 补种）
+            ["seed_ip_blacklist_permission"],
             f"alembic head 不是最新迁移（当前 heads={heads}）—— 迁移链可能断开或挂错位置",
         )
 
@@ -624,25 +628,6 @@ class TestHighRiskAuditDiff(unittest.IsolatedAsyncioTestCase):
         ]
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["detail"]["changes"]["role_ids"], [[10], [20]])
-
-    async def test_payment_product_update_records_price_diff(self):
-        db = MemorySession()
-        db.seed(
-            PaymentProduct(
-                id=1, code="points_100", name="100 积分", kind="points",
-                amount_cents=100, points=100, vip_days=0, is_enabled=True, sort_order=0,
-            )
-        )
-        await payment_service.update_product(
-            db, 1, {"amount_cents": 200, "is_enabled": False},
-            User(id=1, account="admin@test"),
-        )
-        row = db.all_rows(AdminAuditLog)[0]
-        self.assertEqual(row["action"], "payment_product_update")
-        self.assertEqual(
-            row["detail"]["changes"],
-            {"amount_cents": [100, 200], "is_enabled": [True, False]},
-        )
 
 
 if __name__ == "__main__":

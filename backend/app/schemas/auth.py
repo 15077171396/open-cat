@@ -14,7 +14,6 @@ class RegisterRequest(BaseModel):
     account: str = Field(..., max_length=100, description="手机号或邮箱")
     password: str = Field(..., min_length=6, max_length=50, description="密码(6-50位)")
     code: str = Field(..., min_length=4, max_length=6, description="验证码")
-    invite_code: Optional[str] = Field(None, max_length=16, description="邀请码(选填，通过好友分享链接或邀请码填入)")
 
     @field_validator("account")
     @classmethod
@@ -86,40 +85,9 @@ class RefreshTokenRequest(BaseModel):
     refresh_token: Optional[str] = Field(None, description="refresh_token")
 
 
-class PhoneCodeRequest(BaseModel):
-    """手机号验证码发送请求"""
-    phone: str = Field(..., min_length=11, max_length=11, description="大陆手机号")
-    scene: str = Field("login", pattern="^(login|bind)$", description="login=登录 / bind=绑定")
-
-
-class PhoneLoginRequest(BaseModel):
-    """手机号验证码登录请求"""
-    phone: str = Field(..., min_length=11, max_length=11)
-    code: str = Field(..., min_length=4, max_length=6)
-    invite_code: Optional[str] = Field(None, max_length=16)
-    # 已启用 TOTP 的账号仍须第二因子
-    totp_code: Optional[str] = Field(None, max_length=12)
-
-
-class PhoneBindRequest(BaseModel):
-    """登录后绑定手机号"""
-    phone: str = Field(..., min_length=11, max_length=11)
-    code: str = Field(..., min_length=4, max_length=6)
-
-
-class WechatStartData(BaseModel):
-    """微信扫码登录跳转地址"""
-    url: str
-
-
 class AuthCapabilitiesData(BaseModel):
     """登录页能力位（只含是否可用，不含任何凭据）"""
 
-    phone_login: bool = False
-    phone_auto_register: bool = False
-    wechat_web_login: bool = False
-    wechat_mini_login: bool = False
-    sms_provider: str = "mock"
     # 图形验证码开关：开启时登录必须携带 captcha_id/captcha_code
     captcha_enabled: bool = False
 
@@ -139,14 +107,6 @@ class UserBriefData(BaseModel):
     phone: Optional[str] = None
     phone_masked: Optional[str] = None
     has_phone: bool = False
-    wechat_bound: bool = False
-    free_used_seconds: int = 0
-    free_remaining_seconds: int = 0
-    points: int = 0
-    vip_expire_time: Optional[str] = None
-    pending_auth_code: Optional[str] = None
-    has_pending_auth_code: bool = False
-    auth_status: str = "none"
     avatar_url: Optional[str] = None
     created_at: Optional[str] = None
 
@@ -172,30 +132,8 @@ class UserInfoData(BaseModel):
     phone: Optional[str] = None
     phone_masked: Optional[str] = None
     has_phone: bool = False
-    wechat_bound: bool = False
-    free_used_seconds: int = 0
-    free_remaining_seconds: int = 0
-    points: int = 0
-    vip_expire_time: Optional[str] = None
-    has_pending_auth_code: bool = False
-    auth_status: str = "none"
     avatar_url: Optional[str] = None
     created_at: Optional[str] = None
-
-
-class StarAuthSubmitData(BaseModel):
-    """星球认证提交响应"""
-    status: str
-    message: Optional[str] = None
-
-
-class StarAuthStatusData(BaseModel):
-    """星球认证状态响应"""
-    status: str
-    vip_expire_time: Optional[str] = None
-    star_code: Optional[str] = None
-    created_at: Optional[str] = None
-    reject_reason: Optional[str] = None
 
 
 class TotpStatusData(BaseModel):

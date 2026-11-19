@@ -84,18 +84,19 @@ class RegistryIntegrityTests(unittest.TestCase):
 
 
 class SwitchSemanticsTests(unittest.TestCase):
-    def test_default_keeps_commercial_modules_off(self):
+    def test_default_enables_all_registered_modules(self):
         with _SettingsOverride(""):
-            self.assertFalse(module_registry.is_enabled("payment"))
-            self.assertFalse(module_registry.is_enabled("points"))
-            self.assertFalse(module_registry.is_enabled("auth_request"))
-            self.assertTrue(module_registry.is_enabled("tutorial"))
+            for module in module_registry.MODULES:
+                self.assertEqual(
+                    module_registry.is_enabled(module.key), module.default_enabled,
+                    f"模块 {module.key} 的默认启用状态与开关语义不符",
+                )
 
     def test_whitelist_only_enables_listed(self):
         with _SettingsOverride("tutorial,category"):
             self.assertTrue(module_registry.is_enabled("tutorial"))
             self.assertTrue(module_registry.is_enabled("core"), "核心模块始终启用")
-            self.assertFalse(module_registry.is_enabled("node"))
+            self.assertFalse(module_registry.is_enabled("announcement"))
 
     def test_unknown_module_fails_loudly(self):
         with self.assertRaises(RuntimeError) as ctx:
@@ -104,11 +105,11 @@ class SwitchSemanticsTests(unittest.TestCase):
         self.assertIn("nope", str(ctx.exception))
 
     def test_path_check_is_segment_aware(self):
-        """`/admin/payment-products` 不能被 `/admin/payment` 前缀误吞（反之亦然）。"""
-        with _SettingsOverride("core,payment"):
-            self.assertTrue(module_registry.is_path_enabled("/api/v1/admin/payment-products"))
+        """`/admin/category-groups` 不能被 `/admin/category` 前缀误吞（反之亦然）。"""
+        with _SettingsOverride("core,category"):
+            self.assertTrue(module_registry.is_path_enabled("/api/v1/admin/category-groups"))
         with _SettingsOverride("core"):
-            self.assertFalse(module_registry.is_path_enabled("/api/v1/admin/payment-products"))
+            self.assertFalse(module_registry.is_path_enabled("/api/v1/admin/category-groups"))
 
     def test_unknown_path_is_allowed(self):
         """未登记路径交给 rbac 规则表 fail-closed，不在这一层判死。"""
@@ -123,17 +124,16 @@ class MenuFilteringTests(unittest.TestCase):
         return keys
 
     def test_disabled_modules_disappear_from_menu(self):
-        with _SettingsOverride(""):
+        with _SettingsOverride("tutorial"):
             keys = self._menu_keys(admin_menu.menu_tree())
-        self.assertNotIn("/payment-products", keys)
-        self.assertNotIn("/points", keys)
-        self.assertNotIn("/auth-requests", keys)
+        self.assertNotIn("/announcements", keys)
+        self.assertNotIn("/categories", keys)
         self.assertIn("/tutorials", keys)
 
     def test_unfiltered_tree_still_has_everything(self):
         """only_enabled=False 用于校验注册表完整性 / 后台诊断，必须给全量。"""
         keys = self._menu_keys(admin_menu.menu_tree(only_enabled=False))
-        self.assertIn("/payment-products", keys)
+        self.assertIn("/announcements", keys)
         self.assertIn("/tutorials", keys)
 
     def test_no_empty_group_is_rendered(self):
@@ -152,7 +152,7 @@ class RouteDenialTests(unittest.IsolatedAsyncioTestCase):
     async def test_disabled_module_route_is_rejected(self):
         with _SettingsOverride("core"):
             with self.assertRaises(PermissionDeniedError) as ctx:
-                await self._call("/api/v1/admin/payment-orders")
+                await self._call("/api/v1/admin/tutorials")
         self.assertIn("未启用", str(ctx.exception))
 
     async def test_enabled_module_falls_through_to_permission_check(self):

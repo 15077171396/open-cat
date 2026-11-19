@@ -1,10 +1,10 @@
-"""管理后台 - 登录管理（2026-10-27 从「系统设置 → 登录与短信」抽出）
+"""管理后台 - 登录管理（2026-10-27 从「系统设置 → 登录配置」抽出）
 
 路由级权限见 core/rbac.py：读 `login_setting:view`，写 `login_setting:update`。
 
 为什么单独开一对接口而不是复用 `/admin/settings`：
-1. **权限面**：开关登录方式、填短信凭据是运营/客服的日常动作，不该连带
-   「改 COS 密钥 / 支付商户私钥」的写权限（`setting:update` 覆盖全部设置项）；
+1. **权限面**：开关登录方式、填邮箱凭据是运营/客服的日常动作，不该连带
+   「改 COS 密钥」的写权限（`setting:update` 覆盖全部设置项）；
 2. **写范围**：`update_settings(surface=SURFACE_LOGIN)` 只接受登录配置键，
    越界键整批拒绝 —— 收窄的权限码不能写宽范围；
 3. **不止是表单**：GET 额外返回各渠道的可用性摘要（开关开着但凭据没配齐 = 点了必失败），
@@ -60,8 +60,8 @@ async def admin_update_login_settings(
         changed = await login_settings_service.update(db, req.settings)
     except ValueError as exc:
         raise AppException(code=400, message=str(exc))
-    # 审计：改短信密钥/开关登录方式会直接影响「用户能不能登录」。
-    # ⚠️ 与 settings_update 同一口径：只记键名，绝不记值（含短信密钥等凭据）
+    # 审计：改凭据/开关登录方式会直接影响「用户能不能登录」。
+    # ⚠️ 与 settings_update 同一口径：只记键名，绝不记值（含凭据等敏感信息）
     record_admin_action(
         db,
         admin,

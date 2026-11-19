@@ -32,7 +32,6 @@ from app.services.setting_definitions import (  # noqa: E402  （放在 app 导�
     SURFACE_LOGIN,
     SURFACE_MAIL,
     SURFACE_MODEL,
-    SURFACE_PAYMENT,
     SURFACE_SETTINGS,
     SettingDefinition,
     SettingGroup,
@@ -41,7 +40,7 @@ from app.services.setting_definitions import (  # noqa: E402  （放在 app 导�
     keys_for_surface,
 )
 
-# 这 6 个名字是**重新导出**（不是本模块定义），列进 __all__ 既声明了对外契约，
+# 这些名字是**重新导出**（不是本模块定义），列进 __all__ 既声明了对外契约，
 # 也让 lint 知道它们「被用到了」，不必逐个加 noqa。
 __all__ = [
     "SETTING_DEFINITIONS",
@@ -50,7 +49,6 @@ __all__ = [
     "SURFACE_LOGIN",
     "SURFACE_MAIL",
     "SURFACE_MODEL",
-    "SURFACE_PAYMENT",
     "SURFACE_SETTINGS",
     "SettingDefinition",
     "SettingGroup",

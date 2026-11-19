@@ -37,8 +37,6 @@ _CONTENT_MODELS = (
     user_schemas.LearningRecordItem,
     user_schemas.ContinueLearningItem,
     user_schemas.MessageItem,
-    user_schemas.PointTransactionItem,
-    user_schemas.InviteInfo,
 )
 
 
@@ -86,7 +84,7 @@ class SchemaMatchesBuilderTests(unittest.TestCase):
 
 
 class OpenApiContractTests(unittest.TestCase):
-    """这 23 条接口（11 条公开内容 + 7 条用户中心 + 5 条后台列表）的 OpenAPI 里必须出现具体 schema，
+    """这些接口（公开内容 + 用户中心 + 后台列表）的 OpenAPI 里必须出现具体 schema，
     而不是一个裸 object。"""
 
     TARGETS = (
@@ -98,8 +96,6 @@ class OpenApiContractTests(unittest.TestCase):
         ("/api/v1/users/learning", "get"),
         ("/api/v1/users/learning/continue", "get"),
         ("/api/v1/users/messages", "get"),
-        ("/api/v1/users/points/transactions", "get"),
-        ("/api/v1/users/invite/info", "get"),
         # 后台列表（与公开列表同一套分页形状）
         ("/api/v1/admin/tutorials", "get"),
     )

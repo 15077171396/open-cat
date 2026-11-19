@@ -24,7 +24,6 @@ from app.services.setting_service import (
     SURFACE_LOGIN,
     SURFACE_MAIL,
     SURFACE_MODEL,
-    SURFACE_PAYMENT,
     SURFACE_SETTINGS,
 )
 from app.utils import mailer
@@ -38,6 +37,9 @@ _MAIL_KEYS = {
     "smtp_use_tls",
     "smtp_from_email",
     "smtp_sender_name",
+    # 验证码邮件模板（2026-11-19）：主题与纯文本正文走后台可编辑模板
+    "mail_verify_subject",
+    "mail_verify_body",
 }
 
 
@@ -65,7 +67,6 @@ class OwnershipTests(unittest.TestCase):
             SURFACE_SETTINGS,
             SURFACE_LOGIN,
             SURFACE_LEGAL,
-            SURFACE_PAYMENT,
             SURFACE_MODEL,
         ):
             with self.subTest(surface=surface):
@@ -97,7 +98,7 @@ class WriteScopeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self._rows())["smtp_host"], "smtp.example.com")
 
     async def test_rejects_foreign_keys(self):
-        for key in ("cos_secret_key", "payment_enabled", "ai_global_daily_limit", "site_name"):
+        for key in ("cos_secret_key", "ai_global_daily_limit", "login_captcha_enabled", "site_name"):
             with self.subTest(key=key):
                 with self.assertRaises(ValueError):
                     await mail_settings_service.update(

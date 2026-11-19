@@ -6,30 +6,25 @@ from app.models.admin_audit_log import AdminAuditLog
 from app.models.ai_model import AiModel
 from app.models.ai_writing_prompt import AiWritingPrompt
 from app.models.announcement import Announcement, NotificationSetting
-from app.models.auth_request import AuthRequest
 from app.models.category import Category, CategoryGroup
 from app.models.chat import ChatConversation, ChatMember, ChatMessage
 from app.models.comment import ContentComment
-from app.models.content_view import ContentView
 from app.models.dictionary import DictItem, DictType
-from app.models.download import Download
 from app.models.favorite import Favorite
 from app.models.feedback import Feedback
 from app.models.feedback_reply import FeedbackReply
 from app.models.image_asset import ImageAsset
-from app.models.invite_relation import InviteRelation
 from app.models.learning import LearningRecord
+from app.models.login_log import LoginLog
 from app.models.message import Message
 from app.models.moderation import ContentModerationLog, ContentReport
-from app.models.payment import PaymentOrder, PaymentProduct
-from app.models.point_transaction import PointTransaction
+from app.models.ops_metric_snapshot import OpsMetricSnapshot
 from app.models.position import Position
 from app.models.rbac import Department, Permission, Role, RolePermission, UserRole
-from app.models.redemption_code import RedemptionCode, RedemptionRecord
 from app.models.scheduled_job_config import ScheduledJobConfig
 from app.models.search_log import SearchLog
 from app.models.system_setting import SystemSetting
-from app.models.tutorial import Tutorial, TutorialNetdiskLink, TutorialPurchase
+from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
 from app.models.user_ui_preference import UserUiPreference
@@ -40,43 +35,34 @@ __all__ = [
     "AiWritingPrompt",
     "Announcement",
     "NotificationSetting",
-    "AuthRequest",
     "Category",
     "ChatConversation",
     "ChatMember",
     "ChatMessage",
     "CategoryGroup",
     "ContentComment",
-    "ContentView",
     "DictItem",
     "DictType",
-    "Download",
     "Favorite",
     "Feedback",
     "FeedbackReply",
     "ImageAsset",
-    "InviteRelation",
     "LearningRecord",
+    "LoginLog",
     "Message",
+    "OpsMetricSnapshot",
     "ContentModerationLog",
     "ContentReport",
-    "PaymentOrder",
-    "PaymentProduct",
-    "PointTransaction",
     "Position",
     "Department",
     "Permission",
     "Role",
     "RolePermission",
     "UserRole",
-    "RedemptionCode",
-    "RedemptionRecord",
     "ScheduledJobConfig",
     "SearchLog",
     "SystemSetting",
     "Tutorial",
-    "TutorialNetdiskLink",
-    "TutorialPurchase",
     "TutorialNode",
     "User",
     "UserUiPreference",

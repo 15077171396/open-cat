@@ -39,14 +39,6 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     PermissionDef("announcement:edit", "编辑公告", "button", "announcement", "公告管理", 72),
     PermissionDef("announcement:delete", "删除公告", "button", "announcement", "公告管理", 73),
 
-    # 支付套餐与订单（2026-10-27）：套餐改价直接影响收款，按高危按钮权限管理
-    PermissionDef("payment_product:view", "套餐查看", "menu", "payment_product", "充值套餐", 74),
-    PermissionDef("payment_product:create", "新增套餐", "button", "payment_product", "充值套餐", 75),
-    PermissionDef("payment_product:edit", "编辑套餐", "button", "payment_product", "充值套餐", 76),
-    PermissionDef("payment_product:delete", "删除套餐", "button", "payment_product", "充值套餐", 77),
-    # 订单只读：不提供改状态/退款按钮（退款走商户后台，避免站内出现第二套资金操作）
-    PermissionDef("payment_order:view", "订单查看", "menu", "payment_order", "支付订单", 78),
-
     # 用户管理
     PermissionDef("user:view", "用户查看", "menu", "user", "用户管理", 80),
     PermissionDef("user:create", "新增用户", "button", "user", "用户管理", 81),
@@ -56,18 +48,6 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     # 「能删」不等于「能放回来」，恢复等于把访问权还给一个已被处置的账号，
     # 敏感度不低于删除。内置角色里只有 super_admin 拿到（见 SYSTEM_ROLES 派生规则）。
     PermissionDef("user:restore", "恢复用户", "button", "user", "用户管理", 84),
-
-    # 积分流水
-    PermissionDef("points:view", "积分流水查看", "menu", "points", "积分流水", 90),
-
-    # 积分兑换码
-    PermissionDef("redeem_code:view", "兑换码查看", "menu", "redeem_code", "积分兑换码", 100),
-    PermissionDef("redeem_code:create", "生成兑换码", "button", "redeem_code", "积分兑换码", 101),
-    PermissionDef("redeem_code:disable", "作废兑换码", "button", "redeem_code", "积分兑换码", 102),
-
-    # 实名审核
-    PermissionDef("auth_request:view", "审核列表查看", "menu", "auth_request", "实名审核", 110),
-    PermissionDef("auth_request:review", "审核处理", "button", "auth_request", "实名审核", 111),
 
     # 用户反馈（工单化：回复进入用户可见线程并发通知）
     # reply 单独成码：能看反馈 ≠ 能代表平台向用户发言（面向全量用户的触达面）
@@ -102,9 +82,9 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     PermissionDef("setting:view", "设置查看", "menu", "setting", "系统设置", 130),
     PermissionDef("setting:update", "保存设置", "button", "setting", "系统设置", 131),
 
-    # 登录管理（2026-10-27）：登录方式开关 / 微信凭据 / 短信通道从系统设置抽出的独立模块。
-    # 独立成码的动机就是**授权面收窄**：开关登录方式、改短信签名是运营/客服的日常动作，
-    # 不该连带拿到 `setting:update`（那份权限同时能改 COS 密钥、支付商户私钥）。
+    # 登录管理（2026-10-27）：登录方式开关 / 图形验证码从系统设置抽出的独立模块。
+    # 独立成码的动机就是**授权面收窄**：开关登录方式是运营/客服的日常动作，
+    # 不该连带拿到 `setting:update`（那份权限同时能改 COS 密钥）。
     # 查看级进 viewer（只读管理员要能看清「哪个渠道开着、缺什么」）；
     # 写操作只给显式授权角色 —— 关错渠道 = 一批用户再也登不进来。
     PermissionDef("login_setting:view", "登录管理查看", "menu", "login_setting", "登录管理", 132),
@@ -114,12 +94,6 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     # 对外公示的合规文本，改动通常只由负责人做 → 一律单开权限码，不与系统设置共用。
     PermissionDef("legal_doc:view", "法律文档查看", "menu", "legal_doc", "法律文档", 134),
     PermissionDef("legal_doc:update", "保存法律文档", "button", "legal_doc", "法律文档", 135),
-
-    # 支付与渠道（2026-10-27）：支付开关 / 微信 / 支付宝凭据从系统设置抽出的独立模块。
-    # 资金链路配置，敏感度不低于其它密钥类设置；单开权限码后「能配支付渠道」
-    # 与「能改 COS 密钥」可以分开授权。写操作只给显式授权角色。
-    PermissionDef("payment_setting:view", "支付配置查看", "menu", "payment_setting", "支付与渠道", 136),
-    PermissionDef("payment_setting:update", "保存支付配置", "button", "payment_setting", "支付与渠道", 137),
 
     # AI 模型管理（2026-10-27）：模型/凭据/单价从系统设置迁出，独立成模块。
     # 查看级给 viewer，写操作只给显式授权角色（content_admin 不含系统模块）。
@@ -162,6 +136,21 @@ PERMISSION_CATALOG: list[PermissionDef] = [
     # 这里只加**写**权限 —— 启停 / 改周期 / 立即执行都会改变系统行为。
     # ⚠️ 新增码必须配套补种迁移（0029_seed_scheduler_permission），否则已有部署升级即 403。
     PermissionDef("scheduler:manage", "定时任务管理", "button", "scheduler", "定时任务", 170),
+
+    # 登录日志（2026-11-18）：登录成功/失败/登出的安全遥测，与操作审计互补。
+    # view 进 viewer（只读管理员要看清「谁在试登录」）；清除 = 抹安全线索，单独成码。
+    # ⚠️ 新增码配套补种迁移（0081），否则已有部署升级即 403。
+    PermissionDef("login_log:view", "登录日志查看", "menu", "login_log", "登录日志", 161),
+    PermissionDef("login_log:clear", "清除登录日志", "button", "login_log", "登录日志", 162),
+
+    # 敏感词库维护（2026-11-18）：词库内容直接决定 UGC 拦截边界 —— 能改词库
+    # 就能「放行某类内容」，独立于 moderation:view / moderation:review 授权。
+    PermissionDef("moderation:words", "敏感词库维护", "button", "moderation", "内容审核", 137),
+
+    # IP 黑名单（2026-11-19）：运营级访问封禁。查看给 viewer（要能看清封了谁），
+    # 保存（拉黑/放行）直接改变线上访问面，单独成码 + 补种迁移（0084）。
+    PermissionDef("ip_blacklist:view", "IP 黑名单查看", "menu", "ip_blacklist", "IP 黑名单", 163),
+    PermissionDef("ip_blacklist:update", "IP 黑名单维护", "button", "ip_blacklist", "IP 黑名单", 164),
 ]
 
 # 全部权限码集合（快速校验用）
@@ -180,22 +169,16 @@ MODULE_NAMES_EN: dict[str, str] = {
     "tutorial": "Tutorial",
     "category": "Category",
     "announcement": "Announcement",
-    "payment_product": "Recharge Plan",
-    "payment_order": "Payment Order",
     "moderation": "Content Review",
     "comment": "Comment",
     "feedback": "Feedback",
     "message": "Notification",
     "user": "User",
-    "auth_request": "Identity Review",
-    "points": "Points",
-    "redeem_code": "Redeem Code",
     "role": "Role",
     "department": "Department",
     "setting": "Setting",
     "login_setting": "Login Setting",
     "legal_doc": "Legal Document",
-    "payment_setting": "Payment Channel",
     "mail_setting": "Email Setting",
     "ai_model": "AI Model",
     "ai_playground": "AI Playground",
@@ -203,6 +186,8 @@ MODULE_NAMES_EN: dict[str, str] = {
     "scheduler": "Scheduled Job",
     "audit": "Audit Log",
     "report": "Report",
+    "login_log": "Login Log",
+    "ip_blacklist": "IP Blacklist",
 }
 
 ACTION_NAMES_EN: dict[str, str] = {
@@ -218,6 +203,8 @@ ACTION_NAMES_EN: dict[str, str] = {
     "reply": "Reply",
     "send": "Send",
     "manage": "Manage",
+    "clear": "Clear",
+    "words": "Word Library",
 }
 
 

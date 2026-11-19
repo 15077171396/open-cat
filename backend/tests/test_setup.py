@@ -107,8 +107,6 @@ class SetupInitTests(unittest.IsolatedAsyncioTestCase):
         # 口令必须是哈希，且能通过校验（原样存明文是这里最容易犯的错）
         self.assertNotEqual(user.password_hash, "Str0ng-Pass-123")
         self.assertTrue(verify_password("Str0ng-Pass-123", user.password_hash))
-        # free_started_at 必须显式写：该列无 server_default，NULL 会让免费时长按 created_at 兜底
-        self.assertIsNotNone(user.free_started_at)
         self.assertEqual(db.committed, 1)
 
     async def test_refuses_when_admin_exists(self):

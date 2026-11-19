@@ -23,11 +23,14 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import async_session
-from app.services import admin_tutorial_service, admin_user_service
+from app.services import admin_audit_service, admin_tutorial_service, admin_user_service
 from app.services.admin_audit_service import record_admin_action
+from app.services import login_log_service
+from app.services.ops_metric_service import METRIC_DEFS
 
 # 单次导出的硬上限。20k 行 CSV 约 3–5 MB，浏览器与 Excel 都不吃力；
 # 再大就该走「按需拉 API」而不是点一个按钮。
@@ -121,29 +124,75 @@ async def _fetch_tutorials(db: AsyncSession, page: int, size: int, f: dict) -> d
         category=f.get("category") or None,
         status=f.get("status") or None,
         is_published=f.get("is_published"),
-        access_mode=f.get("access_mode") or None,
         deleted=f.get("deleted") or "active",
     )
 
 
-async def _fetch_points(db: AsyncSession, page: int, size: int, f: dict) -> dict:
-    """复用列表接口同一个查询函数（含它对 type/direction 的合法性校验）。
+async def _fetch_ops_metrics(db: AsyncSession, page: int, size: int, f: dict) -> dict:
+    """快照行按 metrics JSON 展开为扁平行（列集合固定 = METRIC_DEFS 键序）。
 
-    时间是前端 `toISOString()` 产出的带偏移字符串，必须换算成 naive UTC 再比较 ——
-    库内时间列是 naive UTC，直接比在东八区会差 8 小时（与列表接口同样的坑）。
+    text + 绑定参数（与 search_log_service 同款形态），分页值一律绑定。
     """
-    from app.services import point_service
-    from app.utils.time import parse_iso_to_naive_utc
+    import json
 
-    return await point_service.list_all_transactions(
+    offset = (int(page) - 1) * int(size)
+    rows = (
+        await db.execute(
+            text(
+                "SELECT taken_at, metrics FROM ops_metric_snapshots "
+                "ORDER BY taken_at DESC, id DESC LIMIT :limit OFFSET :offset"
+            ),
+            {"limit": int(size), "offset": offset},
+        )
+    ).all()
+    items = []
+    for row in rows:
+        mapping = row._mapping
+        metrics = {}
+        raw = mapping.get("metrics")
+        if raw:
+            try:
+                metrics = json.loads(raw) if isinstance(raw, str) else raw
+            except (TypeError, ValueError):
+                metrics = {}
+        item = {"taken_at": mapping.get("taken_at").isoformat() if mapping.get("taken_at") else None}
+        for key in METRIC_DEFS:
+            value = metrics.get(key)
+            item[key] = int(value) if value is not None else ""
+        items.append(item)
+    total = (
+        await db.execute(
+            text("SELECT COUNT(*) FROM ops_metric_snapshots"), {}
+        )
+    ).scalar() or 0
+    return {"items": items, "total": int(total)}
+
+
+async def _fetch_login_logs(db: AsyncSession, page: int, size: int, f: dict) -> dict:
+    # 导出与列表页共用 login_log_service.list_logs：脱敏/筛选/分页口径完全一致
+    return await login_log_service.list_logs(
         db,
         page,
         size,
+        account=f.get("account") or None,
+        status=f.get("status") or None,
+        created_after=f.get("start_at"),
+        created_before=f.get("end_at"),
+    )
+
+
+async def _fetch_audit_logs(db: AsyncSession, page: int, size: int, f: dict) -> dict:
+    # 导出与列表页共用同一查询：数据范围/筛选语义完全一致（导出口径不会比页面宽）
+    return await admin_audit_service.list_audit_logs(
+        db,
+        page,
+        size,
+        action=f.get("action") or None,
+        target_type=f.get("target_type") or None,
+        risk=f.get("risk") or None,
         keyword=f.get("keyword") or None,
-        type=f.get("type") or None,
-        direction=f.get("direction") or None,
-        start_at=parse_iso_to_naive_utc(f["start_at"]) if f.get("start_at") else None,
-        end_at=parse_iso_to_naive_utc(f["end_at"]) if f.get("end_at") else None,
+        start_at=f.get("start_at"),
+        end_at=f.get("end_at"),
     )
 
 
@@ -161,8 +210,6 @@ RESOURCES: dict[str, ExportSpec] = {
             Column("认证状态", "auth_status"),
             Column("部门", "department_name"),
             Column("角色", "role"),
-            Column("积分", "points"),
-            Column("VIP 到期", "vip_expire_time", _time),
             Column("注册时间", "created_at", _time),
             Column("注销时间", "deleted_at", _time),
         ),
@@ -173,36 +220,74 @@ RESOURCES: dict[str, ExportSpec] = {
         perm="tutorial:view",
         target_type="tutorial",
         fetch=_fetch_tutorials,
-        filters=("keyword", "category", "status", "is_published", "access_mode", "deleted"),
+        filters=("keyword", "category", "status", "is_published", "deleted"),
         columns=(
             Column("ID", "id"),
             Column("标题", "title"),
             Column("分类", "category"),
             Column("状态", "status"),
             Column("已发布", "is_published"),
-            Column("访问方式", "access_mode"),
             Column("浏览量", "view_count"),
             Column("创建时间", "created_at", _time),
             Column("更新时间", "updated_at", _time),
         ),
     ),
-    "point-transactions": ExportSpec(
-        key="point-transactions",
-        label="积分流水",
-        # 与列表页一致：积分流水归 points 模块
-        perm="points:view",
-        target_type="point_transaction",
-        fetch=_fetch_points,
-        filters=("keyword", "type", "direction", "start_at", "end_at"),
+    # 审计日志导出（2026-11-19）：离线归档/汇报场景；字段级 diff（detail）刻意不导
+    # —— 线上页有完整 detail 与筛选，CSV 只带摘要，避免把安全掩码字段二次扩散
+    "audit-logs": ExportSpec(
+        # key 即路由段与文件名前缀：用连字符与 /export/audit-logs 路由对齐
+        key="audit-logs",
+        label="操作审计",
+        perm="audit:view",
+        target_type="audit_log",
+        fetch=_fetch_audit_logs,
+        filters=("action", "target_type", "risk", "keyword", "start_at", "end_at"),
         columns=(
             Column("ID", "id"),
-            Column("用户账号", "user_account"),
-            Column("类型", "type"),
-            Column("变动", "points"),
-            Column("变动后余额", "balance_after"),
-            Column("说明", "description"),
-            Column("操作人", "operator_account"),
+            Column("操作者", "admin_account"),
+            Column("动作", "action"),
+            Column("动作说明", "action_label"),
+            Column("风险", "risk_level"),
+            Column("目标类型", "target_type_label"),
+            Column("目标ID", "target_id"),
+            Column("摘要", "summary"),
+            Column("IP", "ip"),
+            Column("请求ID", "request_id"),
             Column("时间", "created_at", _time),
+        ),
+    ),
+    # 登录日志导出（2026-11-19）：与列表页共用 list_logs（脱敏/筛选/分页同口径）；
+    # request_id 不导 —— 它是内部排查线索，运营归档场景价值低且拉宽列
+    "login-logs": ExportSpec(
+        key="login-logs",
+        label="登录日志",
+        perm="login_log:view",
+        target_type="login_log",
+        fetch=_fetch_login_logs,
+        filters=("account", "status", "start_at", "end_at"),
+        columns=(
+            Column("时间", "created_at", _time),
+            Column("账号", "account"),
+            Column("状态", "status"),
+            Column("结果说明", "message"),
+            Column("IP", "ip"),
+            Column("设备 (User-Agent)", "user_agent"),
+        ),
+    ),
+    # 核心指标快照（2026-11-19）：运维归档用；列 = 采样时间 + 各指标键（固定集合）
+    "ops-metrics": ExportSpec(
+        key="ops-metrics",
+        label="核心指标快照",
+        perm="dashboard:view",
+        target_type="ops_metric",
+        fetch=_fetch_ops_metrics,
+        filters=(),
+        columns=(
+            Column("采样时间", "taken_at", _time),
+            *(
+                Column(str(defn["label"]), key)
+                for key, defn in METRIC_DEFS.items()
+            ),
         ),
     ),
 }
@@ -307,9 +392,70 @@ async def record_export(
     await db.commit()
 
 
-def filename(spec: ExportSpec) -> str:
+async def build_xlsx(spec: ExportSpec, filters: dict[str, Any]) -> bytes:
+    """构建 Excel 工作簿（openpyxl write_only 逐批写，内存不随行数爆炸）。
+
+    上限与 CSV 同为 MAX_ROWS；数据来源（spec.fetch / 分页 / total 判断）
+    与 stream_csv 完全一致 —— 两种格式的行集永远相同。
+    """
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet(spec.label)
+
+    ws.append([c.label for c in spec.columns])
+
+    written = 0
+    page = 1
+    async with async_session() as db:
+        while written < MAX_ROWS:
+            want = min(BATCH, MAX_ROWS - written)
+            result = await spec.fetch(db, page, want, filters)
+            items = result.get("items") or []
+            if not items:
+                break
+            for item in items:
+                ws.append(
+                    [
+                        c.fmt(item.get(c.key)) if c.fmt
+                        else _xlsx_cell(item.get(c.key))
+                        for c in spec.columns
+                    ]
+                )
+            written += len(items)
+            total = result.get("total")
+            if isinstance(total, int) and written >= min(total, MAX_ROWS):
+                break
+            if len(items) < want:
+                break
+            page += 1
+
+    if written >= MAX_ROWS:
+        ws.append([f"已达单次导出上限 {MAX_ROWS} 行，文件已截断"])
+
+    buffer = BytesIO()
+    wb.save(buffer)
+    return buffer.getvalue()
+
+
+def _xlsx_cell(value: Any) -> Any:
+    """None → 空；数字保留为数字（可排序可求和）；文本走 _cell 清洗
+    （xlsx 单元格以 = 开头同样触发 Excel 公式注入，清洗规则与 CSV 一致）。"""
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "是" if value else "否"
+    if isinstance(value, (int, float)):
+        return value
+    return _cell(str(value))
+
+
+def filename(spec: ExportSpec, fmt: str = "csv") -> str:
     """导出文件名：`users-20261030-0117.csv`（带时间，避免同名覆盖）。"""
     from datetime import datetime
 
     stamp = datetime.now().strftime("%Y%m%d-%H%M")
-    return f"{spec.key}-{stamp}.csv"
+    ext = "xlsx" if fmt == "xlsx" else "csv"
+    return f"{spec.key}-{stamp}.{ext}"

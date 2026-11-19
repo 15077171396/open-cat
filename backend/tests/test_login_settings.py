@@ -10,13 +10,13 @@
    那恰恰是登录配置最常见的事故（用户能点、点了必失败）。
 
 本文件分别钉住这三条，外加路由规则与「配置键真的被登录链路消费」的闭环。
+（手机号/短信/微信扫码等渠道随通用化清理下线，页面只剩人机验证与基础邮箱通道。）
 """
 
 import unittest
 
 from sqlalchemy import select
 
-from app.core import crypto
 from app.core.rbac import match_route_permission
 from app.models.system_setting import SystemSetting
 from app.services import login_settings_service, setting_service
@@ -29,32 +29,17 @@ from tests.fake_db import MemorySession
 
 
 def _config(**overrides) -> IntegrationConfig:
-    """构造一份集成配置快照；密钥类字段写密文（与库里一致，secret() 会解密）"""
-    values: dict[str, str] = {}
-    for key, raw in overrides.items():
-        if key in ("wechat_web_secret", "wechat_mini_secret", "sms_tencent_secret_key",
-                   "sms_aliyun_access_key_secret", "sms_tencent_secret_id"):
-            values[key] = crypto.encrypt_secret(raw)
-        else:
-            values[key] = raw
-    return IntegrationConfig(values)
+    """构造一份集成配置快照（键不存在时读取方拿到默认值）"""
+    return IntegrationConfig(dict(overrides))
 
 
 class LoginGroupTests(unittest.TestCase):
     """① 登录管理页只下发自己的分组（跨界面的键集合守卫见 test_setting_surfaces.py）"""
 
     def test_login_payload_only_has_login_groups(self):
-        """五个区块的顺序即页面区块顺序：手机号 → 微信扫码 → 小程序凭据 → 短信通道 → 人机验证
-
-        `miniapp` 自 2026-10-27 从「系统设置 → 小程序」归位到此：这两个键的唯一消费方
-        是 `miniapp_service.code_to_session`（登录 / 绑定），留在系统设置会让
-        「页面说缺凭据、却要跳菜单才能填」。
-        `auth_captcha` 为跨 IP 撞库的人机挑战开关（auth_service 预留方向的落地）。
-        """
+        """渠道型配置（短信 / 微信 / 小程序）已随模块下线，页面只剩人机验证一个区块"""
         groups = [g["key"] for g in login_settings_service.groups()]
-        self.assertEqual(
-            groups, ["auth_phone", "auth_wechat", "miniapp", "auth_sms", "auth_captcha"]
-        )
+        self.assertEqual(groups, ["auth_captcha"])
 
     def test_login_keys_are_consumed_by_auth_config(self):
         """登录管理页写下的键，必须真的在登录链路的读取清单里
@@ -79,34 +64,34 @@ class WriteScopeTests(unittest.IsolatedAsyncioTestCase):
         }
 
     async def test_login_update_accepts_login_keys(self):
-        changed = await login_settings_service.update(self.db, {"phone_login_enabled": "1"})
+        changed = await login_settings_service.update(self.db, {"login_captcha_enabled": "1"})
         await self.db.commit()
         self.assertEqual(changed, 1)
-        self.assertEqual((await self._rows())["phone_login_enabled"], "1")
+        self.assertEqual((await self._rows())["login_captcha_enabled"], "1")
 
     async def test_login_update_rejects_foreign_key(self):
         """越界键必须整批拒绝 —— 不能出现「登录配置写了、密钥也顺手改了一半」"""
         with self.assertRaises(ValueError):
             await login_settings_service.update(
-                self.db, {"phone_login_enabled": "1", "cos_secret_key": "sk-injected"}
+                self.db, {"login_captcha_enabled": "1", "cos_secret_key": "sk-injected"}
             )
         self.assertNotIn("cos_secret_key", await self._rows())
-        self.assertNotIn("phone_login_enabled", await self._rows())
+        self.assertNotIn("login_captcha_enabled", await self._rows())
 
     async def test_settings_update_rejects_login_key(self):
         """反向也要拦：系统设置不该还能改登录配置"""
         with self.assertRaises(ValueError):
             await setting_service.update_settings(
-                self.db, {"wechat_web_secret": "x"}, surface=SURFACE_SETTINGS
+                self.db, {"login_captcha_enabled": "x"}, surface=SURFACE_SETTINGS
             )
 
     async def test_login_values_are_surface_limited(self):
-        """GET 也不该把 COS/支付密钥的掩码带到登录管理页（最小暴露面）"""
+        """GET 也不该把 COS 密钥的掩码带到登录管理页（最小暴露面）"""
         await setting_service.update_settings(self.db, {"cos_secret_key": "sk-cos"})
-        await setting_service.update_settings(self.db, {"wechat_web_secret": "wx-secret"})
+        await setting_service.update_settings(self.db, {"login_captcha_enabled": "1"})
         await self.db.commit()
         values = await login_settings_service.stored_values(self.db)
-        self.assertIn("wechat_web_secret", values)
+        self.assertIn("login_captcha_enabled", values)
         self.assertNotIn("cos_secret_key", values)
 
 
@@ -116,83 +101,30 @@ class ChannelOverviewTests(unittest.TestCase):
     def _channel(self, channels, key):
         return next(c for c in channels if c["key"] == key)
 
-    def test_mock_provider_marks_phone_unready(self):
-        channels = login_settings_service.channel_overview(
-            _config(phone_login_enabled="1", sms_provider="mock")
-        )
-        phone = self._channel(channels, "phone")
-        self.assertTrue(phone["enabled"])
-        self.assertFalse(phone["ready"], "Mock 服务商下手机号登录不该被判为可用")
-        self.assertTrue(phone["issues"], "开着但发不出短信时必须有明确提示")
-
-    def test_tencent_ready_when_all_credentials_present(self):
-        channels = login_settings_service.channel_overview(
-            _config(
-                phone_login_enabled="1",
-                sms_provider="tencent",
-                sms_tencent_secret_id="AKID-xxx",
-                sms_tencent_secret_key="sk-tencent",
-                sms_tencent_sdk_app_id="1400000000",
-                sms_tencent_sign_name="签名",
-                sms_tencent_template_id="123456",
-            )
-        )
-        phone = self._channel(channels, "phone")
-        self.assertTrue(phone["ready"])
-        self.assertEqual(phone["issues"], [])
-
-    def test_aliyun_missing_credentials_marks_unready(self):
-        channels = login_settings_service.channel_overview(
-            _config(phone_login_enabled="1", sms_provider="aliyun", sms_aliyun_sign_name="签名")
-        )
-        phone = self._channel(channels, "phone")
-        self.assertFalse(phone["ready"])
-        self.assertTrue(phone["issues"])
-
-    def test_wechat_web_requires_both_appid_and_secret(self):
-        only_appid = login_settings_service.channel_overview(
-            _config(wechat_web_login_enabled="1", wechat_web_appid="wx123")
-        )
-        self.assertFalse(self._channel(only_appid, "wechat_web")["ready"])
-
-        both = login_settings_service.channel_overview(
-            _config(wechat_web_login_enabled="1", wechat_web_appid="wx123", wechat_web_secret="wx-secret")
-        )
-        self.assertTrue(self._channel(both, "wechat_web")["ready"])
-
-    def test_disabled_channel_reports_no_issues(self):
-        """关掉的渠道不该刷提示（否则页面上全是无需处理的警告）"""
-        channels = login_settings_service.channel_overview(
-            _config(phone_login_enabled="0", sms_provider="mock", wechat_web_login_enabled="0")
-        )
-        for key in ("phone", "wechat_web", "wechat_mini"):
-            with self.subTest(channel=key):
-                channel = self._channel(channels, key)
-                self.assertFalse(channel["enabled"])
-                self.assertEqual(channel["issues"], [])
+    def test_captcha_channel_is_ready_when_enabled(self):
+        """图形验证码无外部凭据依赖：开关开着即就绪"""
+        channels = login_settings_service.channel_overview(_config(login_captcha_enabled="1"))
+        captcha = self._channel(channels, "captcha")
+        self.assertTrue(captcha["enabled"])
+        self.assertTrue(captcha["ready"])
+        self.assertEqual(captcha["issues"], [])
 
     def test_email_channel_always_available(self):
         channels = login_settings_service.channel_overview(_config())
         email = self._channel(channels, "email")
         self.assertTrue(email["enabled"] and email["ready"])
 
-    def test_overview_never_leaks_credentials(self):
-        """摘要里绝不能出现凭据的任何片段（该接口是 login_setting:view，比 setting:view 更易被授出）"""
-        secret_web = "wx-live-secret-do-not-leak"
-        secret_sms = "tencent-key-do-not-leak"
-        channels = login_settings_service.channel_overview(
-            _config(
-                wechat_web_login_enabled="1",
-                wechat_web_appid="wx-appid-public",
-                wechat_web_secret=secret_web,
-                phone_login_enabled="1",
-                sms_provider="tencent",
-                sms_tencent_secret_key=secret_sms,
-            )
-        )
-        blob = repr(channels)
-        self.assertNotIn(secret_web, blob)
-        self.assertNotIn(secret_sms, blob)
+    def test_disabled_channel_reports_no_issues(self):
+        """关掉的渠道不该刷提示（否则页面上全是无需处理的警告）"""
+        channels = login_settings_service.channel_overview(_config(login_captcha_enabled="0"))
+        captcha = self._channel(channels, "captcha")
+        self.assertFalse(captcha["enabled"])
+        self.assertEqual(captcha["issues"], [])
+
+    def test_only_known_channels_are_listed(self):
+        """已下线的渠道（短信 / 微信 / 小程序）不得残留在渠道清单里"""
+        channels = login_settings_service.channel_overview(_config(login_captcha_enabled="1"))
+        self.assertEqual({c["key"] for c in channels}, {"email", "captcha"})
 
 
 class RouteGuardTests(unittest.TestCase):

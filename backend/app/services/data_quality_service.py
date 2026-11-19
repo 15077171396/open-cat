@@ -1,11 +1,11 @@
 """数据质量只读巡检：只查不删，把「悄悄坏掉」的数据变成后台可见的一条提示。
 
-为什么需要它：本项目有大量「快照 + 引用」结构（收藏存标题快照、下载存资源名快照、
+为什么需要它：本项目有大量「快照 + 引用」结构（收藏存标题快照、
 学习记录存教程标题快照），目标被删后引用行会留下，且**不会有任何报错** ——
 用户侧表现是「收藏列表点进去 404」，运营侧表现是「总量对不上」。
 
 因此这里只做三件事：
-1. **计数**：找出负积分、过期未降级的 VIP、指向已删目标的孤儿行；
+1. **计数**：找出指向已删目标的孤儿行；
 2. **留痕**：结果写进 Redis（`ops:data_quality`），由后台「系统状态」卡展示；
 3. **报警**：异常项写 WARNING 日志（Sentry 会以面包屑形式带上）。
 
@@ -35,10 +35,7 @@ _FAVORITE_TARGET_TABLES: dict[str, str] = {
 
 # 各检查项的说明与严重级别：前端直接展示这些文案，改文案只改这一处
 _ISSUE_TEXT: dict[str, tuple[str, str]] = {
-    "negative_points": ("error", "存在积分为负的用户（余额与流水不一致）"),
-    "vip_expired_stale": ("warn", "VIP 已过期超过 24 小时仍未降级（降级任务可能未执行）"),
     "orphan_favorites": ("warn", "收藏指向已删除的内容（用户点开是 404）"),
-    "orphan_downloads": ("warn", "下载记录指向已删除的资源"),
     "orphan_learnings": ("warn", "学习记录指向已删除的教程"),
 }
 
@@ -59,24 +56,7 @@ async def collect_issues(db: AsyncSession) -> dict:
     """
     checks: dict[str, dict] = {}
 
-    # 1) 负积分：一定异常（发放/扣减算错，或有人手工改库）
-    checks["negative_points"] = {
-        "count": await _count(db, "SELECT COUNT(*) FROM users WHERE points < 0")
-    }
-
-    # 2) VIP 过期未降级：**多留 24 小时宽限**，否则每天 00:00~02:00 之间
-    #    必然报一批「正常待降级」的账号，把真问题淹没掉
-    checks["vip_expired_stale"] = {
-        "count": await _count(
-            db,
-            "SELECT COUNT(*) FROM users "
-            "WHERE role = 'vip' AND deleted_at IS NULL "
-            "AND (vip_expire_time IS NULL "
-            "     OR vip_expire_time < (UTC_TIMESTAMP() - INTERVAL 1 DAY))",
-        )
-    }
-
-    # 3) 孤儿收藏：按目标类型分别查（NOT EXISTS 走主键索引，比 LEFT JOIN 去重更省）
+    # 孤儿收藏：按目标类型分别查（NOT EXISTS 走主键索引，比 LEFT JOIN 去重更省）
     for target_type, table in _FAVORITE_TARGET_TABLES.items():
         checks[f"orphan_favorites:{target_type}"] = {
             "count": await _count(
@@ -87,14 +67,7 @@ async def collect_issues(db: AsyncSession) -> dict:
             )
         }
 
-    # 4) 孤儿下载记录 / 学习记录
-    checks["orphan_downloads"] = {
-        "count": await _count(
-            db,
-            "SELECT COUNT(*) FROM downloads d "
-            "WHERE NOT EXISTS (SELECT 1 FROM resources r WHERE r.id = d.resource_id)",
-        )
-    }
+    # 孤儿学习记录
     checks["orphan_learnings"] = {
         "count": await _count(
             db,

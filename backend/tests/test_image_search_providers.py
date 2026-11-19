@@ -1,6 +1,5 @@
 """多图源适配器契约：请求参数、字段归一化、错误映射。"""
 
-import json
 import unittest
 
 import httpx
@@ -9,9 +8,9 @@ from app.core.exceptions import AppException
 from app.services.image_search.base import SearchQuery
 from app.services.image_search import providers as providers_module
 from app.services.image_search.providers import (
-    AdoutuProvider, BaiduProvider, DoutupkProvider, DuitangProvider,
+    AdoutuProvider, DoutupkProvider, DuitangProvider,
     EmojiPackageProvider, GiphyProvider, MemecubProvider, PexelsProvider,
-    PixabayProvider, So360Provider, SogouProvider, TenorCompatProvider,
+    PixabayProvider, So360Provider, TenorCompatProvider,
     build_provider,
 )
 
@@ -292,66 +291,6 @@ class TenorCompatTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(page.has_more)
 
 
-class BaiduTests(unittest.IsolatedAsyncioTestCase):
-    async def test_search_preheats_cookie_and_maps_fields(self):
-        calls = []
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            calls.append(request.url.path)
-            if request.url.path == "/search/index":
-                return httpx.Response(200, text="<html>page</html>", headers={"set-cookie": "BAIDUID=x"})
-            return httpx.Response(200, json={"data": [{
-                "thumbURL": "https://img0.baidu.com/t.jpg",
-                "middleURL": "https://img0.baidu.com/m.jpg",
-                "fromPageTitle": "猫图",
-                "width": 800, "height": 600,
-            }]})
-
-        provider = _client(BaiduProvider(""), handler)
-        page = await provider.search(SearchQuery(q="猫", page=1, per_page=12))
-        await provider.close()
-        self.assertEqual(calls, ["/search/index", "/search/acjson"])
-        hit = page.items[0]
-        self.assertEqual(hit.source, "baidu")
-        self.assertEqual(hit.download_url, "https://img0.baidu.com/m.jpg")
-        self.assertEqual((hit.width, hit.height), (800, 600))
-
-    async def test_tolerates_invalid_escape_in_json(self):
-        """百度的 acjson 会在标题里吐出 `\\x` 这类非法转义，标准 JSON 解析直接失败。
-
-        真实案例：搜索「光头强」时 67KB 响应在第 44 行报 Invalid \\escape。
-        """
-        body = (
-            '{"data":[{"thumbURL":"https://img0.baidu.com/t.jpg",'
-            '"middleURL":"https://img0.baidu.com/m.jpg",'
-            '"fromPageTitle":"a\\xb 猫图","width":800,"height":600}]}'
-        )
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/search/index":
-                return httpx.Response(200, text="<html/>")
-            return httpx.Response(200, text=body, headers={"content-type": "application/json"})
-
-        provider = _client(BaiduProvider(""), handler)
-        page = await provider.search(SearchQuery(q="猫", page=1, per_page=12))
-        await provider.close()
-        self.assertEqual(len(page.items), 1)
-        self.assertEqual(page.items[0].download_url, "https://img0.baidu.com/m.jpg")
-
-    async def test_anti_flag_is_explicit(self):
-        def handler(request: httpx.Request) -> httpx.Response:
-            if request.url.path == "/search/index":
-                return httpx.Response(200, text="<html/>")
-            return httpx.Response(200, json={"antiFlag": 1, "message": "Forbid spider access"})
-
-        provider = _client(BaiduProvider(""), handler)
-        with self.assertRaises(AppException) as ctx:
-            await provider.search(SearchQuery(q="猫", page=1, per_page=12))
-        await provider.close()
-        self.assertEqual(ctx.exception.code, 503)
-        self.assertIn("安全验证", ctx.exception.message)
-
-
 class So360Tests(unittest.IsolatedAsyncioTestCase):
     async def test_search_truncates_to_per_page(self):
         rows = [{
@@ -553,31 +492,6 @@ class MemecubTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("额度", ctx.exception.message)
 
 
-class SogouTests(unittest.IsolatedAsyncioTestCase):
-    async def test_search_parses_initial_state(self):
-        state = {"searchList": {"searchList": [{
-            "picUrl": "https://pic2.zhimg.com/cat.jpg",
-            "thumbUrl": "https://i03piccdn.sogoucdn.com/t",
-            "url": "https://example.com/page",
-            "title": "猫图",
-            "width": 1200, "height": 800,
-            "docId": "doc-1",
-        }]}}
-        body = f"<script>window.__INITIAL_STATE__={json.dumps(state, ensure_ascii=False)}</script>"
-
-        def handler(request: httpx.Request) -> httpx.Response:
-            self.assertEqual(request.url.path, "/pics")
-            return httpx.Response(200, text=body)
-
-        provider = _client(SogouProvider(""), handler)
-        page = await provider.search(SearchQuery(q="猫", page=1, per_page=12))
-        await provider.close()
-        hit = page.items[0]
-        self.assertEqual(hit.source, "sogou")
-        self.assertEqual(hit.download_url, "https://pic2.zhimg.com/cat.jpg")
-        self.assertEqual(hit.page_url, "https://example.com/page")
-
-
 class DoutupkTests(unittest.IsolatedAsyncioTestCase):
     async def test_search_parses_photo_cards_and_upgrades_http(self):
         body = (
@@ -626,7 +540,7 @@ class EmojiPackageTests(unittest.IsolatedAsyncioTestCase):
 class BuildAllProviderTests(unittest.IsolatedAsyncioTestCase):
     async def test_all_sources_build(self):
         for source in (
-            "pexels", "pixabay", "giphy", "tenor", "so360", "baidu", "sogou",
+            "pexels", "pixabay", "giphy", "tenor", "so360",
             "duitang", "doutupk", "adoutu", "memecub", "emoji",
         ):
             provider = build_provider(source, "k")

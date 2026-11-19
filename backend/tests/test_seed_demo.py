@@ -19,7 +19,6 @@ from app.models.announcement import Announcement
 from app.models.category import Category
 from app.models.comment import ContentComment
 from app.models.feedback import Feedback
-from app.models.point_transaction import PointTransaction
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
@@ -31,7 +30,6 @@ MODELS = {
     "Category": Category,
     "ContentComment": ContentComment,
     "Feedback": Feedback,
-    "PointTransaction": PointTransaction,
     "Tutorial": Tutorial,
     "TutorialNode": TutorialNode,
     "User": User,

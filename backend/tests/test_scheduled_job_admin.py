@@ -6,7 +6,7 @@
    否则用户改完周期看不到变化，会以为没保存成功而反复点。
 2. **调度器没在跑时必须报错**：把命令塞进无人消费的队列，等于骗管理员「已经跑过了」。
 3. **已停用 ≠ 未按时执行**：人主动关掉的任务不该天天挂告警（否则真故障被淹没）。
-4. **每次写操作都留审计**：启停能静默改变全站维护行为（VIP 不降级、浏览量停更）。
+4. **每次写操作都留审计**：启停能静默改变全站维护行为（定时维护任务被静默停掉）。
 5. **配置没变化就不写库、不写审计**：前端重复保存不该制造噪音。
 
 会话用最小替身（`_FakeSession`）：只实现本模块用到的 execute/get/add/commit，
@@ -147,7 +147,7 @@ class ListJobsTests(unittest.IsolatedAsyncioTestCase):
         """库里的配置与调度器记的指纹不一致 → 必须显示「待生效」"""
         fake = FakeRedis()
         await fake.set(sjs.APPLIED_KEY, _applied("deadbeef0000", _now()))
-        rows = [_row("check_vip_expiry", hour=3)]
+        rows = [_row("cleanup_audit_logs", hour=3)]
         with mock.patch.object(sss, "redis_client", fake):
             data = await job_admin.list_jobs(_FakeSession(rows))
         self.assertTrue(data["apply"]["pending"])
@@ -171,27 +171,27 @@ class ListJobsTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_customized_flag_marks_changed_schedule(self):
         fake = FakeRedis()
-        rows = [_row("check_vip_expiry", hour=6, minute=30)]
+        rows = [_row("cleanup_audit_logs", hour=6, minute=30)]
         with mock.patch.object(sss, "redis_client", fake):
             data = await job_admin.list_jobs(_FakeSession(rows))
         job = next(
-            job for group in data["groups"] for job in group["jobs"] if job["id"] == "check_vip_expiry"
+            job for group in data["groups"] for job in group["jobs"] if job["id"] == "cleanup_audit_logs"
         )
         self.assertTrue(job["customized"])
         self.assertEqual(job["schedule"], "每日 06:30")
-        self.assertEqual(job["default_schedule"], "每日 02:00")
+        self.assertEqual(job["default_schedule"], "每日 04:00")
 
     async def test_disabled_job_is_not_counted_as_attention(self):
         """停用不算「需要处理」——它是人的决定，不是故障"""
         fake = FakeRedis()
-        rows = [_row("check_vip_expiry", enabled=False)]
+        rows = [_row("cleanup_audit_logs", enabled=False)]
         with mock.patch.object(sss, "redis_client", fake):
             data = await job_admin.list_jobs(_FakeSession(rows))
         summary = data["summary"]
         self.assertEqual(summary["disabled"], 1)
         self.assertEqual(summary["attention"], summary["total"] - summary["disabled"])
         job = next(
-            job for group in data["groups"] for job in group["jobs"] if job["id"] == "check_vip_expiry"
+            job for group in data["groups"] for job in group["jobs"] if job["id"] == "cleanup_audit_logs"
         )
         self.assertEqual(job["status"], "disabled")
         self.assertIsNone(job["next_run_at"], "停用的任务不该给出「下次执行」时间")
@@ -204,8 +204,8 @@ class ListJobsTests(unittest.IsolatedAsyncioTestCase):
 
 class UpdateJobTests(unittest.IsolatedAsyncioTestCase):
     async def test_disable_writes_row_and_audit(self):
-        db = _FakeSession([_row("check_vip_expiry")])
-        result = await job_admin.update_job(db, _admin(), "check_vip_expiry", enabled=False)
+        db = _FakeSession([_row("cleanup_audit_logs")])
+        result = await job_admin.update_job(db, _admin(), "cleanup_audit_logs", enabled=False)
         self.assertTrue(result["changed"])
         self.assertFalse(db.rows[0].enabled)
         self.assertEqual(db.commits, 1)
@@ -216,9 +216,9 @@ class UpdateJobTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_switch_to_interval_clears_daily_fields(self):
         """切到「每 N 分钟」后必须把 hour/minute 清空 —— 残留值会让库里的数据和生效周期对不上"""
-        db = _FakeSession([_row("check_vip_expiry")])
+        db = _FakeSession([_row("cleanup_audit_logs")])
         await job_admin.update_job(
-            db, _admin(), "check_vip_expiry", schedule_kind="interval", interval_minutes=30
+            db, _admin(), "cleanup_audit_logs", schedule_kind="interval", interval_minutes=30
         )
         row = db.rows[0]
         self.assertEqual(row.schedule_kind, "interval")
@@ -236,25 +236,25 @@ class UpdateJobTests(unittest.IsolatedAsyncioTestCase):
     async def test_creates_row_when_missing(self):
         """库里没有这行（新加任务但迁移没跟着补）时保存要能落库，而不是静默失败"""
         db = _FakeSession([])
-        await job_admin.update_job(db, _admin(), "check_vip_expiry", enabled=False)
+        await job_admin.update_job(db, _admin(), "cleanup_audit_logs", enabled=False)
         self.assertEqual(len(db.rows), 0, "替身不会自动收进 rows（add 由断言覆盖）")
-        created = [obj for obj in db.added if getattr(obj, "job_id", None) == "check_vip_expiry"]
+        created = [obj for obj in db.added if getattr(obj, "job_id", None) == "cleanup_audit_logs"]
         self.assertTrue(created, "缺失的行应通过 db.add 新建")
 
     async def test_no_change_writes_nothing(self):
         """重复保存同一份配置：不写库、不写审计（避免噪音审计把真操作埋掉）"""
-        db = _FakeSession([_row("check_vip_expiry", hour=2, minute=0)])
+        db = _FakeSession([_row("cleanup_audit_logs", hour=4, minute=0)])
         result = await job_admin.update_job(
-            db, _admin(), "check_vip_expiry", schedule_kind="daily", hour=2, minute=0, enabled=True
+            db, _admin(), "cleanup_audit_logs", schedule_kind="daily", hour=4, minute=0, enabled=True
         )
         self.assertFalse(result["changed"])
         self.assertEqual(db.commits, 0)
         self.assertEqual(db.added, [])
 
     async def test_rejects_invalid_hour(self):
-        db = _FakeSession([_row("check_vip_expiry")])
+        db = _FakeSession([_row("cleanup_audit_logs")])
         with self.assertRaises(AppException) as ctx:
-            await job_admin.update_job(db, _admin(), "check_vip_expiry", hour=24)
+            await job_admin.update_job(db, _admin(), "cleanup_audit_logs", hour=24)
         self.assertEqual(ctx.exception.code, 400)
         self.assertEqual(db.commits, 0)
 
@@ -274,8 +274,8 @@ class UpdateJobTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_audit_keeps_old_and_new_values(self):
         """审计要能回答「原来是什么」—— 否则事后不知道是从 02:00 改成了 06:00"""
-        db = _FakeSession([_row("check_vip_expiry", hour=2, minute=0)])
-        await job_admin.update_job(db, _admin(), "check_vip_expiry", hour=6, minute=30)
+        db = _FakeSession([_row("cleanup_audit_logs", hour=2, minute=0)])
+        await job_admin.update_job(db, _admin(), "cleanup_audit_logs", hour=6, minute=30)
         detail = db.added[0].detail
         self.assertEqual(detail["from"]["hour"], 2)
         self.assertEqual(detail["to"]["hour"], 6)
@@ -293,7 +293,7 @@ class TriggerRunTests(unittest.IsolatedAsyncioTestCase):
         fake = FakeRedis()  # 没有 applied 标记
         with mock.patch.object(sss, "redis_client", fake), mock.patch.object(job_admin, "redis_client", fake):
             with self.assertRaises(AppException) as ctx:
-                await job_admin.trigger_run(_FakeSession([]), _admin(), "check_vip_expiry")
+                await job_admin.trigger_run(_FakeSession([]), _admin(), "cleanup_audit_logs")
         self.assertEqual(ctx.exception.code, 503)
         self.assertEqual(await fake.llen(sjs.COMMAND_QUEUE_KEY), 0, "拒绝时不得留下队列命令")
 
@@ -302,11 +302,11 @@ class TriggerRunTests(unittest.IsolatedAsyncioTestCase):
         await fake.set(sjs.APPLIED_KEY, _applied(_default_hash(), _now()))
         db = _FakeSession([])
         with mock.patch.object(sss, "redis_client", fake), mock.patch.object(job_admin, "redis_client", fake):
-            result = await job_admin.trigger_run(db, _admin(), "check_vip_expiry")
+            result = await job_admin.trigger_run(db, _admin(), "cleanup_audit_logs")
         self.assertTrue(result["queued"])
         self.assertEqual(await fake.llen(sjs.COMMAND_QUEUE_KEY), 1)
         payload = json.loads((await fake.lpop(sjs.COMMAND_QUEUE_KEY)))
-        self.assertEqual(payload["job_id"], "check_vip_expiry")
+        self.assertEqual(payload["job_id"], "cleanup_audit_logs")
         self.assertEqual(payload["by"], "ops_admin")
         self.assertEqual(db.added[0].action, "scheduled_job_run")
 
@@ -314,9 +314,9 @@ class TriggerRunTests(unittest.IsolatedAsyncioTestCase):
         fake = FakeRedis()
         await fake.set(sjs.APPLIED_KEY, _applied(_default_hash(), _now()))
         with mock.patch.object(sss, "redis_client", fake), mock.patch.object(job_admin, "redis_client", fake):
-            await job_admin.trigger_run(_FakeSession([]), _admin(), "check_vip_expiry")
+            await job_admin.trigger_run(_FakeSession([]), _admin(), "cleanup_audit_logs")
             with self.assertRaises(AppException) as ctx:
-                await job_admin.trigger_run(_FakeSession([]), _admin(), "check_vip_expiry")
+                await job_admin.trigger_run(_FakeSession([]), _admin(), "cleanup_audit_logs")
         self.assertEqual(ctx.exception.code, 429)
         self.assertEqual(await fake.llen(sjs.COMMAND_QUEUE_KEY), 1, "冷却拦截不应再入队")
 
@@ -325,7 +325,7 @@ class TriggerRunTests(unittest.IsolatedAsyncioTestCase):
         fake = _RedisDown()
         with mock.patch.object(sss, "read_json", _alive_reader), mock.patch.object(job_admin, "redis_client", fake):
             with self.assertRaises(AppException) as ctx:
-                await job_admin.trigger_run(_FakeSession([]), _admin(), "check_vip_expiry")
+                await job_admin.trigger_run(_FakeSession([]), _admin(), "cleanup_audit_logs")
         self.assertEqual(ctx.exception.code, 503)
 
     async def test_rejects_unknown_job(self):
@@ -346,8 +346,8 @@ class AlarmSuppressionTests(unittest.TestCase):
 
     def _status(self, **job_overrides):
         job = {
-            "id": "check_vip_expiry",
-            "label": "VIP 过期降级",
+            "id": "cleanup_audit_logs",
+            "label": "审计日志清理",
             "enabled": True,
             "stale": True,
             "stale_reason": "已 30 小时未执行",
@@ -372,7 +372,7 @@ class AlarmSuppressionTests(unittest.TestCase):
     def test_enabled_stale_job_still_warns(self):
         warnings = sss._collect_warnings(self._status())
         self.assertEqual(len(warnings), 1)
-        self.assertIn("VIP 过期降级", warnings[0]["text"])
+        self.assertIn("审计日志清理", warnings[0]["text"])
 
 
 if __name__ == "__main__":

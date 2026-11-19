@@ -1,10 +1,10 @@
-"""登录 / 短信 / 支付集成配置：后台 DB 优先，环境变量兜底。
+"""登录集成配置：后台 DB 优先，环境变量兜底。
 
 设计取向与 ai_config_service 一致：
 - **只缓存原始值**（密钥在库里是密文），解密只发生在 `secret()` 调用处；
   这样 Redis AOF / 备份里不会出现明文私钥。
-- 一次查询取回全部键（这些配置在每个登录/支付请求上都要用），Redis 60s + 进程内 30s。
-- DB 故障时回退默认值/环境变量，绝不因为配置层故障把登录或支付打成 500。
+- 一次查询取回全部键（这些配置在每个登录请求上都要用），Redis 60s + 进程内 30s。
+- DB 故障时回退默认值/环境变量，绝不因为配置层故障把登录打成 500。
 """
 
 from __future__ import annotations
@@ -16,7 +16,6 @@ from typing import Any
 
 from sqlalchemy import select
 
-from app.config import settings
 from app.core.crypto import decrypt_secret
 from app.core.degrade import degrade_guard
 from app.database import async_session
@@ -29,147 +28,30 @@ CACHE_TTL = 60
 LOCAL_TTL = 30
 
 AUTH_KEYS = (
-    "phone_login_enabled",
-    "phone_login_auto_register",
-    "wechat_web_login_enabled",
-    "wechat_login_auto_register",
-    "wechat_mini_login_enabled",
-    "wechat_web_appid",
-    "wechat_web_secret",
-    "wechat_web_redirect_uri",
-    "wechat_mini_appid",
-    "wechat_mini_secret",
-    "sms_provider",
-    "sms_code_ttl_seconds",
-    "sms_send_interval_seconds",
-    "sms_daily_limit_per_phone",
-    "sms_daily_limit_per_ip",
-    "sms_mock_code",
-    "sms_tencent_secret_id",
-    "sms_tencent_secret_key",
-    "sms_tencent_sdk_app_id",
-    "sms_tencent_sign_name",
-    "sms_tencent_template_id",
-    "sms_tencent_region",
-    "sms_tencent_template_params",
-    "sms_aliyun_access_key_id",
-    "sms_aliyun_access_key_secret",
-    "sms_aliyun_sign_name",
-    "sms_aliyun_template_code",
-    "sms_aliyun_region",
-    "sms_aliyun_template_param_key",
     # 登录图形验证码开关：enforce_login_captcha 与 /auth/capabilities 共同消费
     "login_captcha_enabled",
+    # 登录时段限制（2026-11-19）：core/login_time.check_login_time 消费
+    "login_time_window",
+    # 会话有效期策略（2026-11-19）：TTL 与绝对上限经 runtime_config 覆盖
+    # settings（JWT_* / SESSION_MAX_DAYS），由 create_token_pair / refresh 链消费
+    "session_access_minutes",
+    "session_refresh_days",
+    "session_max_days",
+    # 登录失败告警阈值（2026-11-19）：admin_todo_service 的待办联动消费
+    "login_fail_alert_threshold",
 )
 
-PAYMENT_KEYS = (
-    "payment_enabled",
-    "payment_mock_enabled",
-    "payment_order_expire_minutes",
-    "wechat_pay_enabled",
-    "wechat_pay_mch_id",
-    "wechat_pay_appid",
-    "wechat_pay_serial_no",
-    "wechat_pay_api_v3_key",
-    "wechat_pay_private_key",
-    "wechat_pay_platform_public_key",
-    "wechat_pay_notify_url",
-    "alipay_enabled",
-    "alipay_app_id",
-    "alipay_private_key",
-    "alipay_public_key",
-    "alipay_notify_url",
-    "alipay_return_url",
-    "alipay_gateway",
-    # Stripe（默认支付渠道）
-    "stripe_enabled",
-    "stripe_mode",
-    "stripe_secret_key",
-    "stripe_publishable_key",
-    "stripe_webhook_secret",
-    "stripe_currency",
-    "stripe_success_url",
-    "stripe_cancel_url",
-)
+ALL_KEYS = tuple(dict.fromkeys(AUTH_KEYS + ("site_base_url",)))
 
-ALL_KEYS = tuple(dict.fromkeys(AUTH_KEYS + PAYMENT_KEYS + ("site_base_url",)))
-
-SECRET_KEYS = frozenset(
-    {
-        "wechat_web_secret",
-        "wechat_mini_secret",
-        "sms_tencent_secret_key",
-        "sms_aliyun_access_key_secret",
-        "wechat_pay_api_v3_key",
-        "wechat_pay_private_key",
-        "alipay_private_key",
-        "stripe_secret_key",
-        "stripe_webhook_secret",
-    }
-)
+SECRET_KEYS = frozenset(set())
 
 _DEFAULTS: dict[str, str] = {
-    "phone_login_enabled": "0",
-    "phone_login_auto_register": "1",
-    "wechat_web_login_enabled": "0",
-    "wechat_login_auto_register": "1",
-    "wechat_mini_login_enabled": "0",
-    "wechat_web_appid": "",
-    "wechat_web_secret": "",
-    "wechat_web_redirect_uri": "",
-    "wechat_mini_appid": settings.WECHAT_MINI_APPID,
-    "wechat_mini_secret": settings.WECHAT_MINI_SECRET,
-    "sms_provider": "mock",
-    "sms_code_ttl_seconds": "300",
-    "sms_send_interval_seconds": "60",
-    "sms_daily_limit_per_phone": "10",
-    "sms_daily_limit_per_ip": "20",
-    "sms_mock_code": "123456",
-    "sms_tencent_secret_id": "",
-    "sms_tencent_secret_key": "",
-    "sms_tencent_sdk_app_id": "",
-    "sms_tencent_sign_name": "",
-    "sms_tencent_template_id": "",
-    "sms_tencent_region": "ap-guangzhou",
-    "sms_tencent_template_params": '["{code}","5"]',
-    "sms_aliyun_access_key_id": "",
-    "sms_aliyun_access_key_secret": "",
-    "sms_aliyun_sign_name": "",
-    "sms_aliyun_template_code": "",
-    "sms_aliyun_region": "cn-hangzhou",
-    "sms_aliyun_template_param_key": "code",
     # 默认关闭：内容 API 的交付面包含第三方自建登录页，开关打开前它们不会渲染验证码框
     "login_captcha_enabled": "0",
-    "payment_enabled": "0",
-    "payment_mock_enabled": "1",
-    "payment_order_expire_minutes": "30",
-    "wechat_pay_enabled": "0",
-    "wechat_pay_mch_id": "",
-    "wechat_pay_appid": "",
-    "wechat_pay_serial_no": "",
-    "wechat_pay_api_v3_key": "",
-    "wechat_pay_private_key": "",
-    "wechat_pay_platform_public_key": "",
-    "wechat_pay_notify_url": "",
-    "alipay_enabled": "0",
-    "alipay_app_id": "",
-    "alipay_private_key": "",
-    "alipay_public_key": "",
-    "alipay_notify_url": "",
-    "alipay_return_url": "",
-    "alipay_gateway": "https://openapi.alipay.com/gateway.do",
-    # Stripe：默认开启并由环境变量兜底密钥；密钥缺失时渠道会被判定为不可用
-    "stripe_enabled": "1",
-    "stripe_mode": settings.STRIPE_MODE,
-    "stripe_secret_key": settings.STRIPE_SECRET_KEY,
-    "stripe_publishable_key": settings.STRIPE_PUBLISHABLE_KEY,
-    "stripe_webhook_secret": settings.STRIPE_WEBHOOK_SECRET,
-    "stripe_currency": settings.STRIPE_CURRENCY,
-    "stripe_success_url": settings.STRIPE_SUCCESS_URL,
-    "stripe_cancel_url": settings.STRIPE_CANCEL_URL,
-    "site_base_url": settings.SITE_BASE_URL,
+    "site_base_url": "",
 }
 
+# 进程内二级缓存：(时间戳, values)；TTL 内直接命中，省一次 Redis 往返
 _LOCAL_CACHE: tuple[float, dict[str, str]] | None = None
 
 
@@ -204,16 +86,8 @@ class IntegrationConfig:
         return self.str("site_base_url").rstrip("/")
 
 
-def _fallback_values() -> dict[str, str]:
-    values = dict(_DEFAULTS)
-    # 小程序旧配置仍可从 env 兜底，避免升级后未去后台重填就失效
-    values["wechat_mini_appid"] = settings.WECHAT_MINI_APPID or values["wechat_mini_appid"]
-    values["wechat_mini_secret"] = settings.WECHAT_MINI_SECRET or values["wechat_mini_secret"]
-    return values
-
-
 def _merge_defaults(stored: dict[str, str]) -> dict[str, str]:
-    values = _fallback_values()
+    values = dict(_DEFAULTS)
     values.update({key: value for key, value in stored.items() if value is not None})
     return values
 
@@ -256,14 +130,14 @@ async def get_config() -> IntegrationConfig:
     stored: dict[str, str] = {}
     with degrade_guard(
         "integration_settings.load",
-        detail="读取登录/支付配置失败，回退默认值与环境变量",
+        detail="读取登录配置失败，回退默认值与环境变量",
     ):
         async with async_session() as session:
             rows = (
-                await session.execute(
-                    select(SystemSetting).where(SystemSetting.setting_key.in_(ALL_KEYS))
+                await session.scalars(
+                    select(SystemSetting).where(SystemSetting.setting_key.in_(list(ALL_KEYS)))
                 )
-            ).scalars().all()
+            ).all()
         stored = {row.setting_key: row.value or "" for row in rows}
         await _cache_set(stored)
 
@@ -277,7 +151,7 @@ async def invalidate_integration_settings_cache() -> None:
     _LOCAL_CACHE = None
     with degrade_guard(
         "integration_settings.invalidate",
-        detail="Redis 不可用，登录/支付配置缓存未主动失效（将随 60s TTL 过期）",
+        detail="Redis 不可用，登录配置缓存未主动失效（将随 60s TTL 过期）",
     ):
         await redis_client.delete(CACHE_KEY)
 
@@ -286,29 +160,8 @@ async def get_auth_config() -> IntegrationConfig:
     return await get_config()
 
 
-async def get_payment_config() -> IntegrationConfig:
-    return await get_config()
-
-
 def auth_capabilities(config: IntegrationConfig) -> dict[str, Any]:
-    """登录页需要的非敏感能力位（绝不返回 AppID/Secret/短信凭据）。"""
+    """登录页需要的非敏感能力位（绝不返回任何凭据）。"""
     return {
-        "phone_login": config.bool("phone_login_enabled"),
-        "phone_auto_register": config.bool("phone_login_auto_register"),
-        "wechat_web_login": config.bool("wechat_web_login_enabled")
-        and bool(config.str("wechat_web_appid") and config.secret("wechat_web_secret")),
-        "wechat_mini_login": config.bool("wechat_mini_login_enabled")
-        and bool(config.str("wechat_mini_appid") and config.secret("wechat_mini_secret")),
-        "sms_provider": config.str("sms_provider"),
         "captcha_enabled": config.bool("login_captcha_enabled"),
-    }
-
-
-def payment_capabilities(config: IntegrationConfig) -> dict[str, Any]:
-    return {
-        "enabled": config.bool("payment_enabled"),
-        "mock": config.bool("payment_mock_enabled"),
-        "wechat": config.bool("wechat_pay_enabled"),
-        "alipay": config.bool("alipay_enabled"),
-        "stripe": config.bool("stripe_enabled"),
     }

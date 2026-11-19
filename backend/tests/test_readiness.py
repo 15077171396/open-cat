@@ -4,12 +4,11 @@
 
 1. **必填项未就绪必须阻塞**：存储不可写、站点地址还是 localhost、邮件缺项，
    这三项任一不达标就不该告诉用户「可以上线了」。
-2. **「配了但不对」要单独标 error**：开了微信支付却没填商户号、启用模型却没填 Key、
-   开了手机登录却没选短信商 —— 这类比「没配」更危险，因为用户以为自己配好了。
-3. **明确关闭不算问题**：支付关了、短信没启用，只要没有依赖它的开关打开，
-   就标 `off` 而不是 error，否则体检页会永远挂红。
-4. **单项炸了不拖垮整页**：AI/短信/支付三项要读库读缓存，任一项抛异常时
-   其余项照常给出结论。
+2. **「配了但不对」要单独标 error**：启用模型却没填 Key —— 这类比「没配」更危险，
+   因为用户以为自己配好了。
+3. **明确关闭不算问题**：只要没有依赖它的开关打开，就标 `off` 而不是 error，
+   否则体检页会永远挂红。
+4. **单项炸了不拖垮整页**：AI 一项要读库读缓存，抛异常时其余项照常给出结论。
 5. **只读**：这个接口不允许写库（与 `/system-status` 同一定位）。
 """
 
@@ -183,107 +182,6 @@ class AiCheckTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("1 个模型可用", item["detail"])
 
 
-class SmsCheckTests(unittest.IsolatedAsyncioTestCase):
-    async def _run(self, config):
-        with mock.patch.object(rs, "get_auth_config", mock.AsyncMock(return_value=config)):
-            return await rs._check_sms(mock.Mock())
-
-    async def test_phone_login_on_but_no_provider_is_error(self):
-        """最常见的「配了不生效」：手机登录开着，短信商没选。"""
-        cfg = _FakeConfig(booleans={"phone_login_enabled": True}, strings={"sms_provider": "none"})
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "error")
-        self.assertIn("必定失败", item["detail"])
-
-    async def test_phone_login_off_and_no_provider_is_off(self):
-        cfg = _FakeConfig(booleans={"phone_login_enabled": False}, strings={"sms_provider": "none"})
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "off")
-
-    async def test_mock_provider_with_phone_login_is_ready(self):
-        """默认值就是 mock（本地联调），不能判成「未知服务商」——否则每个新部署都挂红。"""
-        cfg = _FakeConfig(booleans={"phone_login_enabled": True}, strings={"sms_provider": "mock"})
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "ready")
-        self.assertIn("Mock", item["detail"])
-
-    async def test_mock_provider_without_phone_login_is_off(self):
-        cfg = _FakeConfig(booleans={"phone_login_enabled": False}, strings={"sms_provider": "mock"})
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "off")
-
-    async def test_provider_selected_but_incomplete_is_error(self):
-        cfg = _FakeConfig(
-            strings={"sms_provider": "aliyun", "sms_aliyun_access_key_id": "id"},
-            secrets={},
-        )
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "error")
-        self.assertIn("sms_aliyun_access_key_secret", item["detail"])
-
-    async def test_provider_complete_is_ready(self):
-        cfg = _FakeConfig(
-            strings={
-                "sms_provider": "aliyun",
-                "sms_aliyun_access_key_id": "id",
-                "sms_aliyun_sign_name": "签名",
-                "sms_aliyun_template_code": "SMS_1",
-            },
-            secrets={"sms_aliyun_access_key_secret": "sec"},
-        )
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "ready")
-
-
-class PaymentCheckTests(unittest.IsolatedAsyncioTestCase):
-    async def _run(self, config):
-        with mock.patch.object(rs, "get_payment_config", mock.AsyncMock(return_value=config)):
-            return await rs._check_payment(mock.Mock())
-
-    async def test_disabled_is_off(self):
-        item = await self._run(_FakeConfig(booleans={"payment_enabled": False}))
-        self.assertEqual(item["status"], "off")
-
-    async def test_mock_mode_is_ready_but_warns(self):
-        item = await self._run(
-            _FakeConfig(booleans={"payment_enabled": True, "payment_mock_enabled": True})
-        )
-        self.assertEqual(item["status"], "ready")
-        self.assertIn("模拟支付", item["detail"])
-
-    async def test_enabled_without_any_channel_is_error(self):
-        item = await self._run(_FakeConfig(booleans={"payment_enabled": True}))
-        self.assertEqual(item["status"], "error")
-        self.assertIn("都没开启", item["detail"])
-
-    async def test_wechat_enabled_but_credentials_missing_is_error(self):
-        """开了渠道但凭据不齐 → 用户可能已扣款而回调验签失败。"""
-        cfg = _FakeConfig(
-            booleans={"payment_enabled": True, "wechat_pay_enabled": True},
-            strings={"wechat_pay_appid": "wx1"},
-        )
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "error")
-        self.assertIn("wechat_pay_mch_id", item["detail"])
-
-    async def test_wechat_complete_is_ready(self):
-        cfg = _FakeConfig(
-            booleans={"payment_enabled": True, "wechat_pay_enabled": True},
-            strings={
-                "wechat_pay_appid": "wx1",
-                "wechat_pay_mch_id": "mch1",
-                "wechat_pay_serial_no": "serial1",
-            },
-            secrets={
-                "wechat_pay_private_key": "k",
-                "wechat_pay_platform_public_key": "p",
-            },
-        )
-        item = await self._run(cfg)
-        self.assertEqual(item["status"], "ready")
-        self.assertIn("微信支付", item["detail"])
-
-
 class CollectTests(unittest.IsolatedAsyncioTestCase):
     async def test_one_broken_check_does_not_break_page(self):
         """任一项抛异常时，其余项照常给出结论 —— 体检页打不开时恰恰最需要它。"""
@@ -291,18 +189,15 @@ class CollectTests(unittest.IsolatedAsyncioTestCase):
         async def boom(_db):
             raise RuntimeError("db down")
 
-        with mock.patch.object(rs, "_check_ai", boom), mock.patch.object(
-            rs, "_check_sms", boom
-        ), mock.patch.object(rs, "_check_payment", boom):
+        with mock.patch.object(rs, "_check_ai", boom):
             result = await rs.collect(mock.Mock())
 
-        self.assertEqual(len(result["items"]), 6)
-        for key in ("ai", "sms", "payment"):
-            item = _by_key(result["items"], key)
-            self.assertEqual(item["status"], "error")
-            # 具体异常只进日志（degrade_guard 统一记录），响应里给可操作结论
-            self.assertIn("检查失败", item["detail"])
-            self.assertTrue(item["action"])
+        self.assertEqual(len(result["items"]), 4)
+        item = _by_key(result["items"], "ai")
+        self.assertEqual(item["status"], "error")
+        # 具体异常只进日志（degrade_guard 统一记录），响应里给可操作结论
+        self.assertIn("检查失败", item["detail"])
+        self.assertTrue(item["action"])
         # 不依赖数据库的三项仍然正常
         self.assertIn(_by_key(result["items"], "storage")["status"], {"ready", "error"})
 

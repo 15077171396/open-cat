@@ -31,8 +31,7 @@ ALLOWED_ROUTER_COMMITS = {
     # 法律文档同理：legal_doc:* 独立缓存必须在提交之后失效，
     # 否则前台页脚会继续展示旧文案（而这正是法务文本最不能出错的地方）
     "admin_legal_documents.py": ["# 法务文本缓存必须在提交之后失效，故路由内显式提交"],
-    # 支付配置：集成配置缓存（60s）必须提交之后失效，否则并发下单会用旧凭据签名
-    "admin_payment_settings.py": ["# 支付配置缓存必须在提交之后失效，故路由内显式提交"],
+    # admin_payment_settings.py 已随 0080_drop_commercial_modules 删除（2026-11-18 清理）
     # AI 成本护栏（并入模型管理）：限额/单价缓存在 ai_usage_service（Redis 60s），
     # 提交之后再失效，否则并发看板读会把旧阈值回填
     "admin_ai_models.py": ["# 成本护栏缓存必须在提交之后失效，故路由内显式提交"],

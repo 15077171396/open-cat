@@ -20,15 +20,15 @@ from app.models.user import User
 from tests.fake_db import MemorySession, _Unsupported
 
 
-def _user(uid: int, points: int, vip_expire: dt.datetime | None) -> User:
+def _user(uid: int, dept: int | None, verified: dt.datetime | None) -> User:
     return User(
         id=uid,
         account=f"acct{uid}",
         nickname=f"n{uid}",
         password_hash="x",
         role="user",
-        points=points,
-        vip_expire_time=vip_expire,
+        department_id=dept,
+        phone_verified_at=verified,
     )
 
 
@@ -48,27 +48,27 @@ class OrderLimitTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_order_by_column_asc_desc(self):
         self.assertEqual(
-            await self._ids(select(User).order_by(User.points.asc())), [2, 3, 1, 4]
+            await self._ids(select(User).order_by(User.department_id.asc())), [2, 3, 1, 4]
         )
         self.assertEqual(
-            await self._ids(select(User).order_by(User.points.desc())), [4, 1, 3, 2]
+            await self._ids(select(User).order_by(User.department_id.desc())), [4, 1, 3, 2]
         )
 
     async def test_limit_and_offset_slice(self):
         self.assertEqual(
-            await self._ids(select(User).order_by(User.points.asc()).limit(2)), [2, 3]
+            await self._ids(select(User).order_by(User.department_id.asc()).limit(2)), [2, 3]
         )
         self.assertEqual(
             await self._ids(
-                select(User).order_by(User.points.asc()).offset(2).limit(2)
+                select(User).order_by(User.department_id.asc()).offset(2).limit(2)
             ),
             [1, 4],
         )
 
     async def test_null_position_matches_mysql(self):
         """ASC 时 NULL 在前、DESC 时 NULL 在后（与 MySQL / InnoDB 一致）。"""
-        asc = await self._ids(select(User).order_by(User.vip_expire_time.asc()))
-        desc = await self._ids(select(User).order_by(User.vip_expire_time.desc()))
+        asc = await self._ids(select(User).order_by(User.phone_verified_at.asc()))
+        desc = await self._ids(select(User).order_by(User.phone_verified_at.desc()))
         self.assertEqual(asc[0], 2)
         self.assertEqual(desc[-1], 2)
 
@@ -76,7 +76,7 @@ class OrderLimitTests(unittest.IsolatedAsyncioTestCase):
         """多列排序：先按列，再按兜底列 —— 分页不重不漏的前提（同 P2-8 / P2-36）。"""
         self.db.seed(_user(5, 20, None))  # 与 id=3 同分
         ids = await self._ids(
-            select(User).order_by(User.points.asc(), User.id.desc())
+            select(User).order_by(User.department_id.asc(), User.id.desc())
         )
         self.assertEqual(ids, [2, 5, 3, 1, 4])
 

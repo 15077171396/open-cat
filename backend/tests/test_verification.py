@@ -17,24 +17,18 @@ class VerificationTests(unittest.IsolatedAsyncioTestCase):
         self._fake = FakeRedis()
         self._orig_redis = v.redis_client
         v.redis_client = self._fake
-        # 打桩发送通道：单测不应依赖外部 SMTP/短信网关。
+        # 打桩发送通道：单测不应依赖外部 SMTP。
         # (本地 .env 可能配置了不可达的 SMTP，真实发送会导致测试不稳定)
         self._orig_send_email = v.send_email
-        self._orig_send_sms = v.send_sms
 
         async def _fake_send_email(to_email: str, code: str) -> bool:
             return True
 
-        async def _fake_send_sms(phone: str, code: str) -> bool:
-            return True
-
         v.send_email = _fake_send_email
-        v.send_sms = _fake_send_sms
 
     async def asyncTearDown(self):
         v.redis_client = self._orig_redis
         v.send_email = self._orig_send_email
-        v.send_sms = self._orig_send_sms
 
     async def test_send_code_stores_code_and_interval(self):
         result = await v.send_code("user@example.com")
@@ -44,9 +38,9 @@ class VerificationTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(await self._fake.exists(f"{v.CODE_PREFIX}interval:user@example.com"))
 
     async def test_send_code_rate_limited(self):
-        first = await v.send_code("13800000001")
+        first = await v.send_code("freq@example.com")
         self.assertTrue(first["success"])
-        second = await v.send_code("13800000001")
+        second = await v.send_code("freq@example.com")
         self.assertFalse(second["success"])
         self.assertIn("频繁", second["message"])
 

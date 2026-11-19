@@ -132,8 +132,10 @@ async def change_password(
     """修改密码"""
     if not old_password or not new_password:
         raise AppException(code=400, message="请输入完整密码")
-    if len(new_password) < 6:
-        raise AppException(code=400, message="新密码至少 6 位")
+    # 密码强度策略（2026-11-19）：替换原先写死的「至少 6 位」，与注册/建号同一配置口径
+    from app.core.password_policy import validate_password_strength
+
+    validate_password_strength(new_password)
     try:
         validate_password_length(new_password)
     except ValueError as exc:
@@ -274,7 +276,7 @@ def _setting_to_dict(setting: NotificationSetting) -> dict:
 async def cleanup_personal_data_on_reactivation(db: AsyncSession, user: User) -> None:
     """账号复活（注销后重新注册）时清空上一账号周期的个人数据
 
-    重新注册视为全新账号：删除收藏、学习记录、下载历史、消息、
+    重新注册视为全新账号：删除收藏、学习记录、消息、
     工具使用日志与通知设置，并重置昵称/简介/头像。
     注销期间数据保留（供统计审计），复活时才彻底清空。
     """
@@ -282,13 +284,12 @@ async def cleanup_personal_data_on_reactivation(db: AsyncSession, user: User) ->
 
     from app.models.favorite import Favorite
     from app.models.learning import LearningRecord
-    from app.models.download import Download
     from app.models.message import Message
 
     user.nickname = None
     user.bio = None
     user.avatar_url = None
-    for model in (Favorite, LearningRecord, Download, Message, NotificationSetting):
+    for model in (Favorite, LearningRecord, Message, NotificationSetting):
         await db.execute(delete(model).where(model.user_id == user.id))
     # 个人统计/等级缓存已随注销清理，此处兜底再清一次
     await redis_client.delete(f"user_stats:{user.id}", f"user_level:{user.id}")
@@ -297,18 +298,13 @@ async def cleanup_personal_data_on_reactivation(db: AsyncSession, user: User) ->
 async def delete_account(db: AsyncSession, user: User) -> None:
     """注销账号（软删除：标记 deleted_at，保留用户记录与关联数据）
 
-    用户行不删除，仅设置 deleted_at 时间戳；关联的收藏/学习/下载/消息等数据保留。
+    用户行不删除，仅设置 deleted_at 时间戳；关联的收藏/学习/消息等数据保留。
     登录与鉴权查询需通过 deleted_at IS NULL 过滤已注销用户。
-    认证相关：清除待审核标记并删除 pending 认证申请，避免注销后重新注册时
-    残留上一周期的认证记录。
     """
     from datetime import datetime, timezone
 
-    from app.services.audit_service import cleanup_auth_data_on_deactivation
-
     logger.warning(f"用户 {user.id} 申请注销账号")
     user.deleted_at = datetime.now(timezone.utc)
-    await cleanup_auth_data_on_deactivation(db, user)
     await db.commit()
     # 注销后清理 refresh_token 与统计缓存（commit 后的非关键清理，失败仅记日志）
     await _safe_cache_delete(
@@ -323,7 +319,7 @@ async def delete_account(db: AsyncSession, user: User) -> None:
 async def get_user_level(db: AsyncSession, user: User) -> dict:
     """获取用户等级与成就（基于行为数据的简单等级系统）
 
-    等级规则：累计学习时长 / 3600 取整 + 1，封顶 10
+    等级规则：累计学习记录数 / 5 取整 + 1，封顶 10
     """
     cache_key = f"user_level:{user.id}"
     cached = await _safe_cache_get(cache_key)
@@ -333,10 +329,7 @@ async def get_user_level(db: AsyncSession, user: User) -> dict:
     from sqlalchemy import func
     from app.models.learning import LearningRecord
     from app.models.favorite import Favorite
-    from app.models.download import Download
 
-    # 学习时长（秒）
-    used = user.free_used_seconds or 0
     # 学习记录数
     learning_count = (
         await db.execute(
@@ -349,14 +342,8 @@ async def get_user_level(db: AsyncSession, user: User) -> dict:
             select(func.count(Favorite.id)).where(Favorite.user_id == user.id)
         )
     ).scalar() or 0
-    # 下载数
-    dl_count = (
-        await db.execute(
-            select(func.count(Download.id)).where(Download.user_id == user.id)
-        )
-    ).scalar() or 0
 
-    level = min(10, max(1, used // 3600 + 1))
+    level = min(10, max(1, learning_count // 5 + 1))
 
     # 成就标签
     achievements: list[str] = []
@@ -364,8 +351,6 @@ async def get_user_level(db: AsyncSession, user: User) -> dict:
         achievements.append("学习达人")
     if fav_count >= 10:
         achievements.append("收藏家")
-    if dl_count >= 10:
-        achievements.append("资源猎人")
     if user.role == "vip":
         achievements.append("高级会员")
     if not achievements:
@@ -378,10 +363,8 @@ async def get_user_level(db: AsyncSession, user: User) -> dict:
         "level_label": f"Lv.{level} {level_label}",
         "achievements": achievements,
         "stats": {
-            "learning_seconds": used,
             "learning_count": learning_count,
             "favorites": fav_count,
-            "downloads": dl_count,
         },
     }
     await _safe_cache_set(cache_key, 60, json.dumps(result))
@@ -391,7 +374,7 @@ async def get_user_level(db: AsyncSession, user: User) -> dict:
 # 用户聚合统计
 
 async def get_user_stats(db: AsyncSession, user: User) -> dict:
-    """个人中心顶部 4 个统计数字"""
+    """个人中心顶部 3 个统计数字"""
     cache_key = f"user_stats:{user.id}"
     cached = await _safe_cache_get(cache_key)
     if cached:
@@ -400,7 +383,6 @@ async def get_user_stats(db: AsyncSession, user: User) -> dict:
     from sqlalchemy import func
     from app.models.favorite import Favorite
     from app.models.learning import LearningRecord
-    from app.models.download import Download
     from app.models.message import Message
 
     favorites = (
@@ -413,11 +395,6 @@ async def get_user_stats(db: AsyncSession, user: User) -> dict:
             select(func.count(LearningRecord.id)).where(LearningRecord.user_id == user.id)
         )
     ).scalar() or 0
-    downloads = (
-        await db.execute(
-            select(func.count(Download.id)).where(Download.user_id == user.id)
-        )
-    ).scalar() or 0
     messages = (
         await db.execute(
             select(func.count(Message.id)).where(Message.user_id == user.id)
@@ -426,7 +403,6 @@ async def get_user_stats(db: AsyncSession, user: User) -> dict:
     result = {
         "favorites": favorites,
         "learning": learning,
-        "downloads": downloads,
         "messages": messages,
     }
     await _safe_cache_set(cache_key, 60, json.dumps(result))

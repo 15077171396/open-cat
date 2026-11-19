@@ -1,4 +1,4 @@
-"""管理后台 - 数据看板 与 认证审核中心"""
+"""管理后台 - 数据看板与运维状态"""
 
 from fastapi import Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,27 +12,31 @@ from app.core.exceptions import success_response
 from app.schemas.common import ApiResponse
 from app.api._admin_shared import router
 
-from app.models.auth_request import (
-    AUTH_REQUEST_STATUSES,
-    AUTH_REQUEST_STATUS_LABELS,
-    VIP_DURATION_LABELS,
-)
-from app.services.audit_service import (
-    list_auth_requests,
-    approve_auth_request,
-    reject_auth_request,
-)
 from app.services.stats_service import get_dashboard_stats
 from app.services.ai_usage_service import get_usage_summary as get_ai_usage_summary
 from app.services.system_status_service import get_system_status
-from app.services import readiness_service
+from app.services import ops_metric_service, readiness_service
 from app.services import scheduled_job_admin_service as job_admin
-from app.services.funnel_service import get_funnel_overview
 from app.services.search_log_service import get_keyword_report
-from app.services.content_view_service import get_attribution_report
-from app.schemas.content import PageResult
 from app.schemas.admin import ActionAck, StatsResult
-from typing import Any
+
+
+class MetricOption(BaseModel):
+    """趋势面板的指标选项（value/label 与 METRIC_LABELS 同源）"""
+
+    value: str
+    label: str
+
+
+class MetricTrendData(BaseModel):
+    """核心指标趋势（看板「系统指标趋势」面板的数据源）"""
+
+    metric: str = ""
+    label: str = ""
+    hours: int = 48
+    available: bool = True
+    points: list[dict] = Field(default_factory=list)
+    metric_options: list[MetricOption] = Field(default_factory=list)
 
 
 # 数据看板
@@ -57,20 +61,53 @@ async def ai_usage(
     return success_response(await get_ai_usage_summary(days))
 
 
-@router.get("/funnel", response_model=ApiResponse[StatsResult])
-async def funnel(
-    days: int = Query(30, ge=7, le=90),
+class MetricSummaryItem(BaseModel):
+    """单指标概览：当前读数 + 与上一帧的环比"""
+
+    key: str
+    label: str
+    good_when_up: bool
+    value: int | None = None
+    previous: int | None = None
+    delta: int | None = None
+
+
+class MetricSummaryData(BaseModel):
+    """全指标概览（最近两帧快照对比）"""
+
+    available: bool = True
+    frame_count: int = 0
+    taken_at: str | None = None
+    items: list[MetricSummaryItem] = Field(default_factory=list)
+
+
+@router.get("/ops-metrics/summary", response_model=ApiResponse[MetricSummaryData])
+async def ops_metrics_summary(
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """转化漏斗 + 留存（近 N 天注册队列）。
+    """全指标概览：最近两帧快照对比（当前读数 + 环比），供看板多指标卡网格。"""
+    data = await ops_metric_service.latest_summary(db)
+    return success_response(data)
 
-    纯只读聚合，数据全部来自既有事实表（users / auth_requests / downloads /
-    learning_records / tool_usage_logs），**不依赖任何埋点**，因此没有数据缺失问题。
 
-    ⚠️ 阶段是**嵌套**口径：后一阶段只数走完了前面所有阶段的人。
+@router.get("/ops-metrics", response_model=ApiResponse[MetricTrendData])
+async def ops_metrics(
+    metric: str = Query("users_total", max_length=64, description="指标键（见 metric_options）"),
+    hours: int = Query(48, ge=2, le=720),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """核心指标趋势：每小时快照的回看（注册用户/教程/评论总量、待办积压、登录失败）。
+
+    选项与展示名都从 `METRIC_LABELS` 同源下发，前端不必维护第二份字典；
+    快照表还没建（迁移未执行）时 `available=False`，面板显示「尚未采集」。
     """
-    return success_response(await get_funnel_overview(db, days))
+    data = await ops_metric_service.trend(db, metric, hours)
+    data["metric_options"] = [
+        {"value": key, "label": label} for key, label in ops_metric_service.METRIC_LABELS.items()
+    ]
+    return success_response(data)
 
 
 @router.get("/search-keywords", response_model=ApiResponse[StatsResult])
@@ -86,21 +123,6 @@ async def search_keywords(
     `available=False` 表示还没采集到数据（或迁移未执行），前端据此显示「尚未采集」。
     """
     return success_response(await get_keyword_report(db, days, limit))
-
-
-@router.get("/content-attribution", response_model=ApiResponse[StatsResult])
-async def content_attribution(
-    days: int = Query(30, ge=1, le=180),
-    limit: int = Query(10, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    """内容归因榜：看过 → 7 天内提交认证的人数与转化率。
-
-    回答「哪篇内容真的带来了付费意愿」，与 `/admin/funnel`（哪一段在流失）互补。
-    `available=False` 表示还没采集到数据（或迁移未执行）。
-    """
-    return success_response(await get_attribution_report(db, days, limit))
 
 
 @router.get("/system-status", response_model=ApiResponse[StatsResult])
@@ -200,61 +222,3 @@ async def run_scheduled_job(
     """
     result = await job_admin.trigger_run(db, admin, job_id)
     return success_response(result, "已下发执行命令，请稍后刷新查看结果")
-
-
-# 审核中心
-
-@router.get("/auth-requests", response_model=ApiResponse[PageResult[Any]])
-async def auth_requests(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(20, ge=1, le=100),
-    status: Optional[str] = Query(None, description="pending / approved / rejected；all / 不传表示全部"),
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    """认证申请列表（可按状态筛选）。
-
-    改版前这里硬编码只返回 pending —— 审批过的记录在后台彻底看不到（谁审的、给了多久、
-    驳回原因都查不到）。现在可按状态查，并把审核人账号、VIP 时长、驳回原因一并下发。
-    响应还带 status_options / vip_duration_options：取值与中文名都取自写入端同一份事实来源。
-    """
-    result = await list_auth_requests(db, page, page_size, status)
-    result["status_options"] = [
-        {"value": k, "label": AUTH_REQUEST_STATUS_LABELS[k]} for k in AUTH_REQUEST_STATUSES
-    ]
-    result["vip_duration_options"] = [
-        {"value": k, "label": v} for k, v in VIP_DURATION_LABELS.items()
-    ]
-    return success_response(result)
-
-
-class ApproveRequest(BaseModel):
-    vip_duration: Literal["1month", "3month", "1year"]  # 1month/3month/1year
-
-
-class RejectRequest(BaseModel):
-    reason: Optional[str] = Field(None, max_length=500)
-
-
-@router.put("/auth-requests/{auth_request_id}/approve", response_model=ApiResponse[ActionAck])
-async def approve_auth(
-    auth_request_id: int,
-    req: ApproveRequest,
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    """通过认证"""
-    result = await approve_auth_request(db, admin, auth_request_id, req.vip_duration)
-    return success_response(result, "认证已通过")
-
-
-@router.put("/auth-requests/{auth_request_id}/reject", response_model=ApiResponse[ActionAck])
-async def reject_auth(
-    auth_request_id: int,
-    req: RejectRequest,
-    db: AsyncSession = Depends(get_db),
-    admin: User = Depends(require_admin),
-):
-    """驳回认证"""
-    result = await reject_auth_request(db, admin, auth_request_id, req.reason)
-    return success_response(result, "认证已驳回")

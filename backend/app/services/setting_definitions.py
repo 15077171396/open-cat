@@ -26,7 +26,7 @@ class SettingDefinition:
     key: str
     label: str
     type: str  # text / textarea / secret_text / image / url / richtext / password / number / json / bool / select
-    group: str  # 分组标识（basic / business / ai / moderation / upload / ratelimit / search / seo / fetch / storage / miniapp / mail / hero / default / qrcode / social / invite；登录链路：auth_phone / auth_wechat / auth_sms；支付：payment_general / payment_wechat / payment_alipay；法务：legal）
+    group: str  # 分组标识（basic / business / ai / moderation / upload / ratelimit / search / seo / storage / mail / default；登录链路：auth_captcha；法务：legal）
     group_label: str
     default: str = ""
     # secret=True：密钥类配置三重保护——加密落库、永不进入公开设置、管理端只回显掩码
@@ -69,7 +69,6 @@ _LEGAL_DISCLAIMER_DEFAULT = """<h2>免责声明</h2><p>在使用本平台服务�
 SURFACE_SETTINGS = "settings"
 SURFACE_LOGIN = "login"
 SURFACE_LEGAL = "legal"
-SURFACE_PAYMENT = "payment"
 SURFACE_MODEL = "model"
 SURFACE_MAIL = "mail"
 
@@ -101,7 +100,7 @@ SETTING_GROUPS: tuple[SettingGroup, ...] = (
     ),
     SettingGroup(
         "business", "业务规则",
-        "免费试用时长、单用户 AI 限额与调用重试策略。改完立即生效，无需重启",
+        "单用户 AI 限额与调用重试策略。改完立即生效，无需重启",
     ),
     SettingGroup(
         "ai", "全站成本护栏",
@@ -133,111 +132,47 @@ SETTING_GROUPS: tuple[SettingGroup, ...] = (
         "按 IP / 用户计的固定窗口限流。调低可能误伤正常用户，调高会削弱防刷能力；健康检查与 CORS 预检不计入",
     ),
     SettingGroup(
+        "password_policy", "密码策略",
+        "注册 / 管理员建号 / 修改密码统一执行的强度校验。改动即时生效，只影响之后设置的密码，"
+        "不会要求存量用户立即改密",
+    ),
+    SettingGroup(
+        "notifications", "站内通知",
+        "站内通知的模板清单。推荐在「消息通知 → 发送通知」弹窗内维护（可一键套用）；"
+        "此处是同一份配置的备用入口（JSON 形态）",
+    ),
+    SettingGroup(
         "search", "站内搜索",
         "站内搜索的全文检索开关与关键词长度上限。全文索引出问题时可用开关一键退回 LIKE",
     ),
     SettingGroup(
         "seo", "站点与 SEO",
-        "站点根地址与收录推送凭据。站点根地址会写进 sitemap、推送链接与分享海报，改错会让收录链接全错",
-    ),
-    SettingGroup(
-        "fetch", "第三方导入",
-        "后台「从第三方导入」用到的出站代理与凭据（GitHub / HuggingFace / 国外文章平台）。服务器可直连时全部留空",
+        "站点根地址与收录推送凭据。站点根地址会写进 sitemap、推送链接，改错会让收录链接全错",
     ),
     SettingGroup(
         "storage", "对象存储",
-        "腾讯云 COS 对象存储凭据。全站上传（头像 / 图片 / 资源文件）都走这里，填错时上传会明确报错",
+        "对象存储（S3 / COS）凭据。全站上传（头像 / 图片 / 附件）都走这里，填错时上传会明确报错",
     ),
     SettingGroup(
-        "auth_phone", "手机号验证码登录",
-        "手机号 + 短信验证码登录：总开关与首登策略。关闭后 /auth/phone/* 直接拒绝，"
-        "前台登录页不显示手机号入口",
-        surface=SURFACE_LOGIN,
-    ),
-    SettingGroup(
-        "auth_wechat", "微信登录",
-        "微信扫码（网站应用）与小程序登录。凭据没配齐时即使开关打开也走不通，"
-        "页面顶部的渠道状态会标出还缺什么",
-        surface=SURFACE_LOGIN,
-    ),
-    SettingGroup(
-        "miniapp", "小程序凭据",
-        "微信小程序 AppID / AppSecret，用于 code2session 静默登录与账号绑定。"
-        "生产环境未配置时小程序登录返回 503（开发环境会退化为 mock openid，便于联调）；"
-        "AppSecret 加密存储，页面只回显掩码",
-        # 2026-10-27：这两个键的**唯一消费方**是 miniapp_service.code_to_session（登录/绑定），
-        # 此前留在「系统设置 → 小程序」是历史错位 —— 登录页说「缺凭据」，
-        # 却要跳到另一个菜单才能填。归位到登录管理，改与不改在同一屏。
-        surface=SURFACE_LOGIN,
-    ),
-    SettingGroup(
-        "auth_sms", "短信通道",
-        "短信服务商与凭据、验证码有效期与发送频控。Mock 只在本地联调可用（线上不会真正下发）；"
-        "凭据加密存储，页面只回显掩码。只需填所选服务商那一组参数",
-        surface=SURFACE_LOGIN,
-    ),
-    SettingGroup(
-        "auth_captcha", "登录人机验证",
+        "auth_captcha", "登录安全",
         "账号密码登录的图形验证码开关，防跨 IP 慢速撞库（IP 限流与账号锁定都拦不住的那条路）。"
         "开启后登录必须先通过验证码；前台登录页按 /auth/capabilities 的 captcha_enabled 自动显示。"
         "默认关闭：第三方自建登录页需按能力位自行适配",
         surface=SURFACE_LOGIN,
     ),
     SettingGroup(
-        "payment_general", "支付开关与订单",
-        "在线支付总开关、Mock 模拟支付与订单有效期。总开关关闭时下单接口直接拒绝、"
-        "前台不展示充值入口；Mock 只在非生产环境生效，正式环境请保持关闭",
-        surface=SURFACE_PAYMENT,
-    ),
-    SettingGroup(
-        "payment_stripe", "Stripe（默认渠道）",
-        "Stripe Checkout：直接付费开通会员 / 充值。Secret Key 与 Webhook Secret 仅在后端使用，"
-        "页面只显示是否已配置；Publishable Key 可下发给前端。模式（test/live）用于展示与密钥前缀校验",
-        surface=SURFACE_PAYMENT,
-    ),
-    SettingGroup(
-        "payment_wechat", "微信支付",
-        "微信支付 v3 Native 扫码：商户号 / AppID / 证书序列号 / APIv3 密钥 / 商户私钥 / "
-        "平台公钥 / 回调地址。私钥加密存储，页面只显示是否已配置；缺任一项该渠道不会出现在前台",
-        surface=SURFACE_PAYMENT,
-    ),
-    SettingGroup(
-        "payment_alipay", "支付宝",
-        "支付宝电脑网站支付：AppID / 应用私钥 / 支付宝公钥 / 通知与跳回地址 / 网关。"
-        "公钥与私钥别填反（一个用于签名、一个用于验签），填反的表现是「支付成功但回调验签失败」",
-        surface=SURFACE_PAYMENT,
-    ),
-    SettingGroup(
         "mail", "SMTP 通道",
         "邮件验证码（注册 / 找回密码）的通道配置。SMTP 授权码加密存储，页面只回显掩码；"
         "没配齐时生产环境发信直接失败 —— 用户点「获取验证码」只会看到一句「发送失败」。"
         "保存后可在页面上直接发一封测试邮件验证，不必等真实用户来撞",
-        # 2026-10-27：与短信通道同属「通道型配置」，抽到「系统 → 邮件通知」独立页。
+        # 2026-10-27：通道型配置，抽到「系统 → 邮件通知」独立页。
         # 抽出的理由不是它大（7 项），而是它**默认就是坏的**：不填 SMTP 生产环境发不出验证码，
         # 而页面只能填参数、没法验证「到底能不能发出去」。
         surface=SURFACE_MAIL,
     ),
     SettingGroup(
-        "hero", "模块主视觉图",
-        "各模块首页顶部 Hero 区的主视觉插画，建议横版透明底图片",
-    ),
-    SettingGroup(
         "default", "默认图片",
         "内容未单独设置图片时的兜底展示；不设置则维持各处原有的渐变 / 图标回退",
-    ),
-    SettingGroup(
-        "qrcode", "二维码",
-        "前台扫码入口展示的二维码图片（在线客服 / 微信公众号 / 社区 / 知识星球）",
-    ),
-    SettingGroup(
-        "social", "社交链接",
-        "前台页脚「关注我们」的社交图标跳转链接（抖音 / B站 / GitHub），"
-        "以及底部「其他作品」的外链列表；未配置的项不展示，清空保存即隐藏",
-    ),
-    SettingGroup(
-        "invite", "邀请返利",
-        "开启后用户可通过邀请链接 / 邀请码邀请好友注册，邀请人获得积分奖励。"
-        "关闭开关后链接仍可分享但不再发放积分",
     ),
     SettingGroup(
         "legal", "法律文档",
@@ -252,7 +187,10 @@ SETTING_GROUPS: tuple[SettingGroup, ...] = (
 SETTING_DEFINITIONS: list[SettingDefinition] = [
     # 基础设置
     SettingDefinition("site_logo", "站点 Logo", "image", "basic", "基础设置", "/logo_new.png"),
-    SettingDefinition("site_name", "平台名称", "text", "basic", "基础设置", "AI学习猫"),
+    SettingDefinition("site_name", "平台名称", "text", "basic", "基础设置", settings.SITE_NAME),
+    # 登录页左栏副标题（2026-11-19）：登录页品牌化的一部分，公开设置接口下发
+    SettingDefinition("login_hero_desc", "登录页副标题", "text", "basic", "基础设置", settings.LOGIN_HERO_DESC, public=True,
+        help_text="显示在登录页左栏介绍语下方；留空使用内置文案"),
     # 管理员强制二次验证：开启前要求所有有效管理员都已绑定 TOTP，避免把人锁在门外
     SettingDefinition(
         "admin_require_2fa", "管理员强制二次验证", "bool", "basic", "基础设置", "0",
@@ -260,31 +198,13 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         help_text="开启后管理员必须绑定 TOTP 才能登录；开启前需确保所有有效管理员已绑定，"
         "开启期间管理员不能关闭二次验证。新管理员请先建成普通账号并完成绑定，再提升为管理员。",
     ),
-    # 各模块首页顶部主视觉图
-    SettingDefinition("hero_home", "首页主视觉图", "image", "hero", "模块主视觉图", "/hero_home.webp"),
-    SettingDefinition("hero_tutorials", "AI教程页主视觉图", "image", "hero", "模块主视觉图", "/hero_tutorials.webp"),
-    SettingDefinition("hero_resources", "AI资源页主视觉图", "image", "hero", "模块主视觉图", "/hero_resources.webp"),
-    SettingDefinition("hero_tools", "AI工具页主视觉图", "image", "hero", "模块主视觉图", "/hero_tools.webp"),
-    SettingDefinition("hero_nodes", "AI百科页主视觉图", "image", "hero", "模块主视觉图", "/hero_nodes.webp"),
-    SettingDefinition("hero_plugins", "AI扩展页主视觉图", "image", "hero", "模块主视觉图", "/hero_plugins.webp"),
     # 默认图片（无图时的兜底，留空则维持各处原有的渐变/图标回退）
     SettingDefinition("default_tutorial_cover", "教程默认封面图", "image", "default", "默认图片"),
-    SettingDefinition("default_resource_cover", "资源默认封面图", "image", "default", "默认图片"),
-    SettingDefinition("default_node_cover", "知识百科默认封面图", "image", "default", "默认图片"),
     SettingDefinition("default_avatar", "用户默认头像", "image", "default", "默认图片"),
-    # 二维码
-    SettingDefinition("community_qrcode", "学习社区二维码", "image", "qrcode", "二维码", "/shequ.png"),
-    SettingDefinition("star_auth_qrcode", "知识星球认证二维码", "image", "qrcode", "二维码", "/shenqing.webp"),
-    SettingDefinition("service_qrcode", "在线客服二维码", "image", "qrcode", "二维码", ""),
-    SettingDefinition("wechat_qrcode", "微信公众号二维码", "image", "qrcode", "二维码", "/gzh.jpg"),
-    # 社交链接
-    SettingDefinition("social_douyin", "抖音主页链接", "url", "social", "社交链接", ""),
-    SettingDefinition("social_bilibili", "B站主页链接", "url", "social", "社交链接", ""),
-    SettingDefinition("social_github", "GitHub 主页链接", "url", "social", "社交链接", ""),
     # 对外联系邮箱：只给前台「联系我们」页展示（mailto），留空则整块不显示。
     # 用 text 而不是 url：url 类型会校验 http(s) 格式，邮箱不是 URL。
     SettingDefinition(
-        "contact_email", "对外联系邮箱", "text", "social", "社交链接", "",
+        "contact_email", "对外联系邮箱", "text", "basic", "基础设置", "",
         help_text="展示在「联系我们」页，用于商务合作与内容授权；留空则整块不显示",
     ),
     # 页脚「其他作品」：一行一条「名称 | 链接」，加新站只在这里加一行，无需改代码重新部署。
@@ -293,25 +213,14 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         "footer_sites",
         "页脚「其他作品」",
         "textarea",
-        "social",
-        "社交链接",
+        "basic",
+        "基础设置",
         "",
         help_text=(
             "一行一条，格式「名称 | 链接」，例如：\n"
             "See Every Step | https://example.com\n"
             "只接受 http/https 链接，最多展示 8 条，留空即整块不展示"
         ),
-    ),
-    # 邀请返利
-    # 邀请返利：开关用 bool（后台渲染成 Switch），积分用 number（带数值校验）。
-    # 存储值仍是 "1"/"0" 与十进制数字串，invite_service 的读取口径不变。
-    SettingDefinition(
-        "invite_enabled", "邀请返利开关", "bool", "invite", "邀请返利", "1",
-        help_text="关闭后邀请链接仍可分享，但不再发放邀请奖励积分",
-    ),
-    SettingDefinition(
-        "invite_reward_points", "邀请奖励积分（每邀请一位好友注册）", "number", "invite", "邀请返利", "50",
-        help_text="邀请人每成功邀请一位新用户注册获得的积分；0 = 不发放积分",
     ),
     # 法律文档（前台 /legal 页展示，富文本 HTML）
     SettingDefinition("legal_privacy", "隐私政策", "richtext", "legal", "法律文档", _LEGAL_PRIVACY_DEFAULT),
@@ -388,14 +297,6 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         "0", public=False, help_text="解析 360 图片公开 JSON 接口；国内直连快，无需 Key，默认关闭",
     ),
     SettingDefinition(
-        "image_search_baidu_enabled", "启用百度图片爬取", "bool", "image_search", "图片搜索",
-        "0", public=False, help_text="通过百度图片公开 JSON 接口检索；可能被站点安全验证拦截",
-    ),
-    SettingDefinition(
-        "image_search_sogou_enabled", "启用搜狗图片爬取", "bool", "image_search", "图片搜索",
-        "0", public=False, help_text="解析搜狗图片公开页面内嵌数据；无需 Key，默认关闭",
-    ),
-    SettingDefinition(
         "image_search_duitang_enabled", "启用堆糖爬取", "bool", "image_search", "图片搜索",
         "0", public=False, help_text="调用堆糖公开搜索接口；国内直连快，无需 Key，默认关闭",
     ),
@@ -447,11 +348,6 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
     # ------------------------------------------------------------------
 
     # 业务规则
-    SettingDefinition(
-        "free_time_hours", "免费试用时长（小时）", "number", "business", "业务规则",
-        f"{settings.FREE_TIME_LIMIT / 3600:g}", public=False,
-        help_text="新用户免费学习时长。0 = 无免费额度（需认证后使用）。按自然时间计算，非学习时长",
-    ),
     SettingDefinition(
         "ai_daily_limit_per_user", "单用户日 AI 调用上限（次/天）", "number", "business", "业务规则",
         str(settings.AI_DAILY_LIMIT_PER_USER), public=False,
@@ -538,6 +434,34 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         str(settings.RATE_LIMIT_WINDOW), public=False,
         help_text="固定窗口长度。改小会让突发流量更容易被拒，改大则更容易累积到上限",
     ),
+    SettingDefinition(
+        "ip_blacklist", "IP 黑名单（每行一个 IP/CIDR）", "textarea", "ratelimit", "访问限流",
+        settings.IP_BLACKLIST, public=False,
+        help_text="命中即 403，健康检查不受影响。推荐在「系统 → IP 黑名单」页维护（有校验与审计）；"
+        "此处是同一份配置的备用入口，保存同样即时生效",
+    ),
+    SettingDefinition(
+        "api_stats_enabled", "启用接口调用统计", "bool", "ratelimit", "访问限流",
+        "1" if settings.API_STATS_ENABLED else "0", public=False,
+        help_text="关闭后不再聚合调用量与慢请求（「接口监控」页将显示尚未采集）",
+    ),
+    SettingDefinition(
+        "api_slow_ms", "慢接口阈值（毫秒）", "number", "ratelimit", "访问限流",
+        str(settings.API_SLOW_MS), public=False,
+        help_text="耗时超过该值的请求进入「慢接口明细」（默认 1000ms），供「接口监控」页回看",
+    ),
+
+    # 密码策略（2026-11-19）：注册 / 建号 / 改密统一校验（core/password_policy）
+    SettingDefinition(
+        "password_min_length", "密码最小长度", "number", "password_policy", "密码策略",
+        str(settings.PASSWORD_MIN_LENGTH), public=False,
+        help_text="注册、管理员建号与修改密码统一执行的最小长度（6~64，默认 8）。只影响之后设置的密码",
+    ),
+    SettingDefinition(
+        "password_require_mixed", "必须包含字母和数字", "bool", "password_policy", "密码策略",
+        "1" if settings.PASSWORD_REQUIRE_MIXED else "0", public=False,
+        help_text="开启后纯数字或纯字母的密码会被拒绝；关闭则只校验最小长度",
+    ),
 
     # 站内搜索
     SettingDefinition(
@@ -555,12 +479,7 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
     SettingDefinition(
         "site_base_url", "站点根地址", "url", "seo", "站点与 SEO",
         settings.SITE_BASE_URL, public=False,
-        help_text="sitemap、百度推送、IndexNow、邀请海报、llms.txt 拼接链接用。改错会导致收录链接全错",
-    ),
-    SettingDefinition(
-        "baidu_push_token", "百度搜索资源平台推送 token", "password", "seo", "站点与 SEO",
-        settings.BAIDU_PUSH_TOKEN, secret=True, public=False,
-        help_text="留空则每日推送任务自动跳过",
+        help_text="sitemap、IndexNow、llms.txt 拼接链接用。改错会导致收录链接全错",
     ),
     SettingDefinition(
         "indexnow_key", "IndexNow 密钥（Bing 等）", "password", "seo", "站点与 SEO",
@@ -568,38 +487,11 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         help_text="32 位十六进制串。留空则推送任务与密钥文件路由同时停用",
     ),
 
-    # 第三方导入
-    SettingDefinition(
-        "github_token", "GitHub Token", "password", "fetch", "第三方导入",
-        settings.GITHUB_TOKEN, secret=True, public=False,
-        help_text="可选。配置后 GitHub API 速率上限从 60 次/小时提升到 5000 次/小时",
-    ),
-    SettingDefinition(
-        "github_proxy", "GitHub 出站代理", "text", "fetch", "第三方导入",
-        settings.GITHUB_PROXY, public=False,
-        help_text="形如 http://172.17.0.1:7890（容器可达的网桥地址）。留空则直连",
-    ),
-    SettingDefinition(
-        "github_mirror_prefix", "GitHub 加速镜像前缀", "url", "fetch", "第三方导入",
-        settings.GITHUB_MIRROR_PREFIX, public=False,
-        help_text="需以 / 结尾。拉取顺序：jsDelivr → 官方 API → 官方 API（经代理）→ 本镜像",
-    ),
-    SettingDefinition(
-        "hf_token", "HuggingFace Token", "password", "fetch", "第三方导入",
-        settings.HF_TOKEN, secret=True, public=False,
-        help_text="可选。匿名即可拉公开资源，配置后可拉受限资源并提升速率",
-    ),
-    SettingDefinition(
-        "article_proxy", "国外文章平台出站代理", "text", "fetch", "第三方导入",
-        settings.ARTICLE_PROXY, public=False,
-        help_text="仅对 X/Twitter、Reddit、Medium、Hacker News 等国内无法直连的平台生效",
-    ),
-
     # 对象存储
     SettingDefinition(
         "cos_secret_id", "COS SecretId", "password", "storage", "对象存储",
         settings.COS_SECRET_ID, secret=True, public=False,
-        help_text="腾讯云访问密钥。上传头像/图片/资源文件都走 COS，改动会影响全站上传",
+        help_text="腾讯云访问密钥。上传头像/图片/附件都走 COS，改动会影响全站上传",
     ),
     SettingDefinition(
         "cos_secret_key", "COS SecretKey", "password", "storage", "对象存储",
@@ -665,260 +557,40 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         help_text="桶名进域名（virtual）还是进路径（path）。上传 404/403 时先查这里",
     ),
 
-    # 小程序
+    # 登录链路（2026-10-27）：登录人机验证。
+    # ⚠️ 归属 `SURFACE_LOGIN`，由「系统 → 登录管理」承载，不出现在系统设置的 tab 里。
     SettingDefinition(
-        "wechat_mini_appid", "小程序 AppID", "text", "miniapp", "小程序凭据",
-        settings.WECHAT_MINI_APPID, public=False,
-        help_text="微信小程序登录用。与 Secret 同时配置后才生效",
-    ),
-    SettingDefinition(
-        "wechat_mini_secret", "小程序 AppSecret", "password", "miniapp", "小程序凭据",
-        settings.WECHAT_MINI_SECRET, secret=True, public=False,
-        help_text="用于 code2session 换取 openid。生产环境未配置时小程序登录返回 503",
-    ),
-
-    # 登录链路（2026-10-27）：手机号 + 验证码、微信扫码、短信商参数。
-    # ⚠️ 这三组归属 `SURFACE_LOGIN`，由「系统 → 登录管理」承载，不出现在系统设置的 tab 里；
-    # 分组顺序即登录管理页的区块顺序（手机号 → 微信 → 短信通道）。
-    SettingDefinition(
-        "phone_login_enabled", "手机号验证码登录", "bool", "auth_phone", "手机号验证码登录", "0", public=False,
-        help_text="关闭后 /auth/phone/* 直接拒绝，前端登录页不显示手机号登录",
-    ),
-    SettingDefinition(
-        "phone_login_auto_register", "手机号首登自动注册", "bool", "auth_phone", "手机号验证码登录", "1", public=False,
-        help_text="开启：未注册手机号验证通过后自动建号；关闭：必须先登录邮箱账号再绑定手机号",
-    ),
-    SettingDefinition(
-        "wechat_web_login_enabled", "微信扫码登录", "bool", "auth_wechat", "微信登录", "0", public=False,
-        help_text="需要微信开放平台「网站应用」资质与 AppID/Secret；未配置时按钮不会显示",
-    ),
-    SettingDefinition(
-        "wechat_login_auto_register", "微信首登自动注册", "bool", "auth_wechat", "微信登录", "1", public=False,
-        help_text="开启：未绑定账号的微信身份验证通过后自动建号；关闭：提示先绑定已有账号",
-    ),
-    SettingDefinition(
-        "wechat_mini_login_enabled", "微信小程序登录", "bool", "auth_wechat", "微信登录", "0", public=False,
-        help_text="小程序登录总开关；关闭后 /auth/miniapp/login 直接拒绝",
-    ),
-    SettingDefinition(
-        "login_captcha_enabled", "登录图形验证码", "bool", "auth_captcha", "登录人机验证", "0", public=False,
+        "login_captcha_enabled", "登录图形验证码", "bool", "auth_captcha", "登录安全", "0", public=False,
         help_text="开启后账号密码登录必须先通过图形验证码（一次性消费，5 分钟有效）；"
         "登录前接口与密码校验无关，错码不计入账号失败锁定",
     ),
     SettingDefinition(
-        "wechat_web_appid", "网站应用 AppID", "text", "auth_wechat", "微信登录", "", public=False,
-        help_text="微信开放平台网站应用的 AppID（与小程序 AppID 不同）",
+        "session_access_minutes", "Access Token 有效期（分钟）", "number", "auth_captcha", "登录安全",
+        str(settings.JWT_ACCESS_EXPIRE_MINUTES), public=False,
+        help_text="新签发 access token 的有效期（5~1440 分钟）。改动只影响之后登录/刷新签发的令牌，"
+        "存量令牌按签发时的有效期自然过期",
     ),
     SettingDefinition(
-        "wechat_web_secret", "网站应用 AppSecret", "password", "auth_wechat", "微信登录", "",
-        secret=True, public=False,
-        help_text="用于扫码回调换取 access_token / openid / unionid",
+        "session_refresh_days", "Refresh Token 有效期（天）", "number", "auth_captcha", "登录安全",
+        str(settings.JWT_REFRESH_EXPIRE_DAYS), public=False,
+        help_text="新签发 refresh token 的有效期（1~90 天）。改动只影响之后签发的令牌",
     ),
     SettingDefinition(
-        "wechat_web_redirect_uri", "网站应用回调地址", "url", "auth_wechat", "微信登录", "", public=False,
-        help_text="必须与开放平台「授权回调域」完全一致；留空则用 site_base_url + /api/v1/auth/wechat/web/callback",
+        "session_max_days", "会话最大存活时间（天）", "number", "auth_captcha", "登录安全",
+        str(settings.SESSION_MAX_DAYS), public=False,
+        help_text="refresh 链超过该天数一律拒绝并吊销会话（防无限续期链，被盗号的刷新令牌也会自然失效）。"
+        "改动即时生效",
     ),
     SettingDefinition(
-        "sms_provider", "短信服务商", "select", "auth_sms", "短信通道", "mock", public=False,
-        options=[
-            {"value": "mock", "label": "Mock（仅本地联调）"},
-            {"value": "tencent", "label": "腾讯云 SMS"},
-            {"value": "aliyun", "label": "阿里云 SMS"},
-        ],
-        help_text="生产环境请选择已开通的服务商；Mock 不会真正发短信",
+        "login_fail_alert_threshold", "登录失败告警阈值（次/小时）", "number", "auth_captcha", "登录安全",
+        str(settings.LOGIN_FAIL_ALERT_THRESHOLD), public=False,
+        help_text="近 1 小时登录失败数超过该值时，顶栏待办出现「登录失败异常」条目（0 = 禁用）",
     ),
     SettingDefinition(
-        "sms_code_ttl_seconds", "验证码有效期（秒）", "number", "auth_sms", "短信通道", "300", public=False,
-        help_text="默认 300 秒（5 分钟）",
-    ),
-    SettingDefinition(
-        "sms_send_interval_seconds", "重发间隔（秒）", "number", "auth_sms", "短信通道", "60", public=False,
-        help_text="同一手机号两次发送的最小间隔",
-    ),
-    SettingDefinition(
-        "sms_daily_limit_per_phone", "单号码日发送上限", "number", "auth_sms", "短信通道", "10", public=False,
-        help_text="自然日；防止短信轰炸与 SMS pumping 话费损失",
-    ),
-    SettingDefinition(
-        "sms_daily_limit_per_ip", "单 IP 日发送上限", "number", "auth_sms", "短信通道", "20", public=False,
-        help_text="自然日；匿名接口的兜底防刷",
-    ),
-    SettingDefinition(
-        "sms_mock_code", "Mock 固定验证码", "text", "auth_sms", "短信通道", "123456", public=False,
-        help_text="仅 sms_provider=mock 时生效；生产环境请勿使用 Mock",
-    ),
-    SettingDefinition(
-        "sms_tencent_secret_id", "腾讯云 SecretId", "password", "auth_sms", "短信通道", "",
-        secret=True, public=False,
-    ),
-    SettingDefinition(
-        "sms_tencent_secret_key", "腾讯云 SecretKey", "password", "auth_sms", "短信通道", "",
-        secret=True, public=False,
-    ),
-    SettingDefinition(
-        "sms_tencent_sdk_app_id", "腾讯云短信 SDKAppID", "text", "auth_sms", "短信通道", "", public=False,
-        help_text="短信控制台的 SdkAppId（数字）",
-    ),
-    SettingDefinition(
-        "sms_tencent_sign_name", "腾讯云短信签名", "text", "auth_sms", "短信通道", "", public=False,
-    ),
-    SettingDefinition(
-        "sms_tencent_template_id", "腾讯云短信模板 ID", "text", "auth_sms", "短信通道", "", public=False,
-    ),
-    SettingDefinition(
-        "sms_tencent_region", "腾讯云短信地域", "text", "auth_sms", "短信通道", "ap-guangzhou", public=False,
-    ),
-    SettingDefinition(
-        "sms_tencent_template_params", "腾讯云模板参数 JSON", "text", "auth_sms", "短信通道",
-        '["{code}","5"]', public=False,
-        help_text='模板参数数组，{code} 会替换为验证码；例如 ["{code}","5"]',
-    ),
-    SettingDefinition(
-        "sms_aliyun_access_key_id", "阿里云 AccessKeyId", "text", "auth_sms", "短信通道", "", public=False,
-    ),
-    SettingDefinition(
-        "sms_aliyun_access_key_secret", "阿里云 AccessKeySecret", "password", "auth_sms", "短信通道", "",
-        secret=True, public=False,
-    ),
-    SettingDefinition(
-        "sms_aliyun_sign_name", "阿里云短信签名", "text", "auth_sms", "短信通道", "", public=False,
-    ),
-    SettingDefinition(
-        "sms_aliyun_template_code", "阿里云模板 CODE", "text", "auth_sms", "短信通道", "", public=False,
-    ),
-    SettingDefinition(
-        "sms_aliyun_region", "阿里云短信地域", "text", "auth_sms", "短信通道", "cn-hangzhou", public=False,
-    ),
-    SettingDefinition(
-        "sms_aliyun_template_param_key", "阿里云模板参数名", "text", "auth_sms", "短信通道", "code", public=False,
-        help_text="模板变量名，默认 code；发送时传 {该字段: 验证码}",
-    ),
-
-    # 支付与渠道（2026-10-27）：积分充值 / VIP 套餐
-    SettingDefinition(
-        "payment_enabled", "支付总开关", "bool", "payment_general", "支付开关与订单", "0", public=False,
-        help_text="关闭后下单接口直接拒绝，前端不展示充值入口",
-    ),
-    SettingDefinition(
-        "payment_mock_enabled", "启用 Mock 支付", "bool", "payment_general", "支付开关与订单", "1", public=False,
-        help_text="仅用于本地/验收环境的模拟支付；生产环境请关闭",
-    ),
-    SettingDefinition(
-        "payment_order_expire_minutes", "订单有效期（分钟）", "number", "payment_general", "支付开关与订单", "30", public=False,
-    ),
-    SettingDefinition(
-        "wechat_pay_enabled", "微信支付（Native 扫码）", "bool", "payment_wechat", "微信支付", "0", public=False,
-    ),
-    SettingDefinition(
-        "wechat_pay_mch_id", "微信支付商户号", "text", "payment_wechat", "微信支付", "", public=False,
-    ),
-    SettingDefinition(
-        "wechat_pay_appid", "微信支付 AppID", "text", "payment_wechat", "微信支付", "", public=False,
-        help_text="绑定当前商户号的 AppID（公众号/开放平台/小程序）",
-    ),
-    SettingDefinition(
-        "wechat_pay_serial_no", "商户证书序列号", "text", "payment_wechat", "微信支付", "", public=False,
-    ),
-    SettingDefinition(
-        "wechat_pay_api_v3_key", "微信支付 APIv3 密钥", "password", "payment_wechat", "微信支付", "",
-        secret=True, public=False,
-        help_text="32 位；用于解密回调 resource",
-    ),
-    SettingDefinition(
-        "wechat_pay_private_key", "微信支付商户私钥（PEM）", "secret_text", "payment_wechat", "微信支付", "",
-        secret=True, public=False,
-        help_text="apiclient_key.pem 全文；加密存储，页面只显示是否已配置",
-    ),
-    SettingDefinition(
-        "wechat_pay_platform_public_key", "微信支付平台公钥（PEM）", "textarea", "payment_wechat", "微信支付", "",
-        public=False,
-        help_text="用于验证回调签名；从商户平台下载的平台证书/公钥中提取",
-    ),
-    SettingDefinition(
-        "wechat_pay_notify_url", "微信支付回调地址", "url", "payment_wechat", "微信支付", "", public=False,
-        help_text="必须为 HTTPS 公网地址；留空则用 site_base_url + /api/v1/payments/notify/wechat",
-    ),
-    # --- Stripe（默认支付渠道）---
-    SettingDefinition(
-        "stripe_enabled", "Stripe 支付（Checkout）", "bool", "payment_stripe", "Stripe（默认渠道）", "1", public=False,
-        help_text="默认支付渠道；Secret Key / Publishable Key 未配置时该渠道自动不可用，下单回退到其它渠道",
-    ),
-    SettingDefinition(
-        "stripe_mode", "运行模式", "select", "payment_stripe", "Stripe（默认渠道）",
-        settings.STRIPE_MODE or "test", public=False,
-        options=[
-            {"value": "test", "label": "测试模式（test）"},
-            {"value": "live", "label": "正式模式（live）"},
-        ],
-        help_text="仅用于展示与密钥前缀提醒，实际是否扣款由 Secret Key 决定",
-    ),
-    SettingDefinition(
-        "stripe_secret_key", "Secret Key（sk_...）", "password", "payment_stripe", "Stripe（默认渠道）",
-        settings.STRIPE_SECRET_KEY, secret=True, public=False,
-        help_text="只写后端，绝不下发前端；加密存储，页面只显示是否已配置",
-    ),
-    SettingDefinition(
-        "stripe_publishable_key", "Publishable Key（pk_...）", "text", "payment_stripe", "Stripe（默认渠道）",
-        settings.STRIPE_PUBLISHABLE_KEY, public=False,
-        help_text="可公开下发：前端配置接口会返回该值用于 Stripe.js（如需要）",
-    ),
-    SettingDefinition(
-        "stripe_webhook_secret", "Webhook Secret（whsec_...）", "password", "payment_stripe", "Stripe（默认渠道）",
-        settings.STRIPE_WEBHOOK_SECRET, secret=True, public=False,
-        help_text="用于校验 Stripe 回调签名；未配置时公网回调会被拒绝，本地依赖回跳查单",
-    ),
-    SettingDefinition(
-        "stripe_currency", "结算币种", "select", "payment_stripe", "Stripe（默认渠道）",
-        (settings.STRIPE_CURRENCY or "cny").lower(), public=False,
-        options=[
-            {"value": "cny", "label": "CNY（人民币）"},
-            {"value": "usd", "label": "USD（美元）"},
-            {"value": "hkd", "label": "HKD（港币）"},
-        ],
-        help_text="套餐金额按其最小货币单位（分）传给 Stripe；切换币种前请确认套餐价格",
-    ),
-    SettingDefinition(
-        "stripe_success_url", "支付成功回跳地址", "url", "payment_stripe", "Stripe（默认渠道）",
-        settings.STRIPE_SUCCESS_URL, public=False,
-        help_text="留空则用 site_base_url + /recharge/result?provider=stripe；系统会自动追加 session_id",
-    ),
-    SettingDefinition(
-        "stripe_cancel_url", "取消支付回跳地址", "url", "payment_stripe", "Stripe（默认渠道）",
-        settings.STRIPE_CANCEL_URL, public=False,
-        help_text="留空则用 site_base_url + /recharge/result?provider=stripe&status=cancel",
-    ),
-
-    # 支付宝
-    SettingDefinition(
-        "alipay_enabled", "支付宝（电脑网站支付）", "bool", "payment_alipay", "支付宝", "0", public=False,
-    ),
-    SettingDefinition(
-        "alipay_app_id", "支付宝 AppID", "text", "payment_alipay", "支付宝", "", public=False,
-    ),
-    SettingDefinition(
-        "alipay_private_key", "支付宝应用私钥（PEM）", "secret_text", "payment_alipay", "支付宝", "",
-        secret=True, public=False,
-        help_text="应用私钥全文；加密存储，页面只显示是否已配置",
-    ),
-    SettingDefinition(
-        "alipay_public_key", "支付宝公钥（PEM）", "textarea", "payment_alipay", "支付宝", "", public=False,
-        help_text="用于验证异步通知签名；不是应用公钥",
-    ),
-    SettingDefinition(
-        "alipay_notify_url", "支付宝异步通知地址", "url", "payment_alipay", "支付宝", "", public=False,
-        help_text="留空则用 site_base_url + /api/v1/payments/notify/alipay",
-    ),
-    SettingDefinition(
-        "alipay_return_url", "支付宝同步跳回地址", "url", "payment_alipay", "支付宝", "", public=False,
-        help_text="支付完成后浏览器跳回的前端页面；留空则用 site_base_url + /recharge/result",
-    ),
-    SettingDefinition(
-        "alipay_gateway", "支付宝网关", "select", "payment_alipay", "支付宝",
-        "https://openapi.alipay.com/gateway.do", public=False,
-        options=[
-            {"value": "https://openapi.alipay.com/gateway.do", "label": "生产环境"},
-            {"value": "https://openapi-sandbox.dl.alipaydev.com/gateway.do", "label": "沙箱环境"},
-        ],
+        "login_time_window", "允许登录时段", "text", "auth_captcha", "登录安全",
+        settings.LOGIN_TIME_WINDOW, public=False,
+        help_text="格式 HH:MM-HH:MM（北京时间，支持跨天如 22:00-06:00）；留空 = 不限制。"
+        "窗口外的登录请求直接拒绝并进登录日志；解析失败按不限制处理（不会锁死全站）",
     ),
 
     # 邮件通知
@@ -955,6 +627,30 @@ SETTING_DEFINITIONS: list[SettingDefinition] = [
         "smtp_sender_name", "发件人显示名", "text", "mail", "SMTP 通道",
         settings.SMTP_SENDER_NAME, public=False,
     ),
+
+    # 验证码邮件模板（2026-11-19）：变量 {{code}} / {{site_name}} / {{expire_minutes}}；
+    # 渲染缺 {{code}} 自动回退内置模板（验证码邮件没有验证码是事故）
+    SettingDefinition(
+        "mail_verify_subject", "验证码邮件主题", "textarea", "mail", "SMTP 通道",
+        settings.MAIL_VERIFY_SUBJECT, public=False,
+        help_text="支持变量：{{code}} 验证码、{{site_name}} 平台名称、{{expire_minutes}} 有效期分钟数。"
+        "渲染结果缺少验证码时自动回退内置模板",
+    ),
+    SettingDefinition(
+        "mail_verify_body", "验证码邮件正文（纯文本）", "textarea", "mail", "SMTP 通道",
+        settings.MAIL_VERIFY_BODY, public=False,
+        help_text="邮件的纯文本正文（HTML 版仍用内置设计稿，品牌名取平台名称）。"
+        "支持变量同上；渲染结果缺少验证码时自动回退内置模板",
+    ),
+
+    # 站内通知模板（2026-11-19）：JSON 数组 [{name,title,content}]，主入口在
+    # 「消息通知 → 发送通知」弹窗（可一键套用）；此处为守卫要求的备用入口
+    SettingDefinition(
+        "message_templates", "站内通知模板（JSON）", "textarea", "notifications", "站内通知",
+        settings.MESSAGE_TEMPLATES, public=False,
+        help_text="JSON 数组 [{name,title,content}]，上限 20 条。推荐在「消息通知 → 发送通知」"
+        "弹窗内维护（套用/存为/删除），此处是同一份配置的备用入口",
+    ),
 ]
 
 def _validate_group_declarations() -> None:
@@ -974,7 +670,6 @@ def _validate_group_declarations() -> None:
         SURFACE_SETTINGS,
         SURFACE_LOGIN,
         SURFACE_LEGAL,
-        SURFACE_PAYMENT,
         SURFACE_MODEL,
         SURFACE_MAIL,
     }

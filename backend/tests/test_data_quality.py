@@ -52,12 +52,14 @@ class _StubSession:
 
 class AggregateTests(unittest.IsolatedAsyncioTestCase):
     async def test_counts_are_summed_into_issue_total(self):
-        session = _StubSession({"points < 0": 2, "role = 'vip'": 3})
+        # 2026-11-18：商业化检查项（negative_points / vip_expired_stale）已随 0080 裁剪，
+        # 巡检现只有孤儿收藏（按目标类型）与孤儿学习记录两类
+        session = _StubSession({"f.target_type = 'tutorial'": 2, "learning_records l": 3})
         result = await dqs.collect_issues(session)
         self.assertEqual(result["issue_total"], 5)
         codes = {i["code"] for i in result["issues"]}
-        self.assertIn("negative_points", codes)
-        self.assertIn("vip_expired_stale", codes)
+        self.assertIn("orphan_favorites:tutorial", codes)
+        self.assertIn("orphan_learnings", codes)
 
     async def test_zero_counts_produce_no_issue(self):
         result = await dqs.collect_issues(_StubSession())
@@ -66,10 +68,10 @@ class AggregateTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(result["checks"], "即使全为 0 也要回传 checks，便于后台展示「已检查」")
 
     async def test_one_failed_check_does_not_break_the_round(self):
-        session = _StubSession({"points < 0": 4, "role = 'vip'": 1}, fail={"role = 'vip'"})
+        session = _StubSession({"f.target_type = 'tutorial'": 4, "learning_records l": 1}, fail={"learning_records l"})
         result = await dqs.collect_issues(session)
-        self.assertIsNone(result["checks"]["vip_expired_stale"]["count"])
-        self.assertEqual(result["checks"]["negative_points"]["count"], 4)
+        self.assertIsNone(result["checks"]["orphan_learnings"]["count"])
+        self.assertEqual(result["checks"]["orphan_favorites:tutorial"]["count"], 4)
         self.assertEqual(result["issue_total"], 4, "失败的检查项不能计入总数，也不能让整轮返回 0")
 
     async def test_orphan_favorites_are_split_per_type(self):
@@ -81,9 +83,9 @@ class AggregateTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("workflow", joined, "历史遗留 target_type 没有对应表，不能去查")
 
     async def test_issue_text_carries_actionable_label(self):
-        result = await dqs.collect_issues(_StubSession({"points < 0": 1}))
-        self.assertIn("积分为负", result["issues"][0]["text"])
-        self.assertEqual(result["issues"][0]["level"], "error")
+        result = await dqs.collect_issues(_StubSession({"f.target_type = 'tutorial'": 1}))
+        self.assertIn("收藏指向已删除的内容", result["issues"][0]["text"])
+        self.assertEqual(result["issues"][0]["level"], "warn")
 
 
 class ReadOnlyGuardTests(unittest.TestCase):

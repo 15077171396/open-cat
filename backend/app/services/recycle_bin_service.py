@@ -7,9 +7,7 @@
 - **权限在服务端裁剪**：汇总只返回当前管理员有查看权限的类型；恢复按钮按各自
   `*:delete` / `user:restore` 权限点亮。没有权限的类型不会出现在页面上。
 - **保留期是产品决策，不是随手写的数字**：教程 90 天、评论 30 天；用户账号不自动清理。
-  有购买记录的教程也不自动清理（删除付费内容会破坏用户已购买权益）。
-- 自动清理只硬删除**已过保留期且确定不会破坏权益**的数据；教程先清章节/网盘链接，
-  再删主行，避免外键挡住。
+- 自动清理只硬删除已过保留期的数据；教程先清章节再删主行，避免外键挡住。
 """
 
 from __future__ import annotations
@@ -23,7 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.data_scope import DataScope, apply_scope
 from app.core.exceptions import AppException
 from app.models.comment import ContentComment
-from app.models.tutorial import Tutorial, TutorialNetdiskLink, TutorialPurchase
+from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
 from app.services import admin_user_service, comment_service, rbac_service
@@ -172,22 +170,9 @@ async def list_tutorials(
             .limit(page_size)
         )
     ).all()
-    purchased: set[int] = set()
-    ids = [row[0] for row in rows]
-    if ids:
-        purchased = set(
-            (
-                await db.execute(
-                    select(TutorialPurchase.tutorial_id).where(
-                        TutorialPurchase.tutorial_id.in_(ids)
-                    )
-                )
-            ).scalars().all()
-        )
     can_restore = _can(is_super, perms, _RESTORE_PERMS["tutorial"])
     items = []
     for tutorial_id, title, category, deleted_at in rows:
-        has_purchase = tutorial_id in purchased
         items.append(
             _item(
                 item_type="tutorial",
@@ -196,9 +181,7 @@ async def list_tutorials(
                 subtitle=category or "未分类",
                 deleted_at=deleted_at,
                 can_restore=can_restore,
-                # 有购买记录 = 删掉会破坏用户已购买的权益，保留期锁定
-                retention_days=None if has_purchase else TUTORIAL_RETENTION_DAYS,
-                retention_note="有购买记录，不自动清理" if has_purchase else "",
+                retention_days=TUTORIAL_RETENTION_DAYS,
             )
         )
     return {"items": items, "total": total, "page": page, "page_size": page_size}
@@ -378,7 +361,7 @@ async def restore_users(db: AsyncSession, ids: list[int], admin: User) -> dict:
 async def purge_expired(db: AsyncSession, *, now: datetime | None = None) -> dict:
     """硬删除超过保留期的教程 / 评论；**不提交**，由调度器在成功后统一提交。
 
-    用户账号不自动清理；有购买记录的教程跳过（删掉会破坏已购买的权益）。
+    用户账号不自动清理。
     """
     current = (now or _now_naive_utc())
     if current.tzinfo is not None:
@@ -401,18 +384,7 @@ async def purge_expired(db: AsyncSession, *, now: datetime | None = None) -> dic
             )
         )
     ).scalars().all()
-    purchased: set[int] = set()
-    if candidate_ids:
-        purchased = set(
-            (
-                await db.execute(
-                    select(TutorialPurchase.tutorial_id).where(
-                        TutorialPurchase.tutorial_id.in_(candidate_ids)
-                    )
-                )
-            ).scalars().all()
-        )
-    eligible = [tutorial_id for tutorial_id in candidate_ids if tutorial_id not in purchased]
+    eligible = list(candidate_ids)
 
     if eligible:
         # 先清用户侧关联，再删章节 / 网盘链接，最后删主行；顺序错会被外键挡住
@@ -423,24 +395,23 @@ async def purge_expired(db: AsyncSession, *, now: datetime | None = None) -> dic
             .where(TutorialNode.tutorial_id.in_(eligible))
             .values(parent_id=None)
         )
-        await db.execute(delete(TutorialNode).where(TutorialNode.tutorial_id.in_(eligible)))
         await db.execute(
-            delete(TutorialNetdiskLink).where(TutorialNetdiskLink.tutorial_id.in_(eligible))
+            delete(TutorialNode).where(TutorialNode.tutorial_id.in_(eligible))
         )
-        await db.execute(delete(Tutorial).where(Tutorial.id.in_(eligible)))
+        # 网盘链接表已随商业化模块下线（迁移 0080 删表），无需再清理
+        await db.execute(
+            delete(Tutorial).where(Tutorial.id.in_(eligible))
+        )
 
-    if comments_deleted or eligible or purchased:
+    if comments_deleted or eligible:
         logger.bind(
             event="recycle_bin_purge",
             tutorials=len(eligible),
             comments=comments_deleted,
-            skipped_purchased=len(purchased),
         ).info(
             f"回收站到期清理：教程 {len(eligible)} 篇 / 评论 {comments_deleted} 条"
-            f"（有购买记录跳过 {len(purchased)} 篇）"
         )
     return {
         "tutorials": len(eligible),
         "comments": comments_deleted,
-        "tutorials_skipped": len(purchased),
     }

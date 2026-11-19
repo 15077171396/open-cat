@@ -23,8 +23,8 @@ from app.services import ai_cost_settings_service, setting_service
 from app.services.setting_service import (
     SURFACE_LEGAL,
     SURFACE_LOGIN,
+    SURFACE_MAIL,
     SURFACE_MODEL,
-    SURFACE_PAYMENT,
     SURFACE_SETTINGS,
 )
 from tests.fake_db import MemorySession
@@ -53,7 +53,7 @@ class OwnershipTests(unittest.TestCase):
         self.assertEqual(set(ai_cost_settings_service.COST_SETTING_KEYS), _COST_KEYS)
 
     def test_cost_keys_are_model_surface_only(self):
-        for surface in (SURFACE_SETTINGS, SURFACE_LOGIN, SURFACE_LEGAL, SURFACE_PAYMENT):
+        for surface in (SURFACE_SETTINGS, SURFACE_LOGIN, SURFACE_LEGAL, SURFACE_MAIL):
             with self.subTest(surface=surface):
                 self.assertFalse(
                     _COST_KEYS & setting_service.keys_for_surface(surface),
@@ -97,7 +97,7 @@ class WriteScopeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((await self._rows())["ai_global_daily_limit"], "1000")
 
     async def test_rejects_foreign_keys(self):
-        for key in ("cos_secret_key", "payment_enabled", "phone_login_enabled", "site_name"):
+        for key in ("cos_secret_key", "smtp_host", "login_captcha_enabled", "site_name"):
             with self.subTest(key=key):
                 with self.assertRaises(ValueError):
                     await ai_cost_settings_service.update(

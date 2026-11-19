@@ -1,10 +1,13 @@
 """认证服务 - 注册/登录/Token 管理"""
 
-from datetime import datetime, timezone
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
+
+import time
+
+from app.config import settings
 
 from app.core.security import (
     hash_password_async,
@@ -19,25 +22,21 @@ from app.core.security import (
 )
 from app.core.session_store import (
     create_session,
+    get_session,
     new_session_id,
     revoke_all_sessions,
     revoke_session,
     touch_session,
 )
 from app.core.exceptions import AppException, AuthenticationError
+from app.core.login_time import check_login_time
+from app.core.password_policy import validate_password_strength
 from app.models.user import User
 from app.schemas.auth import RegisterRequest, LoginRequest
-from app.services import captcha_service
+from app.services import captcha_service, login_log_service
 from app.utils.verification import verify_code, mask_account, is_phone
 from app.redis import log_redis_degraded, redis_client
-from app.services.timer_service import get_free_time_status
-from app.services.audit_service import cleanup_auth_data_on_reactivation
 from app.services.user_settings_service import cleanup_personal_data_on_reactivation
-from app.services.invite_service import (
-    get_invite_settings,
-    find_inviter_by_code,
-    bind_invite_and_reward,
-)
 from app.services.totp_service import (
     enforce_admin_2fa_policy,
     is_totp_enabled,
@@ -51,16 +50,8 @@ LOGIN_LOCK_SECONDS = 900
 
 
 def build_user_profile(user: User) -> dict:
-    """构建包含计算字段(auth_status, free_remaining_seconds)的用户信息字典，
-    供 /auth/login、/auth/register、/auth/me 复用，保证登录后立即拿到与 /auth/me 一致的数据
-    （剩余时长按「注册起 3 小时自然时间倒计时」口径，timer_service 统一实现）"""
-    remaining = get_free_time_status(user)["free_remaining_seconds"]
-    if user.role == "vip" or user.role == "admin":
-        auth_status = "approved"
-    elif user.pending_auth_code:
-        auth_status = "pending"
-    else:
-        auth_status = "none"
+    """构建用户信息字典，供 /auth/login、/auth/register、/auth/me 复用，
+    保证登录后立即拿到与 /auth/me 一致的数据"""
     # 老数据「account 即手机号」由迁移回填 phone；运行期再兜底一次，避免迁移窗口内读不到
     phone = user.phone or (user.account if is_phone(user.account) else None)
     return {
@@ -75,14 +66,6 @@ def build_user_profile(user: User) -> dict:
         "phone": phone,
         "phone_masked": mask_account(phone) if phone else None,
         "has_phone": bool(phone),
-        "wechat_bound": bool(user.wechat_unionid or user.wechat_openid or user.wechat_web_openid),
-        "free_used_seconds": user.free_used_seconds,
-        "free_remaining_seconds": remaining,
-        "points": user.points or 0,
-        "vip_expire_time": user.vip_expire_time.isoformat() if user.vip_expire_time else None,
-        "pending_auth_code": user.pending_auth_code,
-        "has_pending_auth_code": bool(user.pending_auth_code),
-        "auth_status": auth_status,
         "avatar_url": user.avatar_url,
         "created_at": user.created_at.isoformat() if user.created_at else None,
     }
@@ -90,16 +73,9 @@ def build_user_profile(user: User) -> dict:
 
 async def register(req: RegisterRequest, db: AsyncSession) -> dict:
     """用户注册"""
-    # 邀请码预校验（先于验证码）：无效时直接 400 让用户改正，此时验证码尚未消费、无需重发；
-    # 功能关闭时静默忽略邀请码，不阻断注册
-    inviter = None
-    invite_reward = 0
-    if req.invite_code and req.invite_code.strip():
-        enabled, invite_reward = await get_invite_settings()
-        if enabled:
-            inviter = await find_inviter_by_code(db, req.invite_code)
-            if not inviter:
-                raise AppException(code=400, message="邀请码无效，请检查后重新填写")
+    # 密码强度策略（2026-11-19）：策略是注册的第一道门（快速失败，不烧验证码额度），
+    # 配置在「系统设置 → 密码策略」可调，所有写入点统一走这一个校验
+    validate_password_strength(req.password)
 
     # 先校验验证码：旧顺序「先查账号存在性再验码」让攻击者无需有效验证码即可批量探测账号（枚举 Oracle）；
     # 验码成功即消费，注册因 409 失败需重新获取（防枚举的标准取舍）
@@ -107,8 +83,8 @@ async def register(req: RegisterRequest, db: AsyncSession) -> dict:
         raise AppException(code=400, message="验证码错误或已过期")
 
     # 检查账号是否已存在
-    result = await db.execute(select(User).where(User.account == req.account))
-    existing = result.scalar_one_or_none()
+    result = await db.scalars(select(User).where(User.account == req.account))
+    existing = result.one_or_none()
     if existing and existing.deleted_at is None:
         raise AppException(code=409, message="该账号已注册")
 
@@ -117,24 +93,15 @@ async def register(req: RegisterRequest, db: AsyncSession) -> dict:
         existing.deleted_at = None
         existing.password_hash = await hash_password_async(req.password)
         existing.role = "user"
-        existing.free_used_seconds = 0
-        existing.free_started_at = datetime.now(timezone.utc)  # 重新计算 3 小时免费倒计时
-        # 清理上一账号周期的认证数据（待审核标记/VIP/认证申请记录），认证状态从零开始
-        await cleanup_auth_data_on_reactivation(db, existing)
-        # 清空上一账号周期的个人数据（收藏/学习/下载/消息/工具日志），重置昵称/头像/简介
+        # 清空上一账号周期的个人数据（收藏/学习/消息），重置昵称/头像/简介
         await cleanup_personal_data_on_reactivation(db, existing)
         user = existing
-        # 复活账号不算新用户：不重新绑定邀请关系、不重复发奖
-        #（防「注销-复活换邀请码」刷分；原邀请关系保留）
-        inviter = None
     else:
         # 创建用户
         user = User(
             account=req.account,
             password_hash=await hash_password_async(req.password),
             role="user",
-            free_used_seconds=0,
-            free_started_at=datetime.now(timezone.utc),  # 注册起 3 小时自然时间倒计时
         )
         db.add(user)
 
@@ -154,11 +121,6 @@ async def register(req: RegisterRequest, db: AsyncSession) -> dict:
         )
         raise AppException(code=409, message="注册失败，请重新提交")
     await db.refresh(user)  # 加载 server_default 生成的字段
-
-    # 全新用户且带有效邀请人：绑定邀请关系并给邀请人发放积分奖励
-    # （关系/余额/流水与注册同一事务，失败整体回滚）
-    if inviter:
-        await bind_invite_and_reward(db, inviter, user, invite_reward)
 
     # ⚠️ 必须显式提交：get_db 的 teardown commit 在响应发送之后才执行，
     # 「客户端已拿到 access_token」与「账号真正落库」之间存在窗口——
@@ -370,13 +332,11 @@ async def issue_login_tokens(
     client_ip: str | None = None,
     user_agent: str | None = None,
 ) -> dict:
-    """签发登录 Token 对；Web / 手机号 / 微信 / 小程序共用同一口径。
+    """签发登录 Token 对；Web / 邮箱登录共用同一口径。
 
     每次登录分配一个新的会话 id（sid）并登记到会话簿：
     refresh 按 sid 隔离，多设备互不覆盖；用户才能在「登录设备」里看到并单独踢掉某一台。
     """
-    if await check_vip_expiry(user):
-        await db.commit()
     sid = new_session_id()
     tokens = create_token_pair(user.id, user.role, ver=await get_token_version(user.id), sid=sid)
     await store_refresh_token(user.id, tokens["refresh_token"], sid=sid)
@@ -401,15 +361,39 @@ async def login(
     # 人机挑战前置：密码校验之前先过图形验证码（开关关闭时直接放行）。
     # 放在 verify_account_password 之前 —— 让跨 IP 撞库的成本落在请求侧，
     # 而不是先把失败计数与 dummy bcrypt 烧完才拦。
-    await captcha_service.enforce_login_captcha(req.captcha_id, req.captcha_code)
-    # 账号级失败锁定 + 时序均衡，统一在 verify_account_password 内实现
-    user = await verify_account_password(db, req.account, req.password, client_ip=client_ip)
-    await enforce_totp_if_enabled(
-        db, user, account=req.account, totp_code=req.totp_code, client_ip=client_ip
-    )
-    await enforce_admin_2fa_policy(db, user)
+    # 登录日志（2026-11-18）：成功/失败都留痕（安全遥测）。record() 内部吞异常，
+    # 记日志失败绝不影响登录主流程。
+    try:
+        # 登录时段限制（2026-11-19）：所有闸门里**最靠前**的一道 —— 快速失败，
+        # 不烧验证码额度、不泄露账号存在性；拒绝走 except 分支统一进登录日志
+        check_login_time()
+
+        await captcha_service.enforce_login_captcha(req.captcha_id, req.captcha_code)
+        # 账号级失败锁定 + 时序均衡，统一在 verify_account_password 内实现
+        user = await verify_account_password(db, req.account, req.password, client_ip=client_ip)
+        await enforce_totp_if_enabled(
+            db, user, account=req.account, totp_code=req.totp_code, client_ip=client_ip
+        )
+        await enforce_admin_2fa_policy(db, user)
+    except AppException as exc:
+        await login_log_service.record(
+            status="failed",
+            account=req.account,
+            message=exc.message,
+            ip=client_ip,
+            user_agent=user_agent,
+        )
+        raise
     logger.info(f"用户登录: {mask_account(req.account)} (id={user.id})")
-    return await issue_login_tokens(db, user, client_ip=client_ip, user_agent=user_agent)
+    result = await issue_login_tokens(db, user, client_ip=client_ip, user_agent=user_agent)
+    await login_log_service.record(
+        status="success",
+        user_id=user.id,
+        account=req.account,
+        ip=client_ip,
+        user_agent=user_agent,
+    )
+    return result
 
 
 async def refresh_token(refresh_token_str: str, db: AsyncSession) -> dict:
@@ -443,9 +427,19 @@ async def refresh_token(refresh_token_str: str, db: AsyncSession) -> dict:
     if not user:
         raise AuthenticationError("用户不存在")
 
-    # 检查 VIP 过期（降级显式落库，理由同 login）
-    if await check_vip_expiry(user):
-        await db.commit()
+    # 会话绝对存活上限（2026-11-19）：refresh 链超过 SESSION_MAX_DAYS 一律拒绝并吊销
+    # 会话 —— 防「只要 7 天内点一次就永远不用重新登录」的无限续期链（被盗号的
+    # refresh_token 也会因此自然失效）。无 sid 的旧 token 无会话簿记录，跳过检查。
+    if sid and settings.SESSION_MAX_DAYS > 0:
+        session = await get_session(user_id_int, sid)
+        if session and session.get("created_at"):
+            age_days = (time.time() - int(session["created_at"])) / 86400
+            if age_days > settings.SESSION_MAX_DAYS:
+                await revoke_session(user_id_int, sid)
+                logger.bind(event="session_expired_absolute").warning(
+                    f"会话超过最大存活时间（{age_days:.1f} 天 > {settings.SESSION_MAX_DAYS} 天），已吊销: uid={user_id_int}"
+                )
+                raise AuthenticationError("登录会话已过期，请重新登录")
 
     # 生成新 Token 对（嵌入当前令牌版本号；沿用同一 sid，会话不变只是换了令牌）
     tokens = create_token_pair(user.id, user.role, ver=await get_token_version(user.id), sid=sid)
@@ -469,12 +463,20 @@ def _session_id_from_token(token: str | None) -> str | None:
     return payload.get("sid")
 
 
-async def logout(user_id: int, access_token: str | None = None):
+async def logout(
+    user_id: int,
+    access_token: str | None = None,
+    *,
+    client_ip: str | None = None,
+    user_agent: str | None = None,
+    account: str | None = None,
+):
     """登出 - 吊销当前会话。
 
     做了三件事：把当前 access_token 拉黑（否则剩余有效期内仍可调接口）、
     删掉该会话的 refresh_token（否则 7 天内还能续期）、从会话簿里移除这条记录。
     内部均已做 Redis 故障降级（仅记日志，不阻断登出）。
+    登出事件同步落登录日志（2026-11-18，record() 内部吞异常）。
     """
     if access_token:
         await blacklist_access_token(access_token)
@@ -484,6 +486,13 @@ async def logout(user_id: int, access_token: str | None = None):
         # 只踢当前这一台：其他设备的 refresh 键各自独立，不受影响
         await revoke_session(user_id, sid)
         logger.info(f"用户登出: id={user_id} sid={sid[:8]}…")
+        await login_log_service.record(
+            status="logout",
+            user_id=user_id,
+            account=account or "",
+            ip=client_ip,
+            user_agent=user_agent,
+        )
         return
 
     # 兼容旧 token（无 sid）：退回删除「每用户一枚」的老键
@@ -492,6 +501,13 @@ async def logout(user_id: int, access_token: str | None = None):
     except Exception:
         log_redis_degraded("auth.logout", f"登出清理 refresh_token 失败（Redis 不可用）: id={user_id}")
     logger.info(f"用户登出: id={user_id}")
+    await login_log_service.record(
+        status="logout",
+        user_id=user_id,
+        account=account or "",
+        ip=client_ip,
+        user_agent=user_agent,
+    )
 
 
 async def logout_all(user_id: int, access_token: str | None = None) -> None:
@@ -513,18 +529,3 @@ async def logout_all(user_id: int, access_token: str | None = None) -> None:
     logger.bind(event="logout_all", user_id=user_id, sessions=len(revoked)).info(
         f"用户 {user_id} 退出全部设备（{len(revoked)} 个会话）"
     )
-
-
-async def check_vip_expiry(user: User) -> bool:
-    """检查 VIP 是否过期，过期则降级；返回是否发生了降级（调用方需 commit）"""
-    if user.role == "vip" and user.vip_expire_time:
-        expire = user.vip_expire_time
-        # MySQL DateTime 列返回 naive datetime，统一视为 UTC
-        if expire.tzinfo is None:
-            expire = expire.replace(tzinfo=timezone.utc)
-        if expire < datetime.now(timezone.utc):
-            user.role = "user"
-            user.vip_expire_time = None
-            logger.info(f"VIP 过期降级: id={user.id}")
-            return True
-    return False

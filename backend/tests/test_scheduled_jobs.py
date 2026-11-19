@@ -63,19 +63,17 @@ class CatalogTests(unittest.TestCase):
                 self.assertIn(spec.category, sjs.CATEGORY_LABELS, f"{spec.id} 的分组未登记")
 
     def test_daily_schedule_text(self):
-        self.assertEqual(_spec("check_vip_expiry").schedule_text, "每日 02:00")
+        self.assertEqual(_spec("cleanup_audit_logs").schedule_text, "每日 04:00")
         self.assertEqual(_spec("flush_view_counts").schedule_text, "每 1 分钟")
 
     def test_retention_notes_match_source_constants(self):
         """页面写的保留期必须与清理逻辑的常量一致（改常量忘改文案 → 运维按错的天数预估磁盘）"""
         from app.services.admin_audit_service import AUDIT_LOG_RETENTION_DAYS
-        from app.services.content_view_service import CONTENT_VIEW_RETENTION_DAYS
         from app.services.search_log_service import SEARCH_LOG_RETENTION_DAYS
 
         cases = {
             "cleanup_audit_logs": AUDIT_LOG_RETENTION_DAYS,
             "cleanup_search_logs": SEARCH_LOG_RETENTION_DAYS,
-            "cleanup_content_views": CONTENT_VIEW_RETENTION_DAYS,
         }
         for job_id, days in cases.items():
             with self.subTest(job=job_id):
@@ -97,9 +95,9 @@ def _registered_job_ids() -> list[str]:
 
 class NextRunTests(unittest.TestCase):
     def test_daily_job_later_today(self):
-        """凌晨 01:00 看 02:00 的任务 = 今天 02:00（不是明天）"""
-        expected = datetime(2026, 10, 27, 2, 0, tzinfo=sjs.CST).timestamp()
-        self.assertEqual(sjs.next_run_at(_spec("check_vip_expiry"), NOW), int(expected))
+        """凌晨 01:00 看 04:00 的任务 = 今天 04:00（不是明天）"""
+        expected = datetime(2026, 10, 27, 4, 0, tzinfo=sjs.CST).timestamp()
+        self.assertEqual(sjs.next_run_at(_spec("cleanup_audit_logs"), NOW), int(expected))
 
     def test_daily_job_already_passed_rolls_to_tomorrow(self):
         """01:00 看 00:30 的任务只能落到明天 —— 最容易写错的一格"""
@@ -113,8 +111,8 @@ class NextRunTests(unittest.TestCase):
         """同一时刻按 UTC 算是 17:00，按北京算是次日 01:00 —— 换算错就会整体差 8 小时"""
         # 北京时间 2026-10-27 01:00 == UTC 2026-10-26 17:00
         self.assertEqual(datetime.fromtimestamp(NOW, sjs.CST).hour, 1)
-        next_run = datetime.fromtimestamp(sjs.next_run_at(_spec("check_vip_expiry"), NOW), sjs.CST)
-        self.assertEqual((next_run.month, next_run.day, next_run.hour), (10, 27, 2))
+        next_run = datetime.fromtimestamp(sjs.next_run_at(_spec("cleanup_audit_logs"), NOW), sjs.CST)
+        self.assertEqual((next_run.month, next_run.day, next_run.hour), (10, 27, 4))
 
     def test_interval_job_uses_last_run(self):
         spec = _spec("flush_view_counts")
@@ -133,7 +131,7 @@ class NextRunTests(unittest.TestCase):
 
 
 class JobStatusTests(unittest.TestCase):
-    def _build(self, heartbeat, job_id="check_vip_expiry"):
+    def _build(self, heartbeat, job_id="cleanup_audit_logs"):
         return sjs.build_job(_spec(job_id), heartbeat, NOW, {})
 
     def test_missing_heartbeat_is_never_not_failed(self):
@@ -174,8 +172,8 @@ class JobStatusTests(unittest.TestCase):
         self.assertEqual(item["status"], "never")
 
     def test_requires_reports_configured_state(self):
-        item = sjs.build_job(_spec("push_new_urls_to_baidu"), None, NOW, {"BAIDU_PUSH_TOKEN": False})
-        self.assertEqual(item["requires"], [{"key": "BAIDU_PUSH_TOKEN", "configured": False}])
+        item = sjs.build_job(_spec("push_new_urls_to_indexnow"), None, NOW, {"INDEXNOW_KEY": False})
+        self.assertEqual(item["requires"], [{"key": "INDEXNOW_KEY", "configured": False}])
 
     def test_job_without_requires_has_empty_list(self):
         self.assertEqual(self._build(None)["requires"], [])
@@ -184,9 +182,9 @@ class JobStatusTests(unittest.TestCase):
 class OverviewTests(unittest.TestCase):
     def test_summary_counts_every_status(self):
         heartbeats = {
-            "check_vip_expiry": {"at": int(NOW) - 60, "ok": True},
-            "push_new_urls_to_baidu": {"at": int(NOW) - 60, "ok": False},
-            "cleanup_audit_logs": {"at": int(NOW) - 40 * 3600, "ok": True},
+            "cleanup_audit_logs": {"at": int(NOW) - 60, "ok": True},
+            "cleanup_search_logs": {"at": int(NOW) - 60, "ok": False},
+            "purge_recycle_bin": {"at": int(NOW) - 40 * 3600, "ok": True},
         }
         overview = sjs.build_overview(heartbeats, NOW, {})
         summary = overview["summary"]
@@ -204,7 +202,7 @@ class OverviewTests(unittest.TestCase):
         self.assertEqual(overview["summary"]["never"], overview["summary"]["total"])
 
     def test_all_silent_false_when_any_heartbeat_exists(self):
-        overview = sjs.build_overview({"check_vip_expiry": {"at": int(NOW), "ok": True}}, NOW, {})
+        overview = sjs.build_overview({"cleanup_audit_logs": {"at": int(NOW), "ok": True}}, NOW, {})
         self.assertFalse(overview["all_silent"])
 
     def test_groups_cover_every_job_exactly_once(self):
@@ -217,13 +215,14 @@ class OverviewTests(unittest.TestCase):
         heartbeats = {
             "cleanup_audit_logs": {"at": int(NOW) - 60, "ok": True},
             "cleanup_search_logs": {"at": int(NOW) - 60, "ok": False},
-            "cleanup_content_views": {"at": int(NOW) - 40 * 3600, "ok": True},
-            # flush_view_counts 无心跳 → never
+            "purge_recycle_bin": {"at": int(NOW) - 40 * 3600, "ok": True},
+            # flush_view_counts / cleanup_login_logs 无心跳 → never
         }
         overview = sjs.build_overview(heartbeats, NOW, {})
         storage = next(group for group in overview["groups"] if group["key"] == sjs.CATEGORY_STORAGE)
         self.assertEqual(
             [job["status"] for job in storage["jobs"]],
+            # 2026-11-18 新增 cleanup_login_logs（每小时）：同样落在 storage 组，无心跳 = never
             ["failed", "stale", "never", "never", "ok"],
         )
 

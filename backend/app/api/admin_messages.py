@@ -18,11 +18,50 @@ from app.core.permissions import require_admin
 from app.core.exceptions import success_response
 from app.database import get_db
 from app.models.user import User
-from app.schemas.admin import MessageBatchItem, SendMessageResult
+from app.schemas.admin import ActionAck, MessageBatchItem, SendMessageResult
 from app.schemas.common import ApiResponse
 from app.schemas.content import PageResult
 from app.services.admin_audit_service import record_admin_action
 from app.services.admin_message_service import list_message_batches, send_system_message
+from app.services import message_template_service
+
+
+class MessageTemplateItem(BaseModel):
+    """一条站内通知模板（name 唯一，作为套用/删除的标识）"""
+
+    name: str = Field(..., min_length=1, max_length=50)
+    title: str = Field(..., min_length=1, max_length=100)
+    content: str = Field(..., min_length=1, max_length=2000)
+
+
+class MessageTemplatesSaveRequest(BaseModel):
+    """整份覆盖保存模板清单（前端把增删改后的清单整体提交）"""
+
+    templates: list[MessageTemplateItem] = Field(default_factory=list, max_length=20)
+
+
+@router.get("/message-templates", response_model=ApiResponse[ActionAck])
+async def admin_list_message_templates(
+    admin: User = Depends(require_admin),
+):
+    """站内通知模板清单（群发弹窗「套用模板」下拉的数据源；message:view 即可读）。"""
+    return success_response({"templates": message_template_service.list_templates()})
+
+
+@router.put("/message-templates", response_model=ApiResponse[ActionAck])
+async def admin_save_message_templates(
+    req: MessageTemplatesSaveRequest,
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """整份保存通知模板（上限 20 条；写审计 message_template_update）。
+
+    模板内容最终会以管理员名义群发给用户，增删与发送同级授权（message:send）。
+    """
+    result = await message_template_service.save_with_audit(
+        db, admin, [item.model_dump() for item in req.templates]
+    )
+    return success_response({"ok": True, "changed": result["changed"], "templates": result["templates"]})
 
 
 class SendMessageRequest(BaseModel):

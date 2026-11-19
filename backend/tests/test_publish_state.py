@@ -37,7 +37,7 @@ PUBLIC_SITES = [
     ('tutorial_service.py', 'get_tutorials'),
     ('tutorial_service.py', 'get_tutorial_intro'),
     ('tutorial_service.py', 'get_tutorial_detail'),
-    ('tutorial_service.py', 'list_purchased_tutorials'),
+    # list_purchased_tutorials 已随 0080_drop_commercial_modules 删除（2026-11-18 清理）
     # 单章正文：必须校验所属教程已发布，否则拿到教程 id 就能读草稿章节
     ('tutorial_node_service.py', '_get_tutorial_or_404'),
     # 免鉴权且被 LLM 爬虫长期抓取：草稿标题/简介一旦上榜就收不回来

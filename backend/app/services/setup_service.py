@@ -11,7 +11,6 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
 from typing import NamedTuple
 
 from loguru import logger
@@ -72,10 +71,6 @@ async def create_first_admin(
         password_hash=await hash_password_async(password),
         role="admin",
         nickname=(nickname or "").strip() or None,
-        free_used_seconds=0,
-        # 必须显式写：该列无 server_default，漏写会落 NULL，
-        # 前台只能回退 created_at 算免费时长（时区语义不同源）
-        free_started_at=datetime.now(timezone.utc),
     )
     db.add(admin)
     await db.flush()

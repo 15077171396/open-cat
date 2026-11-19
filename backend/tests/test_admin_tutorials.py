@@ -31,14 +31,6 @@ class TutorialListFilterTests(unittest.IsolatedAsyncioTestCase):
             )
         self.assertEqual(resp.status_code, 422)
 
-    async def test_list_invalid_access_mode_rejected(self):
-        user = make_user(role="admin")
-        async with async_client(user=user) as client:
-            resp = await client.get(
-                "/api/v1/admin/tutorials", params={"access_mode": "svip"}
-            )
-        self.assertEqual(resp.status_code, 422)
-
     async def test_list_invalid_is_published_rejected(self):
         user = make_user(role="admin")
         async with async_client(user=user) as client:

@@ -4,7 +4,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-from app.api import admin_image_search, images as images_api
+from app.api import admin_image_search
 from app.core import rbac
 from app.core.exceptions import AppException
 from app.services.image_search.config import ImageSearchConfig
@@ -173,34 +173,32 @@ class ImageSearchApiTests(unittest.IsolatedAsyncioTestCase):
                 })
         self.assertEqual(res.status_code, 503)
 
-    async def test_thumb_returns_bytes_with_public_cache(self):
-        with mock.patch.object(
-            images_api.image_search_thumb, "verify_thumb",
-            return_value="https://images.pexels.com/a.jpg",
-        ), mock.patch.object(
-            images_api.image_search_thumb, "fetch_thumb",
-            new=mock.AsyncMock(return_value=(b"img", "image/jpeg")),
-        ):
-            # 模拟浏览器 <img>：不带 Authorization 头也必须能取签名缩略图。
-            async with async_client(user=None) as client:
-                res = await client.get(
-                    "/api/v1/images/search-thumb", params={"token": "x" * 20},
-                )
-        self.assertEqual(res.status_code, 200)
-        self.assertEqual(res.content, b"img")
-        self.assertIn("public", res.headers["cache-control"])
-        self.assertEqual(res.headers["x-content-type-options"], "nosniff")
+    # 注：/api/v1/images/search-thumb 公开代理路由已随第三方导入管线删除，
+    # thumb_service 仅用于管理端响应里代理 URL 的构造与签名校验。
 
-    async def test_thumb_rejects_invalid_token(self):
+    async def test_proxy_urls_are_signed_tokens(self):
+        """管理端响应里的 thumb_proxy_url 必须是签名 token 形态（不是原图直链）。"""
+        payload = {
+            "source": "pexels", "has_more": False, "total": 1, "cached": False,
+            "items": [{
+                "source": "pexels", "source_id": "1",
+                "thumb_url": "https://images.pexels.com/t.jpg",
+                "preview_url": "https://images.pexels.com/l.jpg",
+            }],
+        }
         with mock.patch.object(
-            images_api.image_search_thumb, "verify_thumb",
-            side_effect=AppException(code=403, message="bad"),
+            admin_image_search.search_service, "search",
+            new=mock.AsyncMock(return_value=payload),
+        ), mock.patch.object(
+            admin_image_search.thumb_service, "sign_thumb", return_value="tok"
         ):
             async with async_client(user=make_user(role="admin")) as client:
                 res = await client.get(
-                    "/api/v1/images/search-thumb", params={"token": "x" * 20},
+                    "/api/v1/admin/image-search/search",
+                    params={"source": "pexels", "q": "cat"},
                 )
-        self.assertEqual(res.status_code, 403)
+        item = res.json()["data"]["items"][0]
+        self.assertIn("search-thumb?token=tok", item["thumb_proxy_url"])
 
 
 class ImageSearchRbacTests(unittest.TestCase):

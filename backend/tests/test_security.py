@@ -12,7 +12,6 @@ from app.core import rate_limit
 from app.core.security import MAX_PASSWORD_BYTES, validate_password_length
 from app.schemas.auth import RegisterRequest
 from app.services import setting_service
-from app.services.redemption_service import mask_code
 from app.utils.upload_validation import is_allowed_image
 
 
@@ -178,11 +177,11 @@ class SettingUrlValidationTests(unittest.TestCase):
         ):
             with self.subTest(value=value):
                 with self.assertRaises(ValueError):
-                    self._check("social_github", value)
+                    self._check("site_base_url", value)
 
     def test_rejects_non_http_scheme(self):
         with self.assertRaises(ValueError):
-            self._check("social_github", "javascript:alert(1)")
+            self._check("site_base_url", "javascript:alert(1)")
 
     def test_self_hosted_proxy_works_after_extending_allowlist(self):
         """白名单可配（不必改代码）——这是它写成 Settings 项而不是硬编码的原因"""
@@ -198,29 +197,6 @@ class SettingUrlValidationTests(unittest.TestCase):
             self._check("ai_deepseek_base_url", "https://any.public.host/v1")
             with self.assertRaises(ValueError):
                 self._check("ai_deepseek_base_url", "http://127.0.0.1:8000/")
-
-
-class RedemptionCodeMaskTests(unittest.TestCase):
-    """只读角色拿到掩码（第四轮审查 P1-54）"""
-
-    def test_keeps_last_group_only(self):
-        self.assertEqual(mask_code("ABCD-EFGH-JKLM"), "****-****-JKLM")
-
-    def test_masks_non_grouped_codes(self):
-        self.assertEqual(mask_code("ABCDEFGHIJ"), "****GHIJ")
-        self.assertEqual(mask_code("AB"), "****")
-        self.assertEqual(mask_code(None), "")
-
-    def test_list_codes_masks_by_default(self):
-        """安全默认：调用方（路由）必须显式传 reveal 才能拿到明文"""
-        import inspect
-
-        from app.services import redemption_service
-
-        params = inspect.signature(redemption_service.list_codes).parameters
-        self.assertIs(params["reveal"].default, False)
-        params = inspect.signature(redemption_service.list_code_records).parameters
-        self.assertIs(params["reveal"].default, False)
 
 
 # 真实可解码的 1×1 PNG（校验像素闸用的基准样本）

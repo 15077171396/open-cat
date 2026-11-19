@@ -136,8 +136,7 @@ async def probe_mysql() -> dict:
 
     ⚠️ 为什么要校验会话时区（台账 P2-7 / 代码审查 D5）：
     全库 naive 时间戳「按 UTC 写入」是本项目的**代码级约定**——统计日界
-    （stats_service）、VIP 到期（is_vip_effective）、免费时长倒计时
-    （timer_service）全部直接拿 naive 值当 UTC 比较。而 `created_at` /
+    （stats_service）等业务全部直接拿 naive 值当 UTC 比较。而 `created_at` /
     `updated_at` 这类列由数据库 `func.now()` 写入，其语义完全取决于会话时区：
     一旦它不是 UTC，DB 写本地时间、应用写 UTC，两者混用会**静默**产生小时级的
     时间差（可能白送几小时权益，也可能瞬间判为耗尽）。这种「不报错但算错」的

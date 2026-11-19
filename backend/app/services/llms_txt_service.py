@@ -42,10 +42,10 @@ async def build_llms_txt(db: AsyncSession) -> str:
     """汇总站点核心板块与热门内容，生成 llms.txt 文档"""
     base = settings.SITE_BASE_URL.rstrip("/")
     lines: list[str] = [
-        "# AI学习猫",
+        "# Open Cat · 后台管理系统",
         "",
-        "> AI学习猫（www.wdmao.cn）是综合学习与实践平台，提供实用教程、知识百科、"
-        "在线工具、精选资源与扩展，帮助你更高效地学习、探索与解决问题。",
+        "> Open Cat 是开源通用后台管理底座，提供内容管理、权限审计与 UGC 审核，"
+        "帮助团队更高效地运营内容站。",
         "",
         "## 栏目导航",
         "",

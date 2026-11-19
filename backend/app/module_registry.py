@@ -2,7 +2,7 @@
 
 为什么需要它
 ------------
-开源版允许使用者按需裁剪（支付、积分、实名这类模块对多数内容站用不上）。
+开源版允许使用者按需裁剪（商业化、第三方渠道这类模块对多数内容站用不上）。
 在没有注册表时，「关掉一个模块」要同时改四处：`api/admin.py` 的 import、
 `core/rbac.py` 的规则表、`admin_menu.py` 的菜单项、前端路由——漏一处就是
 「菜单还在但接口 403」或「接口能被调用但没有任何入口」。
@@ -57,14 +57,24 @@ MODULES: tuple[ModuleDef, ...] = (
             "/api/v1/admin/users",
             # 导出用户属于核心能力：关掉用户模块等于关掉后台本身
             "/api/v1/admin/export/users",
+            # 审计日志导出（2026-11-19）：数据外带，与审计页同属核心能力
+            "/api/v1/admin/export/audit-logs",
+            # 登录日志导出（2026-11-19）：与登录日志同属核心能力
+            "/api/v1/admin/export/login-logs",
+            # 指标快照导出（2026-11-19）：运维归档
+            "/api/v1/admin/export/ops-metrics",
             "/api/v1/admin/rbac",
             "/api/v1/admin/audit-logs",
+            # 登录日志（2026-11-18）：安全遥测，与审计同级的核心能力
+            "/api/v1/admin/login-logs",
             "/api/v1/admin/recycle-bin",
             "/api/v1/admin/version",
             "/api/v1/admin/menus",
             "/api/v1/admin/settings",
             "/api/v1/admin/menu-settings",
             "/api/v1/admin/dicts",
+            # IP 黑名单（2026-11-19）：访问安全属核心能力
+            "/api/v1/admin/ip-blacklist",
             "/api/v1/admin/codegen",
             "/api/v1/admin/positions",
             "/api/v1/admin/monitor",
@@ -75,9 +85,10 @@ MODULES: tuple[ModuleDef, ...] = (
         ),
         menu_keys=(
             "/users", "/roles", "/departments", "/positions",
-            "/monitor/online", "/monitor/server", "/monitor/cache",
+            "/monitor/online", "/monitor/server", "/monitor/cache", "/monitor/errors", "/monitor/api",
+            "/login-logs",
             "/audit-logs", "/recycle-bin", "/backups", "/codegen",
-            "/settings", "/menu-settings", "/dicts", "/login-settings", "/mail-settings", "/legal-documents",
+            "/settings", "/menu-settings", "/dicts", "/ip-blacklist", "/login-settings", "/mail-settings", "/legal-documents",
             "/profile",
         ),
         always_on=True,
@@ -117,14 +128,14 @@ MODULES: tuple[ModuleDef, ...] = (
         path_prefixes=(
             "/api/v1/admin/dashboard",
             "/api/v1/admin/ai-usage",
-            "/api/v1/admin/funnel",
-            "/api/v1/admin/content-attribution",
             "/api/v1/admin/system-status",
+            # 核心指标快照趋势（2026-11-18）：看板数据的一部分
+            "/api/v1/admin/ops-metrics",
             "/api/v1/admin/readiness",
             "/api/v1/admin/scheduled-jobs",
             "/api/v1/admin/search-keywords",
         ),
-        menu_keys=("/", "/dashboard", "/analysis", "/search-keywords", "/scheduled-jobs", "/readiness"),
+        menu_keys=("/", "/dashboard", "/search-keywords", "/scheduled-jobs", "/readiness"),
     ),
     ModuleDef(
         key="announcement",
@@ -171,49 +182,6 @@ MODULES: tuple[ModuleDef, ...] = (
         path_prefixes=("/api/v1/admin/chat", "/api/v1/admin/ws/chat"),
         menu_keys=("/chat",),
     ),
-    # ---------- 商业化（默认关闭：内容站多数用不上） ----------
-    ModuleDef(
-        key="payment",
-        label="支付套餐 / 订单 / 支付渠道",
-        default_enabled=False,
-        path_prefixes=(
-            "/api/v1/admin/payment-products",
-            "/api/v1/admin/payment-orders",
-            "/api/v1/admin/payment-settings",
-        ),
-        menu_keys=("/payment-products", "/payment-orders", "/payment-settings"),
-    ),
-    ModuleDef(
-        key="points",
-        label="积分流水 / 兑换码",
-        default_enabled=False,
-        path_prefixes=(
-            "/api/v1/admin/points",
-            "/api/v1/admin/redemption-codes",
-            # 关掉积分模块时，流水数据也不该被导出
-            "/api/v1/admin/export/point-transactions",
-        ),
-        menu_keys=("/points", "/redeem-codes"),
-    ),
-    ModuleDef(
-        key="auth_request",
-        label="实名审核",
-        default_enabled=False,
-        path_prefixes=("/api/v1/admin/auth-requests",),
-        menu_keys=("/auth-requests",),
-    ),
-    # ---------- 内容辅助（随内容模块，默认开） ----------
-    ModuleDef(
-        key="content_helper",
-        label="内容辅助（第三方导入 / 翻译）",
-        default_enabled=True,
-        path_prefixes=(
-            "/api/v1/admin/translate-content",
-            "/api/v1/admin/fetch-resource",
-        ),
-        # 没有独立菜单：从内容编辑页里调用
-        menu_keys=(),
-    ),
 )
 
 _BY_KEY: dict[str, ModuleDef] = {m.key: m for m in MODULES}
@@ -249,19 +217,26 @@ def _parse_enabled() -> frozenset[str]:
 
 
 _enabled_cache: frozenset[str] | None = None
+# 缓存对应的配置指纹：ENABLED_MODULES 被改动（测试 patch / 运行期改写）时自动失效。
+# 只靠调用方记得 reset_cache() 是靠不住的 —— test_export 曾在 patch 期间触发缓存，
+# 结束后不清理，把「仅 core 启用」泄漏给同进程后续所有测试（i18n 菜单树 KeyError）。
+_enabled_fingerprint: str | None = None
 
 
 def enabled_keys() -> frozenset[str]:
-    global _enabled_cache
-    if _enabled_cache is None:
+    global _enabled_cache, _enabled_fingerprint
+    fingerprint = settings.ENABLED_MODULES or ""
+    if _enabled_cache is None or _enabled_fingerprint != fingerprint:
         _enabled_cache = _parse_enabled()
+        _enabled_fingerprint = fingerprint
     return _enabled_cache
 
 
 def reset_cache() -> None:
-    """测试用：改完 settings 后清缓存。"""
-    global _enabled_cache
+    """测试用：强制下次重算（通常无需调用 —— 配置指纹变化会自动失效）。"""
+    global _enabled_cache, _enabled_fingerprint
     _enabled_cache = None
+    _enabled_fingerprint = None
 
 
 def is_enabled(key: str) -> bool:

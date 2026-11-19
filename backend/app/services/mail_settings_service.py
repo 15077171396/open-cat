@@ -140,4 +140,4 @@ async def send_test_email(to_email: str) -> tuple[bool, str]:
         "能收到这封邮件，说明注册验证码 / 找回密码的邮件通道是通的。\n"
         "如非本人操作，请检查后台「操作审计」里的「发送测试邮件」记录。"
     )
-    return await send_plain_email(address, "【AI学习猫】邮件通道测试", body)
+    return await send_plain_email(address, "【后台管理系统】邮件通道测试", body)

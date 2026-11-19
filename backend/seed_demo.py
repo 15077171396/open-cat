@@ -34,7 +34,6 @@ from app.models.announcement import Announcement
 from app.models.category import Category
 from app.models.comment import ContentComment
 from app.models.feedback import Feedback
-from app.models.point_transaction import PointTransaction
 from app.models.tutorial import Tutorial
 from app.models.tutorial_node import TutorialNode
 from app.models.user import User
@@ -75,15 +74,15 @@ async def _upload_demo_image(
 # 分类的 module 必须落在内容类型注册表里（categories.module 有白名单校验）。
 # 新增内容类型时在这里补一组分类。
 CATEGORIES = [
-    ("tutorial", ["入门基础", "提示词", "工作流", "本地部署"]),
+    ("tutorial", ["入门基础", "运营实践", "进阶技巧"]),
 ]
 
 TUTORIALS = [
-    ("ComfyUI 零基础入门", "从安装到跑通第一个工作流", "入门基础", ["环境准备", "认识节点", "第一个工作流"]),
-    ("提示词工程实战", "让模型听懂你的意图", "提示词", ["结构拆解", "权重与否定", "风格控制"]),
-    ("LoRA 训练从零到一", "素材整理、打标、训练与验证", "工作流", ["素材与打标", "参数设置", "效果验证"]),
-    ("本地部署的性能调优", "显存、量化与批处理", "本地部署", ["显存规划", "量化选择", "吞吐测试"]),
-    ("图生视频工作流", "让静态图动起来的三种做法", "工作流", ["关键帧", "运动控制", "后期合成"]),
+    ("后台功能巡览", "列表、编辑、审核与回收站的完整走一遍", "入门基础", ["工作台", "内容管理", "系统设置"]),
+    ("权限与审计入门", "按钮级 RBAC 与操作留痕的协作方式", "运营实践", ["角色与权限", "审计检索", "安全约定"]),
+    ("内容审核工作流", "机审、复核与举报处理", "运营实践", ["词库配置", "人工复核", "举报处置"]),
+    ("编辑器进阶技巧", "表格、代码块、图注与 AI 写作", "进阶技巧", ["富文本排版", "图库与素材", "AI 改写与续写"]),
+    ("部署与备份手册", "从 docker compose 到部署体检", "进阶技巧", ["快速部署", "备份恢复", "部署体检"]),
 ]
 
 FEEDBACKS = [
@@ -183,9 +182,6 @@ async def seed(check_only: bool = False) -> None:
                 role="user",
                 nickname=nickname,
                 avatar_url=avatar_urls[idx % len(avatar_urls)],
-                points=random.randint(80, 600),
-                free_used_seconds=0,
-                free_started_at=now - timedelta(days=random.randint(3, 120)),
             )
             db.add(user)
             users.append(user)
@@ -193,10 +189,6 @@ async def seed(check_only: bool = False) -> None:
         print(f"用户：{len(users)} 个（口令统一 {DEMO_PASSWORD}）")
 
         # ---------- 教程 + 章节 ----------
-        admin = (
-            await db.execute(select(User).where(User.role == "admin").limit(1))
-        ).scalar_one_or_none()
-
         tutorials: list[Tutorial] = []
         for idx, (title, desc, category, chapters) in enumerate(TUTORIALS):
             tutorial = Tutorial(
@@ -280,26 +272,6 @@ async def seed(check_only: bool = False) -> None:
                 )
             )
         print(f"公告：{len(ANNOUNCEMENTS)} 条")
-
-        # ---------- 积分流水 ----------
-        tx_types = ["consume", "redeem", "admin_set", "register"]
-        for idx, user in enumerate(users):
-            balance = 200
-            for k in range(6):
-                delta = random.choice([20, -10, 50, -5, 100])
-                balance += delta
-                db.add(
-                    PointTransaction(
-                        user_id=user.id,
-                        points=delta,
-                        balance_after=balance,
-                        type=tx_types[(idx + k) % len(tx_types)],
-                        description="演示流水：积分消耗" if delta < 0 else "演示流水：签到奖励",
-                        operator_id=admin.id if admin and tx_types[(idx + k) % len(tx_types)] == "admin_set" else None,
-                        created_at=now - timedelta(days=k, hours=idx),
-                    )
-                )
-        print(f"积分流水：{len(users) * 6} 条")
 
         await db.commit()
 

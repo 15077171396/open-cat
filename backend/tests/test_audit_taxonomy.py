@@ -115,7 +115,7 @@ class ListAuditLogsFilterTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_unknown_risk_is_rejected_before_touching_db(self):
         """拼错参数必须 400：静默回落成「不筛选」会让运营以为在看高危，其实看的是全部"""
-        from tests.test_points_ledger import _RecordingSession
+        from tests.test_feedback_labels import _RecordingSession
 
         db = _RecordingSession()
         with self.assertRaises(AppException):
@@ -124,7 +124,7 @@ class ListAuditLogsFilterTests(unittest.IsolatedAsyncioTestCase):
 
     async def test_risk_is_pushed_down_to_sql_not_filtered_in_python(self):
         """等级不是列。若用 Python 过滤，分页与 total 会错 —— 断言语句里真有 IN 条件"""
-        from tests.test_points_ledger import _RecordingSession
+        from tests.test_feedback_labels import _RecordingSession
 
         db = _RecordingSession(total=1)
         await list_audit_logs(db, risk=AUDIT_RISK_DANGER)

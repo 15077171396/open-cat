@@ -23,7 +23,6 @@ from app.services.setting_service import (
     SURFACE_LOGIN,
     SURFACE_MAIL,
     SURFACE_MODEL,
-    SURFACE_PAYMENT,
     SURFACE_SETTINGS,
 )
 
@@ -33,7 +32,6 @@ SURFACE_OWNERS: dict[str, str] = {
     SURFACE_SETTINGS: "/api/v1/admin/settings",
     SURFACE_LOGIN: "/api/v1/admin/login-settings",
     SURFACE_LEGAL: "/api/v1/admin/legal-documents",
-    SURFACE_PAYMENT: "/api/v1/admin/payment-settings",
     SURFACE_MODEL: "/api/v1/admin/ai-models/cost-settings",
     SURFACE_MAIL: "/api/v1/admin/mail-settings",
 }
@@ -91,16 +89,11 @@ class SurfaceOwnershipTests(unittest.TestCase):
 class SettingsPageScopeTests(unittest.TestCase):
     """系统设置页只剩「通用」分组：抽走的模块不能再出现在它的 tab 里"""
 
-    #: 已经抽出独立页面的分组 key（每次抽模块都在这里加一行）
+    #: 已经抽出独立页面的分组 key（每次抽模块都在这里加一行）。
+    #: 抽走后整个模块被删除的分组（支付/实名/小程序/邀请等）不在此列：
+    #: 它们不该在任何 surface 里出现，由分组声明本身保证。
     MOVED_GROUPS = (
-        "auth_phone",
-        "auth_wechat",
-        "auth_sms",
-        "miniapp",
         "legal",
-        "payment_general",
-        "payment_wechat",
-        "payment_alipay",
         "ai",
         "mail",
     )

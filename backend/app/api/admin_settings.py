@@ -84,7 +84,7 @@ async def admin_update_settings(
     await db.commit()
     await invalidate_public_settings_cache()
     await invalidate_legal_documents_cache()
-    # 登录/短信/支付参数（含公众号/商户凭据）与 AI 配置同口径：保存即失效
+    # 登录/邮件参数等集成配置与 AI 配置同口径：保存即失效
     await invalidate_integration_settings_cache()
     # AI Provider 配置也要失效：否则会出现「后台改了 Key 并提示保存成功，
     # 但服务端仍在用旧 Key」——这类问题不报错，只能靠现象反推

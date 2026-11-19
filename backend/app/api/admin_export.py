@@ -1,4 +1,4 @@
-"""列表导出端点：`GET /admin/export/{resource}` 系列（用户 / 教程 / 积分流水）。
+"""列表导出端点：`GET /admin/export/{resource}` 系列（用户 / 教程）。
 
 为什么按资源拆成多条路径，而不是一个 `/export?resource=users`：
 
@@ -21,6 +21,28 @@ from app.database import get_db
 from app.models.user import User
 from app.schemas.common import KEYWORD_MAX_LENGTH
 from app.services import export_service
+
+
+async def _xlsx_response(
+    db: AsyncSession,
+    admin: User,
+    resource: str,
+    filters: dict,
+) -> StreamingResponse:
+    """Excel 出口：审计口径与 CSV 相同，工作簿在内存构建（行数有 MAX_ROWS 上限）。"""
+    spec = export_service.get_spec(resource)
+    total = await export_service.count_rows(db, spec, filters)
+    await export_service.record_export(db, admin, spec, filters, total)
+
+    content = await export_service.build_xlsx(spec, filters)
+    return StreamingResponse(
+        iter([content]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f'attachment; filename="{export_service.filename(spec, "xlsx")}"',
+            "Cache-Control": "no-store",
+        },
+    )
 
 
 async def _csv_response(
@@ -69,7 +91,6 @@ async def export_tutorials(
     category: str = Query(None, max_length=50),
     status: str = Query(None, max_length=20),
     is_published: bool = Query(None),
-    access_mode: str = Query(None, max_length=20),
     deleted: str = Query("active", description="active / deleted / all"),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
@@ -82,32 +103,78 @@ async def export_tutorials(
             "category": category,
             "status": status,
             "is_published": is_published,
-            "access_mode": access_mode,
             "deleted": deleted,
         },
     )
     return await _csv_response(db, admin, "tutorials", filters)
 
 
-@router.get("/export/point-transactions")
-async def export_point_transactions(
+@router.get("/export/audit-logs")
+async def export_audit_logs(
+    action: str = Query(None, max_length=60),
+    target_type: str = Query(None, max_length=40),
+    risk: str = Query(None, max_length=20),
     keyword: str = Query(None, max_length=KEYWORD_MAX_LENGTH),
-    type: str = Query(None, max_length=30),
-    direction: str = Query(None, max_length=10, description="income / expense"),
-    start_at: str = Query(None, max_length=40, description="ISO 时间（含时区偏移）"),
-    end_at: str = Query(None, max_length=40, description="ISO 时间（含时区偏移）"),
+    start_at: str = Query(None, max_length=40),
+    end_at: str = Query(None, max_length=40),
+    format: str = Query("csv", pattern="^(csv|xlsx)$", description="导出格式"),
     db: AsyncSession = Depends(get_db),
     admin: User = Depends(require_admin),
 ):
-    """导出积分流水（CSV）。时间参数与列表接口同语义：带偏移的 ISO，内部换算为 naive UTC。"""
+    """导出操作审计（CSV / Excel 双格式）。审计是只读证据，导出不改任何数据，但「数据外带」本身写审计。"""
+    from app.utils.time import parse_iso_to_naive_utc
+
     filters = export_service.pick_filters(
-        export_service.get_spec("point-transactions"),
+        export_service.get_spec("audit-logs"),
         {
+            "action": action,
+            "target_type": target_type,
+            "risk": risk,
             "keyword": keyword,
-            "type": type,
-            "direction": direction,
-            "start_at": start_at,
-            "end_at": end_at,
+            "start_at": parse_iso_to_naive_utc(start_at),
+            "end_at": parse_iso_to_naive_utc(end_at),
         },
     )
-    return await _csv_response(db, admin, "point-transactions", filters)
+    if format == "xlsx":
+        return await _xlsx_response(db, admin, "audit-logs", filters)
+    return await _csv_response(db, admin, "audit-logs", filters)
+
+
+@router.get("/export/login-logs")
+async def export_login_logs(
+    account: str = Query(None, max_length=KEYWORD_MAX_LENGTH, description="按账号筛选（输入完整账号，脱敏后精确匹配）"),
+    status: str = Query(None, max_length=16, description="success / failed / logout"),
+    start_at: str = Query(None, max_length=40),
+    end_at: str = Query(None, max_length=40),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """导出登录日志（CSV）。筛选口径与 `/admin/login-logs` 列表一致。"""
+    from app.utils.time import parse_iso_to_naive_utc
+
+    filters = export_service.pick_filters(
+        export_service.get_spec("login-logs"),
+        {
+            "account": account,
+            "status": status,
+            "start_at": parse_iso_to_naive_utc(start_at),
+            "end_at": parse_iso_to_naive_utc(end_at),
+        },
+    )
+    return await _csv_response(db, admin, "login-logs", filters)
+
+
+@router.get("/export/ops-metrics")
+async def export_ops_metrics(
+    format: str = Query("csv", pattern="^(csv|xlsx)$", description="导出格式"),
+    db: AsyncSession = Depends(get_db),
+    admin: User = Depends(require_admin),
+):
+    """导出核心指标快照（CSV / Excel 双格式）。运维归档用；每行一帧快照，列 = 各指标键。"""
+    filters = export_service.pick_filters(
+        export_service.get_spec("ops-metrics"),
+        {},
+    )
+    if format == "xlsx":
+        return await _xlsx_response(db, admin, "ops-metrics", filters)
+    return await _csv_response(db, admin, "ops-metrics", filters)

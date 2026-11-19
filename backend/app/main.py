@@ -20,6 +20,8 @@ from app.api.content import CONTENT_PREFIX, build_content_openapi
 from app.core.exceptions import register_exception_handlers, success_response
 from app.core.idempotency import IdempotencyMiddleware
 from app.core.monitoring import init_monitoring
+from app.core.api_stats import ApiStatsMiddleware
+from app.core.ip_guard import IPBlacklistMiddleware
 from app.core.rate_limit import RateLimitMiddleware
 from app.core.request_context import REQUEST_ID_HEADER, RequestIdMiddleware
 from app.core.security_headers import SecurityHeadersMiddleware
@@ -31,7 +33,7 @@ from app.services.ai.factory import close_all_providers
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info(f"AI 猫平台后端启动中... 环境: {settings.APP_ENV}")
+    logger.info(f"后台管理系统后端启动中... 环境: {settings.APP_ENV}")
     logger.info(f"数据库: {settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}")
     logger.info(f"Redis: {settings.REDIS_HOST}:{settings.REDIS_PORT}")
 
@@ -81,21 +83,11 @@ async def lifespan(app: FastAPI):
         view_flush_task.cancel()
         with contextlib.suppress(asyncio.CancelledError):
             await view_flush_task
-    # 关闭顺序必须先排收在飞翻译任务、再关 provider / 线程池：在飞任务还在用它们，
-    # 取消并等其结束后再关连接，否则中断状态写不回 Redis
-    logger.info("排收在飞翻译任务...")
-    from app.services.translate_service import shutdown_translate_tasks
-    interrupted = await shutdown_translate_tasks()
-    if interrupted:
-        logger.warning(f"已中断 {interrupted} 个在飞翻译任务（状态已写回，管理端不再空轮询）")
     logger.info("关闭重活线程池（COS 上传 / 图片转码 / HTML→Markdown）...")
     from app.core.executors import shutdown_heavy_executor
     shutdown_heavy_executor()
     logger.info("关闭 AI Provider 连接...")
     await close_all_providers()
-    logger.info("关闭图片代理共享连接池...")
-    from app.api.images import close_image_client
-    await close_image_client()
     logger.info("关闭 Redis 连接...")
     await close_redis()
     logger.info("释放数据库连接池...")
@@ -109,8 +101,8 @@ def create_app() -> FastAPI:
     init_monitoring()
 
     app = FastAPI(
-        title="AI 猫学习与工具聚合平台",
-        description="覆盖全领域的结构化教程学习平台：多章节课程、在线工具、知识百科、资源下载与扩展推荐",
+        title="Open Cat · 后台管理系统",
+        description="开源通用后台管理底座：按钮级 RBAC、全量操作审计、UGC 审核与 AI 写作；教程为可照抄的示例业务域",
         version=APP_VERSION,
         lifespan=lifespan,
         docs_url="/docs" if settings.is_dev else None,
@@ -128,6 +120,14 @@ def create_app() -> FastAPI:
     app.add_middleware(IdempotencyMiddleware)
 
     app.add_middleware(RateLimitMiddleware)
+
+    # 接口调用统计（2026-11-19）：在限流**外层**（429 也计入），
+    # 在黑名单**内层**（被拉黑的地址不计入业务统计）；OPTIONS 预检不计入
+    app.add_middleware(ApiStatsMiddleware)
+
+    # IP 黑名单（2026-11-19）：在限流**外层** —— 被拉黑的地址先吃 403，
+    # 不消耗 Redis 限流配额；健康检查路径在中间件内部豁免
+    app.add_middleware(IPBlacklistMiddleware)
 
     app.add_middleware(
         CORSMiddleware,
@@ -177,7 +177,7 @@ def create_app() -> FastAPI:
 
     @app.get("/")
     async def root():
-        return success_response({"name": "AI 猫平台 API", "version": APP_VERSION, "docs": "/docs"})
+        return success_response({"name": "Open Cat Admin API", "version": APP_VERSION, "docs": "/docs"})
 
     return app
 

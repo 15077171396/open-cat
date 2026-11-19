@@ -1,4 +1,4 @@
-"""验证码服务 - 短信/邮件验证码"""
+"""验证码服务 - 邮箱验证码"""
 
 import secrets
 import string
@@ -77,10 +77,7 @@ async def send_code(account: str) -> dict:
 
     code = generate_code()
 
-    if is_phone(account):
-        result = await send_sms(account, code)
-    else:
-        result = await send_email(account, code)
+    result = await send_email(account, code)
 
     if not result:
         # 发送失败：回滚频控锁让用户可立即重试，且不残留无效验证码
@@ -97,7 +94,7 @@ async def send_code(account: str) -> dict:
 
     if settings.is_dev:
         # 结构化日志: 账号脱敏, 不记录验证码明文 (ARCH-014)
-        logger.bind(event="verify_code_sent", account=mask_account(account), channel="sms" if is_phone(account) else "email").info(
+        logger.bind(event="verify_code_sent", account=mask_account(account), channel="email").info(
             f"验证码已发送至 {mask_account(account)} (开发环境)"
         )
     return {"success": True, "message": "验证码已发送"}
@@ -150,22 +147,9 @@ async def verify_code(account: str, code: str) -> bool:
     return True
 
 
-async def send_sms(phone: str, code: str) -> bool:
-    """发送短信验证码（旧注册链路复用；登录/绑定走 phone_auth_service 的场景化 key）。"""
-    from app.services.sms import SmsError, send_sms_code
-
-    try:
-        await send_sms_code(phone, code)
-        return True
-    except SmsError as exc:
-        logger.bind(event="sms_send_failed", phone=mask_account(phone)).warning(
-            f"短信发送失败: {exc}"
-        )
-        return False
-
-
 def _build_email_html(code: str) -> str:
-    """构建验证码邮件 HTML 正文"""
+    """构建验证码邮件 HTML 正文（设计稿保留，品牌字取平台名称）"""
+    site_name = settings.SITE_NAME or "后台管理系统"
     return f"""\
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -175,13 +159,13 @@ def _build_email_html(code: str) -> str:
       <table role="presentation" width="420" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
         <tr>
           <td style="background:linear-gradient(135deg,#6366f1,#4f46e5);padding:24px 32px;">
-            <span style="font-size:20px;font-weight:700;color:#ffffff;">AI学习猫</span>
+            <span style="font-size:20px;font-weight:700;color:#ffffff;">{site_name}</span>
           </td>
         </tr>
         <tr>
           <td style="padding:32px;">
             <h1 style="margin:0 0 8px;font-size:18px;color:#1f2937;">注册验证码</h1>
-            <p style="margin:0 0 20px;font-size:14px;color:#6b7280;line-height:1.6;">您正在注册 AI学习猫账号，验证码为：</p>
+            <p style="margin:0 0 20px;font-size:14px;color:#6b7280;line-height:1.6;">您正在注册{site_name}账号，验证码为：</p>
             <div style="text-align:center;background:#f5f3ff;border-radius:12px;padding:20px;margin-bottom:20px;">
               <span style="font-size:32px;font-weight:700;letter-spacing:8px;color:#4f46e5;">{code}</span>
             </div>
@@ -215,11 +199,15 @@ async def send_email(to_email: str, code: str) -> bool:
 
     from_email = settings.SMTP_FROM_EMAIL or settings.SMTP_USERNAME
 
+    # 邮件模板（2026-11-19）：主题与纯文本正文走后台可编辑模板
+    # （core/mail_templates：安全变量替换，渲染缺验证码自动回退内置模板）
+    from app.core.mail_templates import render_verify_body, render_verify_subject
+
     message = EmailMessage()
-    message["Subject"] = f"【AI学习猫】注册验证码 {code}"
+    message["Subject"] = render_verify_subject(code)
     message["From"] = f"{settings.SMTP_SENDER_NAME} <{from_email}>"
     message["To"] = to_email
-    message.set_content("您的注册验证码为 " + code + "，5 分钟内有效。", charset="utf-8")
+    message.set_content(render_verify_body(code), charset="utf-8")
     message.add_alternative(_build_email_html(code), subtype="html", charset="utf-8")
 
     try:

@@ -94,6 +94,12 @@ class FakeRedis:
     async def llen(self, key: str) -> int:
         return len(self._lists.get(key) or [])
 
+    async def lrange(self, key: str, start: int, stop: int):
+        """LRANGE：错误日志环形缓冲读取（与 Redis 一致的闭区间语义）"""
+        lst = self._lists.get(key) or []
+        end = stop + 1 if stop >= 0 else len(lst) + stop + 1
+        return lst[start:end]
+
     async def set(self, key: str, value, ex: int | None = None, nx: bool = False):
         # nx=True 时仅当键不存在才写入 (对齐 redis-py SET NX 语义)
         if nx and not self._expired(key) and key in self._store:
@@ -203,6 +209,27 @@ class FakeRedis:
             return set()
         return set(entry[0])
 
+    async def hincrby(self, key: str, field: str, amount: int = 1) -> int:
+        """HINCRBY：接口调用统计的小时桶聚合（field → 次数）。"""
+        if self._expired(key):
+            self._store.pop(key, None)
+        entry = self._store.get(key)
+        current: dict = dict(entry[0]) if entry and isinstance(entry[0], dict) else {}
+        value = int(current.get(field, 0)) + int(amount)
+        current[field] = value
+        expire_at = entry[1] if entry else None
+        self._store[key] = (current, expire_at)
+        return value
+
+    async def hgetall(self, key: str) -> dict:
+        """HGETALL：返回整个 hash 的副本（真实 Redis 返回 bytes，这里返回 str）。"""
+        if self._expired(key):
+            return {}
+        entry = self._store.get(key)
+        if entry is None or not isinstance(entry[0], dict):
+            return {}
+        return dict(entry[0])
+
     async def srem(self, key: str, *members) -> int:
         """SREM：从集合移除成员，返回实际移除数（登录设备索引清理过期会话时使用）。"""
         if self._expired(key):
@@ -303,6 +330,20 @@ class _FakePipeline:
         self._commands.append(("set", key, value, ex, nx))
         return self
 
+    def hincrby(self, key: str, field: str, amount: int = 1):
+        # 接口调用统计的小时桶聚合（2026-11-19）
+        self._commands.append(("hincrby", key, field, amount))
+        return self
+
+    def lpush(self, key: str, *values):
+        # 慢接口明细 / 错误日志环形缓冲的 LPUSH
+        self._commands.append(("lpush", key, values[0] if values else ""))
+        return self
+
+    def ltrim(self, key: str, start: int, stop: int):
+        self._commands.append(("ltrim", key, start, stop))
+        return self
+
     def ttl(self, key: str):
         self._commands.append(("ttl", key))
         return self
@@ -332,6 +373,12 @@ class _FakePipeline:
                 results.append(await self._redis.set(cmd[1], cmd[2], ex=cmd[3], nx=cmd[4]))
             elif cmd[0] == "ttl":
                 results.append(await self._redis.ttl(cmd[1]))
+            elif cmd[0] == "hincrby":
+                results.append(await self._redis.hincrby(cmd[1], cmd[2], cmd[3]))
+            elif cmd[0] == "lpush":
+                results.append(await self._redis.lpush(cmd[1], cmd[2]))
+            elif cmd[0] == "ltrim":
+                results.append(await self._redis.ltrim(cmd[1], cmd[2], cmd[3]))
             else:  # 防御：新增命令未在上方登记
                 raise AssertionError(f"FakeRedis pipeline 未实现命令: {cmd[0]}")
         return results
@@ -342,8 +389,6 @@ def make_user(
     id: int = 1,
     account: str = "tester@example.com",
     role: str = "user",
-    pending_auth_code: str | None = None,
-    free_used_seconds: int = 0,
 ) -> User:
     """构造内存 User 对象 (不持久化)。"""
     return User(
@@ -351,8 +396,6 @@ def make_user(
         account=account,
         password_hash="$2b$12$placeholderhashplaceholderhashplaceholderhashplaceholde",
         role=role,
-        pending_auth_code=pending_auth_code,
-        free_used_seconds=free_used_seconds,
     )
 
 

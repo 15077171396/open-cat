@@ -77,8 +77,6 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
         items=(
             # 数据看板：原首页，2026-11 首页改为工作台后迁到 /dashboard
             MenuItem("/dashboard", "数据看板", "dashboard", perm="dashboard:view"),
-            # 数据分析：前端本地假数据演示页，不新增接口；权限与数据看板同层级
-            MenuItem("/analysis", "数据分析", "chart", perm="dashboard:view"),
         ),
     ),
     MenuGroup(
@@ -100,9 +98,6 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
         icon="notification",
         items=(
             MenuItem("/announcements", "公告管理", "sound", perm="announcement:view"),
-            # 支付：套餐维护 + 只读订单（退款仍在商户后台操作，站内不提供资金操作）
-            MenuItem("/payment-products", "充值套餐", "gift", perm="payment_product:view"),
-            MenuItem("/payment-orders", "支付订单", "wallet", perm="payment_order:view"),
             # 机审留痕与人工举报是同一页的两个 Tab，任一查看权限都应显示入口
             MenuItem("/moderation", "内容审核", "audit", perms=("moderation:view", "report:view")),
             MenuItem("/comments", "内容评论", "message", perm="comment:view"),
@@ -121,6 +116,12 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
             MenuItem("/monitor/online", "在线用户", "online", perm="dashboard:view"),
             MenuItem("/monitor/server", "服务器监控", "server", perm="dashboard:view"),
             MenuItem("/monitor/cache", "缓存监控", "cache", perm="dashboard:view"),
+            # 系统错误日志：最近 ERROR 事件的环形缓冲（Redis），无需登服务器即可排查
+            MenuItem("/monitor/errors", "错误日志", "file-search", perm="dashboard:view"),
+            # 接口监控：调用量/错误率 Top + 慢接口明细（2026-11-19，只读运维）
+            MenuItem("/monitor/api", "接口监控", "chart", perm="dashboard:view"),
+            # 登录日志：登录成功/失败/登出的安全遥测（2026-11-18 独立权限码）
+            MenuItem("/login-logs", "登录日志", "login", perm="login_log:view"),
         ),
     ),
     MenuGroup(
@@ -129,9 +130,6 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
         icon="idcard",
         items=(
             MenuItem("/users", "用户管理", "team", perm="user:view"),
-            MenuItem("/auth-requests", "实名审核", "check-circle", perm="auth_request:view"),
-            MenuItem("/points", "积分流水", "wallet", perm="points:view"),
-            MenuItem("/redeem-codes", "积分兑换码", "gift", perm="redeem_code:view"),
             MenuItem("/roles", "角色管理", "safety", perm="role:view"),
             MenuItem("/departments", "部门管理", "apartment", perm="department:view"),
             MenuItem("/positions", "岗位管理", "position", perm="department:view"),
@@ -147,17 +145,15 @@ MENU_GROUPS: tuple[MenuGroup, ...] = (
             MenuItem("/menu-settings", "菜单管理", "menu", perm="setting:view"),
             # 数据字典：类型 + 字典项，统一维护业务枚举的展示文案
             MenuItem("/dicts", "字典管理", "dict", perm="setting:view"),
-            # 登录管理：登录方式开关 / 微信网站应用凭据 / 短信通道
-            # （2026-10-27 从「系统设置 → 登录与短信」抽出，独立权限码）
+            # IP 黑名单（2026-11-19）：运营级访问封禁，保存即时生效（独立授权面）
+            MenuItem("/ip-blacklist", "IP 黑名单", "safety", perm="ip_blacklist:view"),
+            # 登录管理：登录方式开关 / 图形验证码（2026-10-27 独立权限码）
             MenuItem("/login-settings", "登录管理", "login", perm="login_setting:view"),
             # 法律文档：隐私政策 / 用户协议 / 免责声明
             # （2026-10-27 从「系统设置 → 法律文档」抽出，对外合规文本单独授权）
             MenuItem("/legal-documents", "法律文档", "file-protect", perm="legal_doc:view"),
-            # 支付与渠道：支付开关 / 微信 / 支付宝凭据
-            # （2026-10-27 从「系统设置 → 支付与渠道」抽出，资金链路配置单独授权）
-            MenuItem("/payment-settings", "支付与渠道", "credit-card", perm="payment_setting:view"),
             # 邮件通知：SMTP 通道（验证码发信）+ 测试发信
-            # （2026-10-27 从「系统设置 → 邮件通知」抽出，与短信同属通道型配置）
+            # （2026-10-27 从「系统设置 → 邮件通知」抽出，通道型配置）
             MenuItem("/mail-settings", "邮件通知", "mail", perm="mail_setting:view"),
             # 模型管理：AI 供应商凭据、模型与单价（从系统设置迁出，独立成模块）
             MenuItem("/ai-models", "模型管理", "robot", perm="ai_model:view"),
@@ -208,15 +204,12 @@ MENU_LABELS_EN: dict[str, str] = {
     "/": "Workplace",
     # 概览
     "/dashboard": "Dashboard",
-    "/analysis": "Analytics",
     # 内容
     "/tutorials": "Tutorials",
     "/categories": "Categories",
     "/materials": "Media Library",
     # 运营
     "/announcements": "Announcements",
-    "/payment-products": "Recharge Plans",
-    "/payment-orders": "Payment Orders",
     "/moderation": "Content Review",
     "/comments": "Comments",
     "/feedback": "User Feedback",
@@ -226,11 +219,11 @@ MENU_LABELS_EN: dict[str, str] = {
     "/monitor/online": "Online Users",
     "/monitor/server": "Server",
     "/monitor/cache": "Cache",
+    "/monitor/errors": "Error Logs",
+    "/monitor/api": "API Monitor",
+    "/login-logs": "Login Logs",
     # 用户与权限
     "/users": "Users",
-    "/auth-requests": "Identity Review",
-    "/points": "Points Ledger",
-    "/redeem-codes": "Redeem Codes",
     "/roles": "Roles",
     "/departments": "Departments",
     "/positions": "Positions",
@@ -238,9 +231,9 @@ MENU_LABELS_EN: dict[str, str] = {
     "/settings": "Settings",
     "/menu-settings": "Menu Management",
     "/dicts": "Dictionaries",
+    "/ip-blacklist": "IP Blacklist",
     "/login-settings": "Login",
     "/legal-documents": "Legal Documents",
-    "/payment-settings": "Payment Channels",
     "/mail-settings": "Email",
     "/ai-models": "AI Models",
     "/ai-writing": "AI Writing",

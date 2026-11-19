@@ -42,7 +42,7 @@ class HeartbeatTests(unittest.IsolatedAsyncioTestCase):
     async def test_record_job_run_swallows_redis_failure(self):
         """Redis 不可用时写心跳不得抛异常（否则会把任务本身拖挂）"""
         with mock.patch.object(sss, "redis_client", _BrokenRedis()):
-            await sss.record_job_run("check_vip_expiry", True, "ok")  # 不抛即通过
+            await sss.record_job_run("cleanup_audit_logs", True, "ok")  # 不抛即通过
 
     async def test_record_data_quality_swallows_redis_failure(self):
         with mock.patch.object(sss, "redis_client", _BrokenRedis()):
@@ -51,11 +51,11 @@ class HeartbeatTests(unittest.IsolatedAsyncioTestCase):
     async def test_heartbeat_roundtrip(self):
         fake = FakeRedis()
         with mock.patch.object(sss, "redis_client", fake):
-            await sss.record_job_run("check_vip_expiry", True, "降级 3 个用户")
+            await sss.record_job_run("cleanup_audit_logs", True, "清理 3 条过期记录")
             jobs = await sss.get_jobs_status()
-        item = next(j for j in jobs if j["id"] == "check_vip_expiry")
+        item = next(j for j in jobs if j["id"] == "cleanup_audit_logs")
         self.assertTrue(item["ok"])
-        self.assertEqual(item["detail"], "降级 3 个用户")
+        self.assertEqual(item["detail"], "清理 3 条过期记录")
         self.assertFalse(item["stale"])
 
     async def test_missing_heartbeat_is_stale(self):
@@ -425,16 +425,16 @@ class ManualTriggerTests(unittest.TestCase):
             recorded.append((job_id, ok, detail))
 
         async def _go():
-            await fake.lpush("ops:jobs:commands", '{"job_id": "check_vip_expiry", "by": "ops"}')
+            await fake.lpush("ops:jobs:commands", '{"job_id": "cleanup_audit_logs", "by": "ops"}')
             with mock.patch.object(scheduler_tasks, "redis_client", fake):
-                with mock.patch.dict(scheduler_tasks.JOB_FUNCS, {"check_vip_expiry": _handler}):
+                with mock.patch.dict(scheduler_tasks.JOB_FUNCS, {"cleanup_audit_logs": _handler}):
                     with mock.patch.object(scheduler_tasks, "record_job_run", _record):
                         raw = await fake.lpop("ops:jobs:commands")
                         await scheduler_tasks._handle_command(raw)
 
         asyncio.run(_go())
         self.assertEqual(calls, [1])
-        self.assertEqual(recorded[0][0], "check_vip_expiry")
+        self.assertEqual(recorded[0][0], "cleanup_audit_logs")
         self.assertTrue(recorded[0][1])
         self.assertIn("[手动]", recorded[0][2])
 

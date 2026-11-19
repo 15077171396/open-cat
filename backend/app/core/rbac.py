@@ -44,6 +44,26 @@ _RULES: list[tuple[str, str, list[str]]] = [
     # 顶栏待办聚合：任何管理员都能看到铃铛，具体类别由服务层按权限裁剪
     # （无权限的类别直接不出现，而不是显示一个点进去 403 的数字）
     ("GET", "/api/v1/admin/todos", []),
+    # 登录日志（2026-11-18）：登录成功/失败/登出的安全遥测。查看与清除分立 ——
+    # 「能看」是运维常态，「删」等于抹安全线索，单独成码且必须审计（api 层写审计）。
+    ("GET", "/api/v1/admin/login-logs", ["login_log:view"]),
+    # 登录日志导出（2026-11-19）：与列表页同权限，数据外带写审计
+    ("GET", "/api/v1/admin/export/login-logs", ["login_log:view"]),
+    ("DELETE", "/api/v1/admin/login-logs", ["login_log:clear"]),
+    # 系统错误日志（2026-11-18）：最近 ERROR 事件的环形缓冲，运维只读，复用 dashboard:view
+    ("GET", "/api/v1/admin/monitor/errors", ["dashboard:view"]),
+    # 接口调用统计（2026-11-19）：调用量/错误率 Top + 慢接口明细，运维只读同层级
+    ("GET", "/api/v1/admin/monitor/api-stats", ["dashboard:view"]),
+    # 核心指标快照趋势（2026-11-18）：看板数据的一部分，复用 dashboard:view
+    ("GET", "/api/v1/admin/ops-metrics", ["dashboard:view"]),
+    # 全指标概览（2026-11-19）：最近两帧对比，同上复用 dashboard:view
+    ("GET", "/api/v1/admin/ops-metrics/summary", ["dashboard:view"]),
+    # IP 黑名单（2026-11-19）：拉黑/放行直接改变线上访问面，独立授权面
+    ("GET", "/api/v1/admin/ip-blacklist", ["ip_blacklist:view"]),
+    ("PUT", "/api/v1/admin/ip-blacklist", ["ip_blacklist:update"]),
+    # 用户批量导入（2026-11-19）：导入 = 批量建号，授权面与单账号创建一致（user:create）。
+    # ⚠️ 必须登记在 /users/{user_id} 之前（FastAPI 按注册顺序匹配）
+    ("POST", "/api/v1/admin/users/import", ["user:create"]),
     # 统一回收站：汇总只返回有查看权限的类型；列表/恢复按类型显式登记权限。
     # 恢复复用「能删才放回」口径（tutorial:delete / comment:delete / user:restore）
     ("GET", "/api/v1/admin/recycle-bin/summary", []),
@@ -60,7 +80,10 @@ _RULES: list[tuple[str, str, list[str]]] = [
     # 导出本身是数据外带，所以每个端点都会写审计（见 admin_export._csv_response）。
     ("GET", "/api/v1/admin/export/users", ["user:view"]),
     ("GET", "/api/v1/admin/export/tutorials", ["tutorial:view"]),
-    ("GET", "/api/v1/admin/export/point-transactions", ["points:view"]),
+    # 审计日志导出（2026-11-19）：与列表页同权限（audit:view），数据外带写审计
+    ("GET", "/api/v1/admin/export/audit-logs", ["audit:view"]),
+    # 核心指标快照导出（2026-11-19）：运维归档，复用 dashboard:view
+    ("GET", "/api/v1/admin/export/ops-metrics", ["dashboard:view"]),
     # 定时任务运行状态（周期/上次执行/是否超期）：运维只读数据，同样是 dashboard:view。
     # 刻意不新建 scheduler:view —— 新码必须配套「补种给已有内置角色」的迁移，
     # 而这里的信息量与「系统状态」卡完全同一层级
@@ -68,17 +91,8 @@ _RULES: list[tuple[str, str, list[str]]] = [
     # 写操作单开 scheduler:manage（启停/改周期会静默改变全站维护行为，不能给「只读运维」顺手做）
     ("PUT", "/api/v1/admin/scheduled-jobs/{job_id}", ["scheduler:manage"]),
     ("POST", "/api/v1/admin/scheduled-jobs/{job_id}/run", ["scheduler:manage"]),
-    # 转化漏斗与留存：看板类只读数据，同样复用 dashboard:view
-    ("GET", "/api/v1/admin/funnel", ["dashboard:view"]),
     # 搜索词报告：运营选题用，只读，复用 dashboard:view（不新增权限码）
     ("GET", "/api/v1/admin/search-keywords", ["dashboard:view"]),
-    # 内容归因榜：同上，只读看板数据
-    ("GET", "/api/v1/admin/content-attribution", ["dashboard:view"]),
-
-    # 实名审核
-    ("GET", "/api/v1/admin/auth-requests", ["auth_request:view"]),
-    ("PUT", "/api/v1/admin/auth-requests/{auth_request_id}/approve", ["auth_request:review"]),
-    ("PUT", "/api/v1/admin/auth-requests/{auth_request_id}/reject", ["auth_request:review"]),
 
     # 教程管理（含章节）
     ("GET", "/api/v1/admin/tutorials", ["tutorial:view"]),
@@ -100,11 +114,6 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("POST", "/api/v1/admin/tutorials/{tutorial_id}/nodes/{node_id}/move", ["tutorial:edit"]),
     ("DELETE", "/api/v1/admin/tutorials/{tutorial_id}/nodes/{node_id}", ["tutorial:edit"]),
 
-    # 内容编辑辅助（第三方资料导入 / AI 翻译）
-    ("GET", "/api/v1/admin/fetch-resource", _CONTENT_EDIT_ANY),
-    ("POST", "/api/v1/admin/translate-content", _CONTENT_EDIT_ANY),
-    ("GET", "/api/v1/admin/translate-content/{task_id}", _CONTENT_EDIT_ANY),
-
     # 分类分组（分类页左下栏）：权限码复用 category:*，理由见 api/admin_category_groups.py
     # ⚠️ reorder 必须排在 /{group_id} 之前：{group_id} 的通配正则会同时匹配 "reorder"
     ("GET", "/api/v1/admin/category-groups", ["category:view"]),
@@ -121,7 +130,6 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("POST", "/api/v1/admin/users/batch-delete", ["user:delete"]),
     ("GET", "/api/v1/admin/users/{user_id}", ["user:view"]),
     ("PUT", "/api/v1/admin/users/{user_id}", ["user:edit"]),
-    ("GET", "/api/v1/admin/users/{user_id}/points", ["user:view"]),
     ("DELETE", "/api/v1/admin/users/{user_id}", ["user:delete"]),
     # 恢复已注销账号：与删除成对，但独立成码（「能删」不等于「能放回来」）
     ("POST", "/api/v1/admin/users/{user_id}/restore", ["user:restore"]),
@@ -145,16 +153,6 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("POST", "/api/v1/admin/lock/password", []),
     ("POST", "/api/v1/admin/lock/verify", []),
 
-    # 积分流水
-    ("GET", "/api/v1/admin/points/transactions", ["points:view"]),
-
-    # 积分兑换码
-    ("GET", "/api/v1/admin/redemption-codes", ["redeem_code:view"]),
-    ("POST", "/api/v1/admin/redemption-codes", ["redeem_code:create"]),
-    ("POST", "/api/v1/admin/redemption-codes/batch-disable", ["redeem_code:disable"]),
-    ("GET", "/api/v1/admin/redemption-codes/{code_id}/records", ["redeem_code:view"]),
-    ("PATCH", "/api/v1/admin/redemption-codes/{code_id}/disable", ["redeem_code:disable"]),
-
     # 公告管理
     ("GET", "/api/v1/admin/announcements", ["announcement:view"]),
     ("POST", "/api/v1/admin/announcements", ["announcement:create"]),
@@ -173,6 +171,9 @@ _RULES: list[tuple[str, str, list[str]]] = [
 
     # 站内消息通知：查看已发批次 + 发送（发送是面向全体用户的触达，单独成码）
     ("GET", "/api/v1/admin/messages", ["message:view"]),
+    # 站内通知模板（2026-11-19）：查看跟随通知查看；增删与发送同级（口径=以平台名义群发）
+    ("GET", "/api/v1/admin/message-templates", ["message:view"]),
+    ("PUT", "/api/v1/admin/message-templates", ["message:send"]),
     ("POST", "/api/v1/admin/messages", ["message:send"]),
 
     # 内容审核：机审留痕 + 人工举报；举报处理独立成权限码，
@@ -180,6 +181,11 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("GET", "/api/v1/admin/moderation/summary", ["moderation:view", "report:view"]),
     ("GET", "/api/v1/admin/moderation/logs", ["moderation:view"]),
     ("PUT", "/api/v1/admin/moderation/logs/{log_id}", ["moderation:review"]),
+    # 敏感词库（2026-11-18）：查看跟随机审留痕查看；维护单独成码
+    # （词库内容决定 UGC 拦截边界，能改词库就能「放行某类内容」）
+    ("GET", "/api/v1/admin/moderation/words", ["moderation:view"]),
+    ("PUT", "/api/v1/admin/moderation/words", ["moderation:words"]),
+    ("POST", "/api/v1/admin/moderation/words/test", ["moderation:view"]),
     ("GET", "/api/v1/admin/reports", ["report:view"]),
     ("PUT", "/api/v1/admin/reports/{report_id}", ["report:handle"]),
 
@@ -192,8 +198,8 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("GET", "/api/v1/admin/settings", ["setting:view"]),
     ("PUT", "/api/v1/admin/settings", ["setting:update"]),
 
-    # 登录管理（从「系统设置 → 登录与短信」抽出）：读写都用独立权限码，
-    # 这样「能开关登录方式」与「能改 COS/支付密钥」两件事可以分开授权。
+    # 登录管理（从「系统设置 → 登录与验证码」抽出）：读写都用独立权限码，
+    # 这样「能开关登录方式」与「能改 COS 密钥」两件事可以分开授权。
     # 写接口内部还有一层 surface 约束（只接受登录配置键），见 login_settings_service.update
     ("GET", "/api/v1/admin/login-settings", ["login_setting:view"]),
     ("PUT", "/api/v1/admin/login-settings", ["login_setting:update"]),
@@ -203,24 +209,11 @@ _RULES: list[tuple[str, str, list[str]]] = [
     ("GET", "/api/v1/admin/legal-documents", ["legal_doc:view"]),
     ("PUT", "/api/v1/admin/legal-documents", ["legal_doc:update"]),
 
-    # 支付与渠道（从「系统设置 → 支付与渠道」抽出）：资金链路配置，
-    # 读写独立授权；写接口同样有 surface 约束（只接受 payment_* 键）
-    ("GET", "/api/v1/admin/payment-settings", ["payment_setting:view"]),
-    ("PUT", "/api/v1/admin/payment-settings", ["payment_setting:update"]),
-
     # 邮件通知（从「系统设置 → 邮件通知」抽出）：SMTP 通道配置 + 测试发信。
     # 测试发信算写操作 —— 它是一次对外动作，不只是读
     ("GET", "/api/v1/admin/mail-settings", ["mail_setting:view"]),
     ("PUT", "/api/v1/admin/mail-settings", ["mail_setting:update"]),
     ("POST", "/api/v1/admin/mail-settings/test", ["mail_setting:update"]),
-
-    # 支付套餐 / 订单（管理端）
-    ("GET", "/api/v1/admin/payment-products", ["payment_product:view"]),
-    ("POST", "/api/v1/admin/payment-products", ["payment_product:create"]),
-    ("PUT", "/api/v1/admin/payment-products/{product_id}", ["payment_product:edit"]),
-    ("DELETE", "/api/v1/admin/payment-products/{product_id}", ["payment_product:delete"]),
-    ("GET", "/api/v1/admin/payment-orders", ["payment_order:view"]),
-    ("GET", "/api/v1/admin/payment-orders/{order_no}", ["payment_order:view"]),
 
     # AI 模型管理：列表/编辑需模型权限；options 只暴露非密钥的模型名与展示名，
     # 工具编辑页（tool:edit）也要用，故对任何 admin 开放。

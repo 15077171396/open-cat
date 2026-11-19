@@ -92,7 +92,7 @@ class ContentDetailBase(BaseModel):
     """公开详情的公共字段集。
 
     与 `services/detail_shape.build_detail_base()` 一一对应（后者是唯一产出点）。
-    各类型专有键（`content` / `inputs` / `netdisk_links` / `nodes` …）透传。
+    各类型专有键（`content` / `inputs` / `nodes` …）透传。
     """
 
     model_config = _PASSTHROUGH
@@ -114,14 +114,11 @@ class ContentDetailBase(BaseModel):
 
 
 class TutorialDetail(ContentDetailBase):
-    """教程整篇详情（需登录）。正文与网盘链接在此声明，其余透传。"""
+    """教程整篇详情（需登录）。正文在此声明，其余透传。"""
 
     content: Optional[str] = Field(None, description="整篇正文（章节化后通常为空，正文在章节接口）")
     status: Optional[str] = None
-    access_mode: Optional[str] = None
-    points_price: Optional[int] = None
     published_at: Optional[str] = None
-    netdisk_links: list[dict] = Field(default_factory=list)
 
 
 class TutorialIntro(ContentDetailBase):
@@ -129,17 +126,12 @@ class TutorialIntro(ContentDetailBase):
 
     introduction: Optional[str] = None
     status: Optional[str] = None
-    access_mode: Optional[str] = None
-    points_price: Optional[int] = None
     is_recommended: Optional[bool] = None
     published_at: Optional[str] = None
     can_read: Optional[bool] = Field(None, description="当前用户是否可读正文（游客恒 false）")
-    purchased: Optional[bool] = None
     nodes: list[dict] = Field(default_factory=list, description="章节树（含 children）")
     flat: list[dict] = Field(default_factory=list, description="章节前序列表（翻章用）")
     node_count: Optional[int] = None
-    netdisk_links: list[dict] = Field(default_factory=list)
-    netdisk_link_count: Optional[int] = None
 
 
 class NodeDetail(ContentDetailBase):
@@ -182,8 +174,6 @@ class ResourceDetail(ContentDetailBase):
     is_featured: Optional[bool] = None
     is_pinned: Optional[bool] = None
     tags: Optional[list | dict] = None
-    netdisk_links: list[dict] = Field(default_factory=list)
-    netdisk_link_count: Optional[int] = None
 
 
 class ToolDetail(ContentDetailBase):
@@ -192,5 +182,3 @@ class ToolDetail(ContentDetailBase):
     tool_type: Optional[str] = None
     form_schema: Optional[dict] = None
     usage_count: Optional[int] = None
-    access_mode: Optional[str] = None
-    points_cost: Optional[int] = None

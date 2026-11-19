@@ -71,8 +71,9 @@ async def load_configs(db: AsyncSession) -> tuple[dict[str, sjs.JobConfig], bool
 
 
 def _configured_flags() -> dict[str, bool]:
+    # BAIDU_PUSH_TOKEN 已随 0080_drop_commercial_modules 从 config.py 移除，
+    # 这里曾残留引用会让「定时任务」页对任何已裁剪配置直接 AttributeError（存量损坏，2026-11-18 清理）
     return {
-        "BAIDU_PUSH_TOKEN": bool((settings.BAIDU_PUSH_TOKEN or "").strip()),
         "INDEXNOW_KEY": bool((settings.INDEXNOW_KEY or "").strip()),
     }
 

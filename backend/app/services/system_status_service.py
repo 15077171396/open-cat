@@ -146,7 +146,6 @@ def alert_readiness() -> dict:
     return {
         "sentry": bool((settings.SENTRY_DSN or "").strip()),
         "watchdog_webhook": bool((settings.WATCHDOG_WEBHOOK or "").strip()),
-        "baidu_push": bool((settings.BAIDU_PUSH_TOKEN or "").strip()),
         "indexnow": bool((settings.INDEXNOW_KEY or "").strip()),
     }
 

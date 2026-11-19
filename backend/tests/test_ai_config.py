@@ -117,29 +117,15 @@ class DefinitionTests(unittest.TestCase):
         self.assertEqual(
             SECRET_KEYS,
             {
-                # 收录推送 / 第三方导入
-                "baidu_push_token",
-                "indexnow_key",
-                "github_token",
-                "hf_token",
-                # 对象存储 / 小程序 / 邮件
+                # 对象存储（COS / S3 兼容驱动）
                 "cos_secret_id",
                 "cos_secret_key",
                 "s3_access_key",
                 "s3_secret_key",
-                "wechat_mini_secret",
+                # 邮件通道
                 "smtp_password",
-                # 登录 / 短信 / 支付（2026-10-27）
-                "wechat_web_secret",
-                "sms_tencent_secret_id",
-                "sms_tencent_secret_key",
-                "sms_aliyun_access_key_secret",
-                "wechat_pay_api_v3_key",
-                "wechat_pay_private_key",
-                "alipay_private_key",
-                # Stripe 支付密钥（2026-11-06）
-                "stripe_secret_key",
-                "stripe_webhook_secret",
+                # 站点与 SEO（IndexNow 密钥）
+                "indexnow_key",
                 # 图片搜索图源密钥（2026-10-29）
                 "image_search_pexels_key",
                 "image_search_pixabay_key",

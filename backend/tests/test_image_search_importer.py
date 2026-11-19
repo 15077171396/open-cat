@@ -280,9 +280,10 @@ class PlaceholderPipelineTests(unittest.IsolatedAsyncioTestCase):
                 mock.patch.object(importer.storage, "is_configured", return_value=True), \
                 mock.patch.object(importer.storage, "upload_bytes", new=mock.AsyncMock()) as upload:
             with self.assertRaises(AppException):
-                await importer.import_hit(db, _hit(url, "sogou"), alt="熊猫", query="熊猫", admin_id=4)
+                # sogou 图源已随开源裁剪移除，placeholder 管线用例改用 pexels 承载
+                await importer.import_hit(db, _hit(url, "pexels"), alt="熊猫", query="熊猫", admin_id=4)
             with self.assertRaises(AppException):
-                await thumb.fetch_thumb(thumb.ThumbTarget(url, "sogou"), transport=transport)
+                await thumb.fetch_thumb(thumb.ThumbTarget(url, "pexels"), transport=transport)
         upload.assert_not_awaited()
         self.assertEqual(db.commits, 0)
 
@@ -294,9 +295,10 @@ class PlaceholderPipelineTests(unittest.IsolatedAsyncioTestCase):
         ))
         downloader = partial(importer.download_image, transport=transport)
         hit = ImageHit(
-            source="sogou", source_id="placeholder", width=20, height=10,
-            thumb_url="https://qqpublic.qpic.cn/good", download_url="https://qqpublic.qpic.cn/bad",
-            fallback_urls=("https://qqpublic.qpic.cn/good",),
+            source="pexels", source_id="placeholder", width=20, height=10,
+            # URL 域名用图源白名单内的主机（MockTransport 拦截全部请求，内容与域名无关）
+            thumb_url="https://images.pexels.com/good", download_url="https://images.pexels.com/bad",
+            fallback_urls=("https://images.pexels.com/good",),
         )
         with mock.patch("app.services.image_search.policy.is_public_host", return_value=True), \
                 mock.patch.object(importer, "download_image", new=downloader), \

@@ -183,9 +183,37 @@ class RegistryTests(unittest.TestCase):
         """导出权限必须是真的存在的权限码，否则规则表写了也永远 403。"""
         from app.services.rbac_catalog import ALL_PERMISSION_CODES
 
-        for key, spec in es.RESOURCES.items():
-            with self.subTest(resource=key):
+        for spec in es.RESOURCES.values():
+            with self.subTest(resource=spec.key):
                 self.assertIn(spec.perm, ALL_PERMISSION_CODES)
+
+    def test_login_logs_spec_exists(self):
+        """登录日志导出：权限 login_log:view；字段级与列表页一致（不含 request_id）"""
+        spec = es.get_spec("login-logs")
+        self.assertEqual(spec.perm, "login_log:view")
+        self.assertEqual(spec.target_type, "login_log")
+        self.assertEqual(spec.key, "login-logs")
+        labels = [c.label for c in spec.columns]
+        self.assertIn("账号", labels)
+        self.assertIn("状态", labels)
+        self.assertNotIn("请求ID", labels)
+
+    def test_audit_logs_spec_exists_with_safe_columns(self):
+        """审计导出：权限 audit:view；字段级 diff（detail）刻意不导 —— 安全掩码字段不二次扩散"""
+        spec = es.get_spec("audit-logs")
+        self.assertEqual(spec.perm, "audit:view")
+        self.assertEqual(spec.target_type, "audit_log")
+        # key 与路由段逐字一致（连字符），否则 f"/export/{key}" 匹配不到规则表
+        self.assertEqual(spec.key, "audit-logs")
+        column_keys = [c.key for c in spec.columns]
+        self.assertIn("summary", column_keys)
+        self.assertIn("ip", column_keys)
+        self.assertNotIn("detail", column_keys, "字段级 diff 含敏感变更值，CSV 只带摘要")
+
+    def test_audit_logs_filters_whitelisted(self):
+        spec = es.get_spec("audit-logs")
+        for name in ("action", "target_type", "risk", "keyword", "start_at", "end_at"):
+            self.assertIn(name, spec.filters)
 
     def test_routes_are_registered_fail_closed(self):
         from app.core.rbac import match_route_permission
@@ -196,18 +224,18 @@ class RegistryTests(unittest.TestCase):
                 self.assertEqual(perms, [spec.perm])
 
     def test_disabled_module_blocks_export(self):
-        """关掉积分模块后，流水也不该能导出（否则开关只是藏了菜单）。"""
+        """关掉教程模块后，导出也不该能走（否则开关只是藏了菜单）。"""
         from app import module_registry
 
         self.assertEqual(
-            module_registry.module_for_path("/api/v1/admin/export/point-transactions").key,
-            "points",
+            module_registry.module_for_path("/api/v1/admin/export/tutorials").key,
+            "tutorial",
         )
         from app.config import settings
 
-        with mock.patch.object(settings, "ENABLED_MODULES", "core,tutorial,resource"):
+        with mock.patch.object(settings, "ENABLED_MODULES", "core"):
             self.assertFalse(
-                module_registry.is_path_enabled("/api/v1/admin/export/point-transactions")
+                module_registry.is_path_enabled("/api/v1/admin/export/tutorials")
             )
             self.assertTrue(module_registry.is_path_enabled("/api/v1/admin/export/users"))
 

@@ -54,6 +54,24 @@ class CachePrefixRow(BaseModel):
     count: int
 
 
+class ErrorLogItem(BaseModel):
+    """一条系统错误事件（Redis 环形缓冲的最近 ERROR+ 日志）"""
+
+    ts: str | None = None
+    level: str = "ERROR"
+    message: str = ""
+    name: str = ""
+    function: str = ""
+    line: int | None = None
+    request_id: str | None = None
+
+
+class ErrorLogsData(BaseModel):
+    available: bool = True
+    error: str | None = None
+    items: list[ErrorLogItem] = Field(default_factory=list)
+
+
 class CacheStatsData(BaseModel):
     available: bool = True
     error: str | None = None

@@ -1,11 +1,9 @@
-# AI 猫平台 — 后端服务（`backend/`）
+# Open Cat — 后端服务（`backend/`）
 
 FastAPI + SQLAlchemy 2.0（异步）+ MySQL 8 + Redis 7 + Alembic + APScheduler。
 
 > ⚠️ **本文只写「在 `backend/` 里怎么干活」**：路由清单、表结构、字段口径、业务规则等**清单类信息一律以
-> [项目说明](../docs/03-开发/项目说明.md) 为唯一来源**，本文不复制（曾各自维护一份接口表，两份都过期且互相矛盾）。
->
-> 相关文档：[技术架构](../docs/02-架构/技术架构.md)（分层与决策依据）· [部署说明书](../docs/04-运维/部署说明书.md)（生产运行）· [开源就绪评估与功能路线](../docs/99-过程归档/06-开源/开源就绪评估与功能路线.md)（历史评估与已知限制）
+> [开源文档](../docs/07-开源文档/README.md) 为唯一来源**，本文不复制（曾各自维护一份接口表，两份都过期且互相矛盾）。
 
 ---
 
@@ -18,14 +16,14 @@ python -m venv venv
 # venv/bin/pip install -r requirements.txt                                                        # Linux / macOS
 
 copy .env.example .env        # Windows；Linux/macOS 用 cp。填 SECRET_KEY / DB_PASSWORD / REDIS_PASSWORD；
-                              # 其余可选键（AI / 对象存储 / 邮件 / 支付）见根目录 ../.env.example，或直接在后台「系统设置」配
+                              # 其余可选键（AI / 对象存储 / 邮件）见根目录 ../.env.example，或直接在后台「系统设置」配
 .\venv\Scripts\alembic.exe upgrade head
 .\venv\Scripts\python.exe seed_data.py      # 建管理员与基础数据
 .\venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 - Swagger `http://localhost:8000/docs` · ReDoc `/redoc` · 探活 `/api/v1/health` · 深度探活 `/api/v1/health/deep`
-- 默认管理员：账号 `admin@aicat.com`，口令由 `seed_data.py` 决定 —— 有 `ADMIN_PASSWORD` 环境变量就用它，否则随机生成 `secrets.token_urlsafe(16)` 并**只打印一次**（登录后请立即改）
+- 默认管理员：账号 `admin@example.com`，口令由 `seed_data.py` 决定 —— 有 `ADMIN_PASSWORD` 环境变量就用它，否则随机生成 `secrets.token_urlsafe(16)` 并**只打印一次**（登录后请立即改）
 - 也可以直接双击 `../scripts/start-backend.bat`（常驻窗口，不受开发会话影响）
 - ⚠️ Windows 下 uvicorn 的 `--reload` 会波及其他常驻进程，后端与前端 dev server **要分终端跑**
 
@@ -44,7 +42,7 @@ backend/
 │   │   ├── admin.py          #   管理端聚合入口（自身 0 路由）
 │   │   ├── admin_*.py        #   15 个管理域模块（原 1515 行的 admin.py 按域拆出）
 │   │   └── _admin_shared.py  #   共享 router 与跨域模型
-│   ├── services/             # 业务逻辑（含 ai/ 与 third_party_fetch/ 两个子包）
+│   ├── services/             # 业务逻辑（含 ai/ 与 image_search/ 等子包）
 │   ├── models/               # SQLAlchemy 模型
 │   ├── schemas/              # Pydantic 出入参
 │   ├── core/                 # security / crypto / permissions / rbac / rate_limit / exceptions / monitoring / request_context
@@ -56,7 +54,7 @@ backend/
 └── seed_demo.py             # 演示数据（教程/分类/评论/反馈/公告，图片真实落盘）
 ```
 
-模块与路由的**实际数量、清单、权限**见 [项目说明](../docs/03-开发/项目说明.md) 第三 / 五 / 七章。
+模块与路由的**实际数量、清单、权限**见 [开源文档](../docs/07-开源文档/README.md)。
 
 ## 3. 写代码前要知道的约定
 
@@ -68,7 +66,6 @@ backend/
 | **时间统一 naive UTC**，禁止裸 `datetime.now()` | 跨模块时区口径曾分裂（容器 `TZ=UTC` 隐式成立，本地库 `-08:00` 就错） | 迁移评审 + `test_db_session_timezone`（P2-13 / P1-24） |
 | **MySQL 会话时区在连接层锁 UTC**（`connect_args`） | 不依赖数据库服务器/容器时区 | AST 守卫：所有引擎创建必须带 `connect_args`（P2-13） |
 | **管理端敏感操作必须落审计**，且与业务**同事务** | 回滚即不应留下审计行 | `test_admin_audit`（P2-9） |
-| **出站抓取一律 `fetch_capped` 流式限流**，不得「先下载后校验」 | 超大响应打爆内存 | AST 守卫（P2-6 / P2-11） |
 | **新增 AI 模型只在 `services/ai/registry.py` 登记一次** | 四层手工注册曾遗漏即静默换模型 | `test_provider_registry`（P1-40） |
 | **管理端路由必须挂 `check_route_permission`** | router 级 `dependencies` **不跨 `include_router` 继承**，裸 `APIRouter()` = 任意 admin 可自我提权 | `test_admin_route_guards` / `test_rbac_guard_enforced`（P0-7） |
 | **测试全程离线**：不连真实 MySQL / Redis | 否则「本地绿、CI 红」；用 `conftest.py` 的 `async_client` + `FakeRedis` + `fake_db` | CI 显式传 `DB_PORT=1 REDIS_PORT=1`（P0-2） |
@@ -89,7 +86,7 @@ python ../scripts/verify_migrations.py
 指向线上或同事的库时会在那个实例上建/删库（第五轮审查 R5-D5：此前这里写成「需要 Docker」，
 既误导环境准备，也没提示它会动真实例）。
 
-单个文件的用例数与覆盖范围见 [项目说明](../docs/03-开发/项目说明.md) 9.1。
+单个文件的用例数与覆盖范围见 [开源文档](../docs/07-开源文档/README.md)。
 ⚠️ `fake_db` 是内存会话仿真，保真度有已知失真（台账 P1-42）——用它跑出来的「通过」不等于真实数据库上的行为。
 
 ## 5. 常见坑

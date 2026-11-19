@@ -1,6 +1,6 @@
 """用户中心路由"""
 
-from fastapi import APIRouter, Depends, Query, Response, UploadFile, File
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 from loguru import logger
@@ -17,14 +17,11 @@ from app.schemas.content import ItemsResult, PageResult
 from app.schemas.user_content import (
     ContinueLearningItem,
     FavoriteItem,
-    InviteInfo,
     LearningRecordItem,
     MessageItem,
-    PointTransactionItem,
 )
 from app.schemas.auth import UserInfoData
 from app.services.storage import StorageError, storage
-from app.services.invite_poster import build_invite_poster
 from app.services.auth_service import build_user_profile
 from app.services.favorite_service import (
     add_favorite,
@@ -46,10 +43,6 @@ from app.services.learning_service import (
     list_continue_learning,
     get_learning_stats,
 )
-from app.services.tutorial_service import list_purchased_tutorials
-from app.services.point_service import list_user_transactions
-from app.services.redemption_service import redeem_code
-from app.services.invite_service import get_invite_info, get_invite_settings, list_invitees
 from app.services.user_settings_service import (
     update_profile as svc_update_profile,
     update_avatar,
@@ -62,9 +55,7 @@ from app.services.user_settings_service import (
     get_user_level,
     get_user_stats,
 )
-from app.schemas.user_content import InviteeItem
 from app.schemas.admin import ActionAck, CreatedResult, DeletedResult, StatsResult, UploadResult
-from typing import Any
 
 router = APIRouter()
 
@@ -109,10 +100,6 @@ class EmailChangeRequest(BaseModel):
 class LearningUpsertRequest(BaseModel):
     progress: int | None = Field(None, ge=0, le=100)
     chapter: str | None = Field(None, max_length=200)
-
-
-class RedeemCodeRequest(BaseModel):
-    code: str = Field(..., min_length=1, max_length=32)
 
 
 # 个人中心信息
@@ -394,18 +381,6 @@ async def learning_stats_api(
     return success_response(result)
 
 
-@router.get("/purchases", response_model=ApiResponse[PageResult[Any]])
-async def list_purchases_api(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(6, ge=1, le=50),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """我购买的教程（积分购买记录，购买后永久可读；购买时间倒序）"""
-    result = await list_purchased_tutorials(db, current_user.id, page, page_size)
-    return success_response(result)
-
-
 @router.post("/learning/{tutorial_id}", response_model=ApiResponse[ActionAck])
 async def upsert_learning_api(
     tutorial_id: int,
@@ -502,87 +477,3 @@ async def delete_message_api(
     """删除消息"""
     await delete_message(db, current_user, message_id)
     return success_response({"message": "消息已删除"})
-
-
-# 积分明细
-
-@router.get("/points/transactions", response_model=ApiResponse[PageResult[PointTransactionItem]])
-async def points_transactions(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """我的积分明细（时间倒序，含工具消耗与管理员调整）"""
-    result = await list_user_transactions(db, current_user.id, page, page_size)
-    return success_response(result)
-
-
-@router.post("/points/redeem", response_model=ApiResponse[ActionAck])
-async def points_redeem(
-    req: RedeemCodeRequest,
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """兑换码充值积分（并发安全：原子核销名额 + 唯一约束防重复兑换）"""
-    result = await redeem_code(db, current_user, req.code)
-    return success_response(result, message=f"兑换成功，获得 {result['points']} 积分")
-
-
-# 邀请返利
-
-@router.get("/invite/info", response_model=ApiResponse[InviteInfo])
-async def invite_info(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """我的邀请信息：专属邀请码 + 奖励配置 + 已邀请人数/累计奖励统计"""
-    result = await get_invite_info(db, current_user)
-    return success_response(result)
-
-
-@router.get("/invite/poster")
-async def invite_poster(
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """我的邀请海报（1080×1440 PNG）：二维码内容即邀请注册链接
-
-    服务端合成而不是前端 canvas：海报会被大量转发，必须保证字体/间距/二维码
-    清晰度一致，也不能依赖用户设备字体。图片含个人邀请码，故只允许本人获取。
-    """
-    code = (current_user.invite_code or "").strip()
-    if not code:
-        raise AppException(code=400, message="邀请码尚未生成，请刷新后重试")
-    # 先把要画进图里的标量取出来：渲染含「下载头像 + Pillow 合成」，耗时 0.3~3s，
-    # 期间不该占着数据库连接（15 条池）。回滚会过期 ORM 对象，故必须先快照。
-    nickname = current_user.nickname or ""
-    avatar_url = current_user.avatar_url
-    await db.rollback()
-    # 奖励积分数来自后台设置（与邀请页展示同源），海报上不能写死 50
-    _, reward_points = await get_invite_settings()
-    png = await build_invite_poster(
-        invite_code=code,
-        nickname=nickname,
-        avatar_url=avatar_url,
-        reward_points=reward_points,
-    )
-    return Response(
-        content=png,
-        media_type="image/png",
-        # 头像 / 昵称随时会改，这张图必须每次都是最新的：不缓存
-        # （曾用 max-age=300，结果用户改完资料看到的还是旧海报）
-        headers={"Cache-Control": "private, no-store"},
-    )
-
-
-@router.get("/invite/invitees", response_model=ApiResponse[PageResult[InviteeItem]])
-async def invite_invitees(
-    page: int = Query(1, ge=1),
-    page_size: int = Query(10, ge=1, le=100),
-    db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """我邀请的用户明细（时间倒序，账号脱敏）"""
-    result = await list_invitees(db, current_user, page, page_size)
-    return success_response(result)

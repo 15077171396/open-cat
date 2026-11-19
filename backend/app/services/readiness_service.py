@@ -2,7 +2,7 @@
 
 和 `/admin/system-status` 的分工：
 - system-status 看**依赖是否活着**（MySQL / Redis / 日志 / 备份 / 任务心跳）——运维视角；
-- 本模块看**能力是否可用**（存储 / 邮件 / 短信 / AI / 支付 / 站点地址）——部署视角。
+- 本模块看**能力是否可用**（存储 / 邮件 / AI / 站点地址）——部署视角。
 
 为什么单独做：这几项的共同特征是「不配也不报错，只是静默不生效」。
 用户点「获取验证码」只会看到发送失败，上传图片只会看到「存储失败」，
@@ -28,7 +28,6 @@ from app.config import settings
 from app.core.degrade import degrade_guard
 from app.models.ai_model import AiModel
 from app.services import mail_settings_service, setting_service
-from app.services.integration_settings_service import get_auth_config, get_payment_config
 from app.services.storage import storage
 
 # 状态语义
@@ -279,190 +278,6 @@ async def _check_ai(db: AsyncSession) -> dict:
     )
 
 
-async def _check_sms(db: AsyncSession) -> dict:
-    """短信：provider 选了就必须配齐；手机登录开着但短信没配是最常见的「配了不生效」。"""
-    config = await get_auth_config()
-    provider = (config.str("sms_provider") or "none").strip().lower()
-    phone_login = config.bool("phone_login_enabled")
-
-    required_keys = {
-        "aliyun": [
-            ("sms_aliyun_access_key_id", False),
-            ("sms_aliyun_access_key_secret", True),
-            ("sms_aliyun_sign_name", False),
-            ("sms_aliyun_template_code", False),
-        ],
-        "tencent": [
-            ("sms_tencent_sdk_app_id", False),
-            ("sms_tencent_secret_id", False),
-            ("sms_tencent_secret_key", True),
-            ("sms_tencent_sign_name", False),
-            ("sms_tencent_template_id", False),
-        ],
-    }.get(provider)
-
-    if provider == "mock":
-        # Mock 是**合法取值**（本地联调用：验证码不真发，回显在日志/固定值里）。
-        # 不能判成「未知服务商」—— 默认配置就是 mock，那会让每个新部署都挂一条红。
-        if phone_login:
-            return _item(
-                key="sms",
-                label="短信验证码",
-                status="ready",
-                required=False,
-                detail="Mock 模式：验证码不会真实发送（本地联调用）",
-                action="上线前在「登录管理」换成腾讯云 / 阿里云并填凭据",
-                link="/login-settings",
-            )
-        return _item(
-            key="sms",
-            label="短信验证码",
-            status="off",
-            required=False,
-            detail="Mock 模式，且手机号登录已关闭",
-            action="需要手机号登录时换真实服务商",
-            link="/login-settings",
-        )
-
-    if provider in {"", "none", "off"}:
-        if phone_login:
-            return _item(
-                key="sms",
-                label="短信验证码",
-                status="error",
-                required=False,
-                detail="手机号登录已开启，但短信服务未选择：用户点「获取验证码」必定失败",
-                action="在「登录管理」里选短信服务商并填凭据，或关掉手机号登录",
-                link="/login-settings",
-            )
-        return _item(
-            key="sms",
-            label="短信验证码",
-            status="off",
-            required=False,
-            detail="未启用短信服务（手机号登录已关闭，不影响使用）",
-            action="需要手机号登录时在「登录管理」里配置",
-            link="/login-settings",
-        )
-
-    if required_keys is None:
-        return _item(
-            key="sms",
-            label="短信验证码",
-            status="error",
-            required=False,
-            detail=f"未知的短信服务商：{provider}",
-            action="在「登录管理」里重新选择（支持 aliyun / tencent）",
-            link="/login-settings",
-        )
-
-    missing = [name for name, is_secret in required_keys if not (
-        config.secret(name) if is_secret else config.str(name)
-    )]
-    if missing:
-        return _item(
-            key="sms",
-            label="短信验证码",
-            status="error",
-            required=False,
-            detail=f"{provider} 缺 {len(missing)} 项：{'、'.join(missing)}",
-            action="补齐全套凭据（少一项都发不出）",
-            link="/login-settings",
-            extra={"missing": missing},
-        )
-    return _item(
-        key="sms",
-        label="短信验证码",
-        status="ready",
-        required=False,
-        detail=f"{provider} 凭据齐全（未做发送测试）",
-        action="可用「测试发送」验证真实到达",
-        link="/login-settings",
-    )
-
-
-async def _check_payment(db: AsyncSession) -> dict:
-    """支付：开关打开而凭据不齐是最贵的错误——用户付了钱，回调验签失败。"""
-    config = await get_payment_config()
-    if not config.bool("payment_enabled"):
-        return _item(
-            key="payment",
-            label="支付渠道",
-            status="off",
-            required=False,
-            detail="支付未启用；充值套餐与订单页不会出现在菜单里",
-            action="需要充值时在「支付与渠道」里开启",
-            link="/payment-settings",
-        )
-
-    if config.bool("payment_mock_enabled"):
-        return _item(
-            key="payment",
-            label="支付渠道",
-            status="ready",
-            required=False,
-            detail="模拟支付模式：下单即视为成功，不会真实收款",
-            action="正式收款前必须关掉模拟支付并配好真实渠道",
-            link="/payment-settings",
-        )
-
-    channels: list[str] = []
-    problems: list[str] = []
-
-    if config.bool("wechat_pay_enabled"):
-        needed = ["wechat_pay_appid", "wechat_pay_mch_id", "wechat_pay_serial_no"]
-        missing = [k for k in needed if not config.str(k)]
-        if not config.secret("wechat_pay_private_key"):
-            missing.append("wechat_pay_private_key")
-        if not config.secret("wechat_pay_platform_public_key"):
-            missing.append("wechat_pay_platform_public_key")
-        if missing:
-            problems.append(f"微信支付缺 {'、'.join(missing)}")
-        else:
-            channels.append("微信支付")
-
-    if config.bool("alipay_enabled"):
-        missing = [k for k in ("alipay_app_id",) if not config.str(k)]
-        if not config.secret("alipay_private_key"):
-            missing.append("alipay_private_key")
-        if not config.secret("alipay_public_key"):
-            missing.append("alipay_public_key")
-        if missing:
-            problems.append(f"支付宝缺 {'、'.join(missing)}")
-        else:
-            channels.append("支付宝")
-
-    if problems:
-        return _item(
-            key="payment",
-            label="支付渠道",
-            status="error",
-            required=False,
-            detail="；".join(problems),
-            action="凭据不齐时下单会失败或回调验签不过，用户可能已扣款",
-            link="/payment-settings",
-        )
-    if not channels:
-        return _item(
-            key="payment",
-            label="支付渠道",
-            status="error",
-            required=False,
-            detail="支付已启用，但微信与支付宝都没开启",
-            action="至少开启一个渠道，否则用户点充值没有可用方式",
-            link="/payment-settings",
-        )
-    return _item(
-        key="payment",
-        label="支付渠道",
-        status="ready",
-        required=False,
-        detail="已开启：" + "、".join(channels) + "（未做真实下单测试）",
-        action="用小额订单跑一次完整支付与回调",
-        link="/payment-settings",
-    )
-
-
 def _summarize(items: list[dict]) -> dict:
     blocking = [i for i in items if i["required"] and i["status"] != "ready"]
     return {
@@ -478,7 +293,7 @@ def _summarize(items: list[dict]) -> dict:
 
 
 async def collect(db: AsyncSession) -> dict:
-    """体检清单。**只读**，数据库故障时 AI/短信/支付三项会降级为「未知」而不是整体报错。"""
+    """体检清单。**只读**，数据库故障时 AI 一项会降级为「未知」而不是整体报错。"""
     items = [_check_storage(), _check_site_base_url(), _check_mail()]
 
     # 这三项要读库读缓存；单项失败不该让整页打不开，各自兜成 error 项。
@@ -486,8 +301,6 @@ async def collect(db: AsyncSession) -> dict:
     # 才不会因为「每加一个观测模块就推高一次棘轮基线」而稀释降级纪律。
     for key, label, runner in (
         ("ai", "AI 能力", _check_ai),
-        ("sms", "短信验证码", _check_sms),
-        ("payment", "支付渠道", _check_payment),
     ):
         item: dict | None = None
         with degrade_guard(f"readiness.{key}", detail="单项检查失败只标该项，其余照常给结论"):

@@ -371,6 +371,14 @@ class _ScalarResult:
     def first(self):
         return self._values[0] if self._values else None
 
+    def one_or_none(self):
+        """与真实语义一致：多行时抛错，0/1 行时返回 None/该行。"""
+        if len(self._values) > 1:
+            from sqlalchemy.exc import MultipleResultsFound
+
+            raise MultipleResultsFound("Multiple rows were found when exactly one was required")
+        return self._values[0] if self._values else None
+
 
 class _ExecResult:
     def __init__(self, rowcount: int):

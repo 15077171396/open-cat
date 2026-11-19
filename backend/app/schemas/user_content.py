@@ -1,10 +1,10 @@
 """用户中心接口的响应模型（第五轮审查 EXT-06 第二批）。
 
 第一批覆盖了 11 条公开内容接口（`schemas/content.py`）。这一批覆盖**用户中心**：
-收藏 / 学习记录 / 下载历史 / 站内消息 / 积分明细 / 邀请信息。
+收藏 / 学习记录 / 站内消息。
 
 为什么是这批：这些响应在前端是**手写类型**的（`types/entities.ts`、
-`Profile.tsx`、`Invite.tsx`），后端改字段名时没有任何一处会报错 ——
+`Profile.tsx`），后端改字段名时没有任何一处会报错 ——
 前端读到 `undefined`，表现为「卡片少一行」「按钮不见了」。
 
 ⚠️ 与第一批同一约定：所有模型 `extra="allow"`。
@@ -94,39 +94,3 @@ class MessageItem(BaseModel):
     read: Optional[bool] = None
     avatar: Optional[str] = None
     link: Optional[str] = None
-
-
-class PointTransactionItem(BaseModel):
-    """积分流水条目（`/users/points/transactions`）。"""
-
-    model_config = _PASSTHROUGH
-
-    id: int
-    points: int = Field(description="正数为收入、负数为支出")
-    balance_after: Optional[int] = None
-    type: Optional[str] = None
-    description: Optional[str] = None
-    created_at: Optional[str] = None
-
-
-class InviteInfo(BaseModel):
-    """邀请信息（`/users/invite/info`）。"""
-
-    model_config = _PASSTHROUGH
-
-    invite_code: str
-    enabled: bool
-    reward_points: int
-    invitee_count: int
-    total_reward_points: int
-
-
-class InviteeItem(BaseModel):
-    """邀请记录条目（`/users/invite/invitees`）。"""
-
-    model_config = _PASSTHROUGH
-
-    id: Optional[int] = None
-    invitee_account: Optional[str] = None
-    reward_points: Optional[int] = None
-    created_at: Optional[str] = None

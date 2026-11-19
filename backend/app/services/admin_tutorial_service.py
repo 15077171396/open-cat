@@ -6,11 +6,11 @@
 
 from datetime import datetime, timezone
 
-from sqlalchemy import select, delete
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload, load_only
+from sqlalchemy.orm import load_only
 
-from app.models.tutorial import Tutorial, TutorialNetdiskLink
+from app.models.tutorial import Tutorial
 from app.services.content_notify import notify_favoriters_unpublished
 from app.services.content_purge import purge_content_records
 from app.models.user import User
@@ -34,10 +34,9 @@ async def list_tutorials(
     category: str = None,
     status: str = None,
     is_published: bool = None,
-    access_mode: str = None,
     deleted: str = "active",
 ) -> dict:
-    """教程列表（管理后台分页；支持标题/简介/正文搜索与分类/更新状态/发布状态/阅读权限筛选）
+    """教程列表（管理后台分页；支持标题/简介/正文搜索与分类/更新状态/发布状态筛选）
 
     :param deleted: 回收站视图 ``active``（默认，只看正常内容）/ ``deleted``（只看回收站）/ ``all``
     """
@@ -52,8 +51,6 @@ async def list_tutorials(
         conditions.append(Tutorial.status == status)
     if is_published is not None:
         conditions.append(Tutorial.is_published == is_published)
-    if access_mode:
-        conditions.append(Tutorial.access_mode == access_mode)
 
     # 搜索：全文优先、LIKE 兜底（与公开端共用同一构造器，第三轮增量审查 P1-41）
     total = await apply_keyword_filter(db, Tutorial, conditions, TUTORIAL_SEARCH_COLS, keyword, log_search=False)
@@ -64,8 +61,8 @@ async def list_tutorials(
         .options(
             load_only(
                 Tutorial.id, Tutorial.title, Tutorial.description, Tutorial.category,
-                Tutorial.status, Tutorial.is_published, Tutorial.access_mode,
-                Tutorial.points_price, Tutorial.is_pinned, Tutorial.is_recommended,
+                Tutorial.status, Tutorial.is_published,
+                Tutorial.is_pinned, Tutorial.is_recommended,
                 Tutorial.cover_image, Tutorial.view_count, Tutorial.updated_at,
                 Tutorial.published_at,
             )
@@ -87,8 +84,6 @@ async def list_tutorials(
             "view_count": t.view_count,
             "status": t.status,
             "is_published": t.is_published,
-            "access_mode": t.access_mode,
-            "points_price": t.points_price,
             "is_pinned": t.is_pinned,
             "is_recommended": t.is_recommended,
             "published_at": t.published_at.isoformat() if t.published_at else None,
@@ -100,10 +95,9 @@ async def list_tutorials(
 
 
 async def get_tutorial(db: AsyncSession, tutorial_id: int) -> dict:
-    """教程详情（含网盘链接）"""
+    """教程详情"""
     result = await db.execute(
         select(Tutorial)
-        .options(selectinload(Tutorial.netdisk_links))
         .where(Tutorial.id == tutorial_id)
     )
     tutorial = result.scalar_one_or_none()
@@ -120,38 +114,20 @@ async def get_tutorial(db: AsyncSession, tutorial_id: int) -> dict:
         "view_count": tutorial.view_count,
         "status": tutorial.status,
         "is_published": tutorial.is_published,
-        "access_mode": tutorial.access_mode,
-        "points_price": tutorial.points_price,
         "is_pinned": tutorial.is_pinned,
         "is_recommended": tutorial.is_recommended,
         "seo_title": tutorial.seo_title,
         "seo_description": tutorial.seo_description,
         "seo_keywords": tutorial.seo_keywords,
         "published_at": tutorial.published_at.isoformat() if tutorial.published_at else None,
-        "netdisk_links": [
-            {"platform": link.platform, "url": link.url, "extract_code": link.extract_code}
-            for link in tutorial.netdisk_links
-        ],
     }
-
-
-def _normalize_access_fields(data: dict) -> dict:
-    """归一权限字段：非法模式回退 free；免费模式积分价强制 0（免费教程不售卖）"""
-    access_mode = data.get("access_mode") or "free"
-    if access_mode not in ("free", "vip"):
-        access_mode = "free"
-    points_price = int(data.get("points_price") or 0)
-    if access_mode == "free":
-        points_price = 0
-    return {"access_mode": access_mode, "points_price": points_price}
 
 
 async def create_tutorial(db: AsyncSession, data: dict, admin: User) -> dict:
     """发布教程
 
-    data 字段：title/description/category/content/cover_image/status/access_mode/points_price/is_pinned/is_recommended/netdisk_links
+    data 字段：title/description/category/content/cover_image/status/is_pinned/is_recommended
     """
-    access = _normalize_access_fields(data)
     tutorial = Tutorial(
         title=data["title"],
         description=data["description"],
@@ -162,8 +138,6 @@ async def create_tutorial(db: AsyncSession, data: dict, admin: User) -> dict:
         cover_image=data.get("cover_image"),
         status=data.get("status") or "updating",
         is_published=True,
-        access_mode=access["access_mode"],
-        points_price=access["points_price"],
         is_pinned=bool(data.get("is_pinned")),
         is_recommended=bool(data.get("is_recommended")),
         seo_title=data.get("seo_title") or None,
@@ -174,16 +148,6 @@ async def create_tutorial(db: AsyncSession, data: dict, admin: User) -> dict:
     )
     db.add(tutorial)
     await db.flush()
-
-    for link in data.get("netdisk_links") or []:
-        db.add(
-            TutorialNetdiskLink(
-                tutorial_id=tutorial.id,
-                platform=link["platform"],
-                url=link["url"],
-                extract_code=link.get("extract_code"),
-            )
-        )
 
     await db.flush()  # 先拿到 generate_id 生成的主键，审计才能归因到具体教程
     record_admin_action(
@@ -203,13 +167,12 @@ async def create_tutorial(db: AsyncSession, data: dict, admin: User) -> dict:
 async def update_tutorial(
     db: AsyncSession, tutorial_id: int, updates: dict, admin: User
 ) -> None:
-    """更新教程（含网盘链接覆盖）
+    """更新教程
 
-    updates 字段全部可选；netdisk_links 为非 None 时整体覆盖原链接。
+    updates 字段全部可选。
     """
     result = await db.execute(
         select(Tutorial)
-        .options(selectinload(Tutorial.netdisk_links))
         .where(Tutorial.id == tutorial_id)
     )
     tutorial = result.scalar_one_or_none()
@@ -230,18 +193,6 @@ async def update_tutorial(
         tutorial.cover_image = updates["cover_image"]
     if updates.get("status") is not None:
         tutorial.status = updates["status"]
-    # 权限字段联动：切换为免费时积分价归零；切换为会员时若未显式传价则保留原值
-    if updates.get("access_mode") is not None or updates.get("points_price") is not None:
-        new_mode = updates.get("access_mode") or tutorial.access_mode
-        if new_mode not in ("free", "vip"):
-            new_mode = "free"
-        new_price = tutorial.points_price or 0
-        if updates.get("points_price") is not None:
-            new_price = int(updates["points_price"])
-        if new_mode == "free":
-            new_price = 0
-        tutorial.access_mode = new_mode
-        tutorial.points_price = new_price
     if updates.get("is_pinned") is not None:
         tutorial.is_pinned = bool(updates["is_pinned"])
     if updates.get("is_recommended") is not None:
@@ -253,22 +204,6 @@ async def update_tutorial(
         tutorial.seo_description = updates["seo_description"] or None
     if updates.get("seo_keywords") is not None:
         tutorial.seo_keywords = updates["seo_keywords"] or None
-    if updates.get("netdisk_links") is not None:
-        # 批量删除旧链接（单条 DELETE 语句，替代逐条 delete 的 N 次往返）
-        await db.execute(
-            delete(TutorialNetdiskLink)
-            .where(TutorialNetdiskLink.tutorial_id == tutorial_id)
-            .execution_options(synchronize_session=False),
-        )
-        for link in updates["netdisk_links"]:
-            db.add(
-                TutorialNetdiskLink(
-                    tutorial_id=tutorial.id,
-                    platform=link["platform"],
-                    url=link["url"],
-                    extract_code=link.get("extract_code"),
-                )
-            )
     record_admin_action(
         db, admin, "content_update",
         target_type="tutorial", target_id=tutorial_id,
@@ -319,7 +254,7 @@ async def delete_tutorial(db: AsyncSession, tutorial_id: int, admin: User) -> No
     """删除教程 —— **软删除**（进回收站，可恢复）。
 
     与改造前的差异（这是本函数唯一的行为变化）：
-    - 不再物理删除教程行、章节树、网盘链接、积分购买记录 —— 它们保留下来，
+    - 不再物理删除教程行、章节树 —— 它们保留下来，
       恢复时内容才是完整的（否则「恢复」会得到一篇空教程）；
     - 只打 `deleted_at` 并强制下架（公开端立刻不可见，见 content_soft_delete 说明）；
     - 用户侧记录（收藏 / 学习记录 / 评论）仍按原语义清理：**用户的列表里不会出现
@@ -346,7 +281,7 @@ async def delete_tutorial(db: AsyncSession, tutorial_id: int, admin: User) -> No
     # 清哪几张表由 core.content_types 的能力标记决定（EXT-07）
     await purge_content_records(db, "tutorial", [tutorial_id])
 
-    # 只打标记 + 下架：章节树 / 网盘链接 / 积分购买记录全部保留，恢复时内容才完整
+    # 只打标记 + 下架：章节树全部保留，恢复时内容才完整
     mark_deleted(tutorial)
     record_admin_action(
         db, admin, "content_delete",
@@ -361,7 +296,7 @@ async def batch_delete_tutorials(db: AsyncSession, tutorial_ids: list[int], admi
     """批量删除教程（**软删除**，进回收站；语义与单条 delete_tutorial 完全一致）
 
     部分 id 已不存在（或已在回收站）时不报错，按实际处理的条数返回。
-    章节树 / 网盘链接 / 购买记录全部保留，恢复后内容完整。
+    章节树全部保留，恢复后内容完整。
     """
     tutorials = (
         await db.execute(

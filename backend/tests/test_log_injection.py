@@ -11,11 +11,7 @@ loguru 的**文件 sink 用 `serialize=True`**，输出 JSON：换行被转义�
 
 import unittest
 
-from loguru import logger
-
 from app.utils.sanitize import scrub_log_value
-from tests.conftest import make_user
-from tests.fake_db import MemorySession
 
 # 攻击者想让它成为「独立的一行日志」的内容
 FORGED = "2026-10-12 03:00:00.000 | INFO | app.services.auth_service:281 - 用户 1 登录成功"
@@ -53,35 +49,8 @@ class ScrubHelperTests(unittest.TestCase):
         self.assertNotIn(FORGED, sanitized.splitlines())
 
 
-class AuditLogInjectionTests(unittest.IsolatedAsyncioTestCase):
-    async def test_star_code_cannot_split_the_log_line(self):
-        from app.services import audit_service as aus
-
-        captured: list[str] = []
-        sink_id = logger.add(lambda m: captured.append(str(m)), level="INFO")
-        try:
-            db = MemorySession()
-            user = make_user()
-            db.seed(user)
-            await aus.submit_auth_request(db, user, PAYLOAD)
-        finally:
-            logger.remove(sink_id)
-
-        text = "".join(captured)
-        self.assertIn("提交知识星球认证", text, "真实那行必须还在，否则是「裁掉排查价值」式修复")
-        # 注入段仍作为**文本**出现在同一行（排查看得到），但它不能成为独立物理行
-        lines = text.splitlines()
-        self.assertNotIn(FORGED, lines)
-        forged_head = FORGED.split(" - ")[0]
-        self.assertFalse(
-            [line for line in lines if line.startswith(forged_head) and "提交知识星球认证" not in line],
-            "出现了一条以伪造时间戳/模块名开头的物理行 —— 注入生效了",
-        )
-        # 本次调用只应该产生一行「提交认证」日志（多行 = 被切开）
-        self.assertEqual(1, len([line for line in lines if "提交知识星球认证" in line]))
-
-        # 库里的原始值不受日志净化影响（净化只发生在写日志那一刻）
-        self.assertEqual(user.pending_auth_code, PAYLOAD)
+# 注：原先还有一条「知识星球认证提交」的日志注入端到端用例，
+# 随实名审核模块下线删除；scrub_log_value 的单元契约保留在上面。
 
 
 if __name__ == "__main__":

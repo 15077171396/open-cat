@@ -18,11 +18,6 @@ async def _always_valid_code(account: str, code: str) -> bool:
     return True
 
 
-async def _invite_disabled():
-    """邀请功能关闭：本用例只关心提交语义，不引入邀请链路"""
-    return False, 0
-
-
 class RegisterCommitTests(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
         self.db = MemorySession()
@@ -32,7 +27,6 @@ class RegisterCommitTests(unittest.IsolatedAsyncioTestCase):
             # redis_client；不替换会去打真实 Redis（每次等 2s 连接超时，静默变慢）
             mock.patch.object(security_mod, "redis_client", FakeRedis()),
             mock.patch.object(auth_service, "verify_code", _always_valid_code),
-            mock.patch.object(auth_service, "get_invite_settings", _invite_disabled),
         ):
             patcher.start()
             self.addCleanup(patcher.stop)

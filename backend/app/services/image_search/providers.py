@@ -469,123 +469,6 @@ class TenorCompatProvider(_BaseProvider):
         )
 
 
-class BaiduProvider(_BaseProvider):
-    name = "百度图片"
-    license_name = "网络图片（百度）"
-    requires_key = False
-    types = ("photo", "illustration", "meme")
-    base_url = "https://image.baidu.com"
-    headers = {
-        "User-Agent": _UA,
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "Referer": "https://image.baidu.com/",
-    }
-
-    async def search(self, query: SearchQuery) -> SearchPage:
-        page, per_page = self._paging(query.page, query.per_page)
-        # 预热页面拿 Cookie；拿不到也继续试 JSON，失败时给出明确错误。
-        try:
-            await self._get_text("/search/index", {"tn": "baiduimage", "word": query.q})
-        except AppException:
-            pass
-        payload = await self._get_json("/search/acjson", {
-            "tn": "resultjson_com", "ipn": "rj", "word": query.q,
-            "pn": (page - 1) * per_page, "rn": per_page,
-        })
-        if payload.get("antiFlag"):
-            raise AppException(code=503, message="百度图片触发了安全验证，请稍后重试或关闭该图源")
-        rows = payload.get("data")
-        if not isinstance(rows, list):
-            raise AppException(code=502, message="百度图片返回格式异常")
-        items = [hit for row in rows if (hit := self._map(row, query.q)) is not None][:per_page]
-        return SearchPage(items=items, total=None, has_more=len(items) >= per_page)
-
-    async def get(self, source_id: str) -> ImageHit | None:
-        return None
-
-    def _map(self, row, query: str) -> ImageHit | None:
-        if not isinstance(row, dict):
-            return None
-        thumb = _text(row.get("thumbURL") or row.get("hoverURL"), 1000)
-        download = _text(row.get("middleURL") or row.get("thumbURL"), 1000)
-        if not download:
-            return None
-        source_id = _hash_id(download + str(row.get("width")) + str(row.get("height")))
-        title = _text(row.get("fromPageTitle") or query, 300)
-        return ImageHit(
-            source="baidu",
-            source_id=source_id,
-            thumb_url=thumb or download,
-            download_url=download,
-            width=_int(row.get("width")),
-            height=_int(row.get("height")),
-            alt=title,
-            title=title,
-            page_url=f"https://image.baidu.com/search/index?tn=baiduimage&word={quote(query)}",
-            license=self.license_name,
-            requires_attribution=self.requires_attribution,
-            fallback_urls=(thumb,) if thumb and thumb != download else (),
-        )
-
-
-class SogouProvider(_BaseProvider):
-    name = "搜狗图片"
-    license_name = "网络图片（搜狗）"
-    requires_key = False
-    types = ("photo", "illustration", "meme")
-    base_url = "https://pic.sogou.com"
-    headers = {
-        "User-Agent": _UA,
-        "Accept-Language": "zh-CN,zh;q=0.9",
-        "Referer": "https://pic.sogou.com/",
-    }
-
-    async def search(self, query: SearchQuery) -> SearchPage:
-        page, per_page = self._paging(query.page, query.per_page)
-        text = await self._get_text("/pics", {
-            "query": query.q, "start": (page - 1) * per_page,
-        })
-        match = re.search(r"window\.__INITIAL_STATE__=(\{.*?\})</script>", text, re.S)
-        if not match:
-            raise AppException(code=502, message="搜狗图片页面结构已变化")
-        try:
-            payload = json.loads(match.group(1))
-        except ValueError as exc:
-            raise AppException(code=502, message="搜狗图片返回格式异常") from exc
-        rows = payload.get("searchList", {}).get("searchList", [])
-        if not isinstance(rows, list):
-            raise AppException(code=502, message="搜狗图片返回格式异常")
-        items = [hit for row in rows if (hit := self._map(row, query.q)) is not None][:per_page]
-        return SearchPage(items=items, total=None, has_more=len(items) >= per_page)
-
-    async def get(self, source_id: str) -> ImageHit | None:
-        return None
-
-    def _map(self, row, query: str) -> ImageHit | None:
-        if not isinstance(row, dict):
-            return None
-        pic = _text(row.get("picUrl"), 1000)
-        thumb = _text(row.get("thumbUrl") or row.get("locImageLink"), 1000)
-        if not pic:
-            return None
-        source_id = _text(row.get("docId") or row.get("mf_id"), 64) or _hash_id(pic)
-        title = _text(row.get("title") or query, 300)
-        return ImageHit(
-            source="sogou",
-            source_id=source_id,
-            thumb_url=thumb or pic,
-            download_url=pic,
-            width=_int(row.get("width")),
-            height=_int(row.get("height")),
-            alt=title,
-            title=title,
-            page_url=_text(row.get("url"), 1000),
-            license=self.license_name,
-            requires_attribution=self.requires_attribution,
-            fallback_urls=(thumb,) if thumb and thumb != pic else (),
-        )
-
-
 class So360Provider(_BaseProvider):
     """360 图片：国内直连快，公开 JSON 接口，无需 Key。
 
@@ -918,7 +801,7 @@ class EmojiPackageProvider(_BaseProvider):
     types = ("meme",)
     image_hosts = ("raw.githubusercontent.com",)
     base_url = "https://api.github.com"
-    headers = {"User-Agent": "ai-cat-image-search", "Accept": "application/vnd.github+json"}
+    headers = {"User-Agent": "open-cat-image-search", "Accept": "application/vnd.github+json"}
 
     async def _tree(self) -> list[str]:
         global _EMOJI_TREE_CACHE
@@ -985,8 +868,6 @@ _PROVIDERS = {
     "giphy": GiphyProvider,
     "tenor": TenorCompatProvider,
     "so360": So360Provider,
-    "baidu": BaiduProvider,
-    "sogou": SogouProvider,
     "duitang": DuitangProvider,
     "doutupk": DoutupkProvider,
     "adoutu": AdoutuProvider,

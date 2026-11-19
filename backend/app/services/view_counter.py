@@ -70,11 +70,6 @@ async def register_view(
     :return: 应当返回给前端的浏览量（DB 值 + 待落库增量，含本次）
     """
     table = _VIEW_TABLES[model_key]
-    # 用户级归因（按天去重，只记登录用户）：与聚合计数互不依赖，
-    # 失败只留日志（record_content_view 内部已用 SAVEPOINT + degrade_guard）
-    from app.services.content_view_service import record_content_view
-
-    await record_content_view(db, model_key, row_id)
     try:
         # HINCRBY 的返回值就是累加后的增量总数，一次往返同时完成「计数」与「取展示值」
         delta = await redis_client.hincrby(f"{PENDING_PREFIX}{model_key}", str(row_id), 1)

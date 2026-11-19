@@ -11,13 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.time import utcnow
 from app.redis import log_redis_degraded, redis_client
 from app.models.user import User
-from app.models.download import Download
-from app.models.auth_request import AuthRequest
 from app.models.feedback import Feedback
 from app.models.tutorial import Tutorial
 from app.core.legacy_metrics import legacy_usage_snapshot
 from app.services.content_cache import shape_key
-from app.config import settings
 import json
 
 # 看板缓存键带结构版本号（第五轮全量审查 P1-73 收口）。
@@ -53,65 +50,10 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
         )
     ).scalar()
 
-    # 今日资源下载量
-    today_downloads = (
-        await db.execute(
-            select(func.count(Download.id)).where(Download.created_at >= today_start)
-        )
-    ).scalar()
-
-    # 3小时体验转化率
-    # BUG 修复（口径）：2026-08-18 起「耗尽」由 free_started_at 自然时间倒计时决定，
-    # free_used_seconds 只是实际学习秒数统计（含 10 秒防刷去重），按旧口径
-    # `free_used_seconds >= FREE_TIME_LIMIT` 统计耗尽用户，分母趋近 0，
-    # 转化率恒为 0 或严重失真。改为按「免费窗口已过」的自然时间口径。
-    exhausted_cutoff = (
-        utcnow().replace(tzinfo=None) - timedelta(seconds=settings.FREE_TIME_LIMIT)
-    )
-    total_exhausted = (
-        await db.execute(
-            select(func.count(User.id)).where(
-                User.free_started_at.isnot(None),
-                User.free_started_at < exhausted_cutoff,
-            )
-        )
-    ).scalar()
-    total_vip = (
-        await db.execute(select(func.count(User.id)).where(User.role == "vip"))
-    ).scalar()
-    conversion_rate = round(total_vip / total_exhausted * 100, 1) if total_exhausted > 0 else 0
-
-    # 知识星球认证数
-    approved_count = (
-        await db.execute(
-            select(func.count(AuthRequest.id)).where(AuthRequest.status == "approved")
-        )
-    ).scalar()
-
-    # 下载趋势 (近7天) - 单次 GROUP BY 查询替代 7 次循环查询
-    trend_start = datetime.combine(today - timedelta(days=6), datetime.min.time())
-    trend_rows = (
-        await db.execute(
-            select(
-                func.date(Download.created_at).label("day"),
-                func.count(Download.id).label("count"),
-            )
-            .where(Download.created_at >= trend_start)
-            .group_by(func.date(Download.created_at))
-        )
-    ).all()
-    trend_map = {str(row.day): row.count for row in trend_rows}
-    trend = [
-        {"date": (today - timedelta(days=i)).isoformat(), "count": trend_map.get((today - timedelta(days=i)).isoformat(), 0)}
-        for i in range(6, -1, -1)
-    ]
-
-    # 注册来源占比 + 用户总数：单条聚合查询合并统计。LIKE '%@%' 前导通配无法命中索引，原先
+    # 以下为注册来源占比 + 用户总数：单条聚合查询合并统计。LIKE '%@%' 前导通配无法命中索引，原先
     # phone/email/total 三条串行全表扫描合并为一次扫描（SUM(CASE)），配合下方 900s 缓存兜底。
-    # 口径（第四轮全量审查 P2-34 统一）：手机号=以1开头且不含@；邮箱=含@；**三者都排除软删除用户**。
-    # 此前本函数不过滤而 `get_public_stats` 过滤，于是任何一次注销都会让「管理端看板用户数 ≠
-    # 首页卡片用户数」，而这里的注释还写着「与其他用户统计口径一致」—— 反向误导。
-    # 注销账号不该再算进用户总数：它同时是转化率的分母，虚高会让看板结论偏乐观。
+    # 口径：手机号=以1开头且不含@；邮箱=含@；**三者都排除软删除用户**。
+    # 注销账号不该再算进用户总数，虚高会让看板结论偏乐观。
     source_row = (
         await db.execute(
             select(
@@ -130,11 +72,10 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
     email_users = int(source_row.email or 0)
     phone_users = int(source_row.phone or 0)
 
-    # 以下为看板增强字段：纯新增，上方既有字段的口径与语义一律未改动
-
-    # 内容资产 / 待办 / 今日工具使用 / 近7日活跃：合并为「一次往返的 9 个标量子查询」。
+    # 内容资产 / 待办 / 近7日新增内容：合并为「一次往返的标量子查询」。
     # 各自仍是对单表的独立 COUNT，但只占 1 次 RTT —— 看板已被 900s 缓存兜底，
-    # 且这些计数全部命中主键或索引列（auth_requests.status / feedbacks.status 均有索引）。
+    # 且这些计数全部命中索引列（feedbacks.status 有索引）。
+    trend_start = datetime.combine(today - timedelta(days=6), datetime.min.time())
     overview_row = (
         await db.execute(
             select(
@@ -142,24 +83,16 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
                 .where(Tutorial.is_published == True)  # noqa: E712
                 .scalar_subquery()
                 .label("tutorials_published"),
-                select(func.count(AuthRequest.id))
-                .where(AuthRequest.status == "pending")
-                .scalar_subquery()
-                .label("pending_auth"),
                 select(func.count(Feedback.id))
                 .where(Feedback.status == "pending")
                 .scalar_subquery()
                 .label("pending_feedback"),
-                select(func.count(func.distinct(Download.user_id)))
-                .where(Download.created_at >= trend_start)
-                .scalar_subquery()
-                .label("active_users_7d"),
             )
         )
     ).one()
 
-    # 注册趋势 (近7天) - 与下载趋势同构：单次 GROUP BY。
-    # 口径对齐上方「今日新增注册」：均为 User.created_at 计数，**不排除软删除用户**
+    # 注册趋势 (近7天) - 单次 GROUP BY。
+    # 口径：均为 User.created_at 计数，**不排除软删除用户**
     # （全库既有用户统计口径如此，见上方 total_users 注释），避免同一看板内自相矛盾。
     reg_rows = (
         await db.execute(
@@ -180,6 +113,26 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
         for i in range(6, -1, -1)
     ]
 
+    # 内容新增趋势 (近7天)：与注册趋势同构，按 Tutorial.created_at 计数。
+    content_rows = (
+        await db.execute(
+            select(
+                func.date(Tutorial.created_at).label("day"),
+                func.count(Tutorial.id).label("count"),
+            )
+            .where(Tutorial.created_at >= trend_start)
+            .group_by(func.date(Tutorial.created_at))
+        )
+    ).all()
+    content_map = {str(row.day): row.count for row in content_rows}
+    content_trend = [
+        {
+            "date": (today - timedelta(days=i)).isoformat(),
+            "count": content_map.get((today - timedelta(days=i)).isoformat(), 0),
+        }
+        for i in range(6, -1, -1)
+    ]
+
     # 兼容分支用量（第五轮全量审查 P2-55 之六）：摘除判据必须能在后台直接读到。
     # Redis 降级时 snapshot 返回**空 dict**，刻意不返回 `{event: 0}` ——
     # 一次抖动就显示成「旧客户端已经不再发这些参数」，会诱导把兼容分支摘错。
@@ -187,26 +140,21 @@ async def get_dashboard_stats(db: AsyncSession) -> dict:
 
     stats = {
         "today_registrations": today_registrations,
-        "today_downloads": today_downloads,
-        "conversion_rate": conversion_rate,
-        "approved_count": approved_count,
         "total_users": total_users,
         # 复用上方 overview 子查询已算出的同口径计数（`is_published == True`），
         # 避免再发一次全表 count 往返（代码审查 2026-10-10 P2）
         "total_tutorials": int(overview_row.tutorials_published or 0),
-        "download_trend": trend,
+        "registration_trend": registration_trend,
+        "content_trend": content_trend,
         "registration_source": {
             "phone": phone_users,
             "email": email_users,
         },
-        # —— 看板增强字段（新增，供管理后台数据看板展示）——
-        "registration_trend": registration_trend,
-        "active_users_7d": int(overview_row.active_users_7d or 0),
+        # —— 看板增强字段（供管理后台数据看板展示）——
         "content_overview": {
             "tutorials": int(overview_row.tutorials_published or 0),
         },
         "pending": {
-            "auth_requests": int(overview_row.pending_auth or 0),
             "feedbacks": int(overview_row.pending_feedback or 0),
         },
         "legacy_usage": legacy_usage,

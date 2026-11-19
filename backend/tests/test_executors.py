@@ -78,39 +78,17 @@ class HeavyExecutorIsolationTests(unittest.IsolatedAsyncioTestCase):
         )
 
 
-class FetchBudgetTests(unittest.IsolatedAsyncioTestCase):
-    """第三方抓取的总时间预算（第四轮全量审查 P1-66）
+class FetchBudgetRemovedTests(unittest.TestCase):
+    """第三方抓取模块（third_party_fetch）已随 0080_drop_commercial_modules 删除。
 
-    单次抓取串起「平台探测 + README 候选轮询 + 最多 60 张图转存」，各环节各有
-    15~20s 超时，**累加可到分钟级**；本服务只有 2 个 worker，一个慢源站就能长期
-    占死一个。AI 调用侧早有 `AI_TOTAL_BUDGET_SECONDS`，这条路径此前没有总闸。
+    原有的「总时间预算」守卫随模块一并移除；AI 调用侧的 AI_TOTAL_BUDGET_SECONDS
+    守卫仍在 test_ai_playground / ai_config 相关用例中。
     """
 
-    async def test_slow_platform_hits_the_budget_and_returns_clear_error(self):
-        import app.services.third_party_fetch as pkg
+    def test_module_is_gone(self):
+        import importlib.util
 
-        from app.core.exceptions import AppException
-
-        async def slow(url: str, include_files: bool) -> dict:
-            await asyncio.sleep(5)
-            return {"content": "never"}
-
-        with mock.patch.object(pkg, "_PLATFORM_FETCHERS", {"slow.test": slow}), \
-             mock.patch.object(pkg.settings, "THIRD_PARTY_FETCH_BUDGET_SECONDS", 0.05):
-            with self.assertRaises(AppException) as ctx:
-                await pkg.fetch_third_party_content("https://slow.test/post")
-
-        self.assertEqual(ctx.exception.code, 502)
-        self.assertIn("总预算", ctx.exception.message)
-
-    def test_budget_config_exists_with_a_sane_value(self):
-        from app.config import settings
-
-        self.assertGreaterEqual(settings.THIRD_PARTY_FETCH_BUDGET_SECONDS, 15)
-        self.assertLess(
-            settings.THIRD_PARTY_FETCH_BUDGET_SECONDS, 300,
-            "预算本身超过 5 分钟就等于没有预算（worker 只有 2 个）",
-        )
+        self.assertIsNone(importlib.util.find_spec("app.services.third_party_fetch"))
 
 
 if __name__ == "__main__":
