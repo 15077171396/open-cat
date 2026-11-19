@@ -19,7 +19,7 @@ from app.models.user import User
 from app.schemas.common import ApiResponse
 from app.services.storage import StorageError, get_file_ext, storage
 from app.services.image_search.asset_recorder import record_file_asset, record_upload_asset
-from app.utils.image_convert import convert_png_to_webp
+from app.utils.image_convert import convert_png_to_webp, strip_jpeg_metadata
 from app.utils.upload_validation import IMAGE_SIGNATURES, is_allowed_image
 from app.schemas.admin import UploadResult
 
@@ -82,6 +82,10 @@ async def upload_image(
 
     if not is_allowed_image(content_type, data):
         raise AppException(code=400, message="图片内容与声明类型不一致")
+
+    # JPEG 隐私元数据剥离（EXIF/GPS/编辑历史）：无损段切除，失败降级原图上传
+    if content_type == "image/jpeg":
+        data = await run_heavy(strip_jpeg_metadata, data)
 
     ext = get_file_ext(file.filename, content_type)
 
@@ -157,6 +161,9 @@ async def upload_file(
     if content_type in IMAGE_SIGNATURES or content_type == "image/webp":
         if not is_allowed_image(content_type, data):
             raise AppException(code=400, message="图片内容与声明类型不一致")
+        # JPEG 附件同样剥隐私元数据（EXIF/GPS/PS 编辑历史），失败降级原图
+        if content_type == "image/jpeg":
+            data = await run_heavy(strip_jpeg_metadata, data)
     elif content_type == "application/pdf" and not data.startswith(b"%PDF-"):
         raise AppException(code=400, message="文件内容与声明类型不一致")
 
