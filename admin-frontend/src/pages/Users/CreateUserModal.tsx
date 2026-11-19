@@ -77,7 +77,7 @@ export default function CreateUserModal({
               <div>账号 <strong>{account}</strong> 已被注销，不能直接新建（会与历史数据冲突）。</div>
               <div style={{ marginTop: 8 }}>
                 如需让该用户回来，可到「账号状态 → 已注销」中恢复 ——
-                恢复后积分、会员与历史数据全部保留。
+                恢复后该账号的历史数据全部保留。
               </div>
             </>
           ),
@@ -140,12 +140,11 @@ export default function CreateUserModal({
           name="role"
           label="业务角色"
           rules={[{ required: true, message: '请选择业务角色' }]}
-          extra="业务角色决定前台权益（VIP 免费读/不限时等）；进入管理后台需选择 admin"
+          extra="进入管理后台需选择 admin"
         >
           <Select
             options={[
               { value: 'user', label: '普通用户 (user)' },
-              { value: 'vip', label: 'VIP 用户 (vip)' },
               { value: 'admin', label: '管理员 (admin)' },
             ]}
           />

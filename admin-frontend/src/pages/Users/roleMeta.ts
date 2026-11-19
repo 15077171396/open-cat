@@ -6,6 +6,5 @@ import type { UserRole } from '../../types'
  */
 export const ROLE_META: Record<UserRole, { text: string; color: string }> = {
   user: { text: '普通用户', color: 'default' },
-  vip: { text: 'VIP', color: 'geekblue' },
   admin: { text: '管理员', color: 'red' },
 }

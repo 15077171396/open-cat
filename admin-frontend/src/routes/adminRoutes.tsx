@@ -23,15 +23,11 @@ import { lazy, type ReactNode } from 'react'
 // antd 等重组件随首个业务页面按需并行加载
 const Dashboard = lazy(() => import('../pages/Dashboard'))
 const WorkplacePage = lazy(() => import('../pages/Workplace'))
-const Analysis = lazy(() => import('../pages/Analysis'))
 const TutorialsList = lazy(() => import('../pages/Tutorials/List'))
 const TutorialsEdit = lazy(() => import('../pages/Tutorials/Edit'))
 const CategoriesList = lazy(() => import('../pages/Categories/List'))
 const AnnouncementsList = lazy(() => import('../pages/Announcements/List'))
 const UsersList = lazy(() => import('../pages/Users/List'))
-const PointsList = lazy(() => import('../pages/Points/List'))
-const RedeemCodesList = lazy(() => import('../pages/RedeemCodes/List'))
-const AuthRequestsList = lazy(() => import('../pages/AuthRequests/List'))
 const FeedbackList = lazy(() => import('../pages/Feedback/List'))
 const MessagesList = lazy(() => import('../pages/Messages/List'))
 const ModerationList = lazy(() => import('../pages/Moderation/List'))
@@ -39,21 +35,22 @@ const CommentsList = lazy(() => import('../pages/Comments/List'))
 const SettingsPage = lazy(() => import('../pages/Settings'))
 const MenuSettingsPage = lazy(() => import('../pages/MenuSettings'))
 const DictionariesPage = lazy(() => import('../pages/Dictionaries'))
+const IpBlacklistPage = lazy(() => import('../pages/IpBlacklist'))
 const CodegenPage = lazy(() => import('../pages/Codegen'))
 const PositionsPage = lazy(() => import('../pages/Positions'))
 const MonitorOnlinePage = lazy(() => import('../pages/Monitor/Online'))
 const MonitorServerPage = lazy(() => import('../pages/Monitor/Server'))
 const MonitorCachePage = lazy(() => import('../pages/Monitor/Cache'))
+const MonitorErrorsPage = lazy(() => import('../pages/Monitor/Errors'))
+const MonitorApiStatsPage = lazy(() => import('../pages/Monitor/ApiStats'))
+const LoginLogsList = lazy(() => import('../pages/LoginLogs/List'))
 const LoginSettingsPage = lazy(() => import('../pages/LoginSettings'))
 const LegalDocumentsPage = lazy(() => import('../pages/LegalDocuments'))
-const PaymentSettingsPage = lazy(() => import('../pages/PaymentSettings'))
 const MailSettingsPage = lazy(() => import('../pages/MailSettings'))
 const AiModelsPage = lazy(() => import('../pages/AiModels'))
 const AiWritingPage = lazy(() => import('../pages/AiWriting'))
 const AiPlaygroundPage = lazy(() => import('../pages/AiPlayground'))
 const ChatPage = lazy(() => import('../pages/Chat'))
-const PaymentProductsPage = lazy(() => import('../pages/PaymentProducts/List'))
-const PaymentOrdersPage = lazy(() => import('../pages/PaymentOrders/List'))
 const RolesList = lazy(() => import('../pages/Roles/List'))
 const DepartmentsList = lazy(() => import('../pages/Departments/List'))
 const AuditLogsList = lazy(() => import('../pages/AuditLogs/List'))
@@ -81,20 +78,13 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   // 首页：工作台（快捷入口 + 待办 + 最近动态）。2026-11 起 `/` 即首页，数据看板迁到 /dashboard
   { path: '/', element: <WorkplacePage />, perm: 'dashboard:view' },
   { path: '/dashboard', element: <Dashboard />, perm: 'dashboard:view' },
-  // 数据分析：全页演示数据（不请求后端），权限与数据看板同层级
-  { path: '/analysis', element: <Analysis />, perm: 'dashboard:view' },
   { path: '/tutorials', element: <TutorialsList />, perm: 'tutorial:view' },
   // 新建与编辑是列表页的子页面，菜单只挂列表入口，因此不进菜单覆盖校验
   { path: '/tutorials/new', element: <TutorialsEdit />, perm: 'tutorial:create' },
   { path: '/tutorials/:id/edit', element: <TutorialsEdit />, perm: 'tutorial:edit' },
   { path: '/categories', element: <CategoriesList />, perm: 'category:view' },
   { path: '/announcements', element: <AnnouncementsList />, perm: 'announcement:view' },
-  { path: '/payment-products', element: <PaymentProductsPage />, perm: 'payment_product:view' },
-  { path: '/payment-orders', element: <PaymentOrdersPage />, perm: 'payment_order:view' },
   { path: '/users', element: <UsersList />, perm: 'user:view' },
-  { path: '/points', element: <PointsList />, perm: 'points:view' },
-  { path: '/redeem-codes', element: <RedeemCodesList />, perm: 'redeem_code:view' },
-  { path: '/auth-requests', element: <AuthRequestsList />, perm: 'auth_request:view' },
   { path: '/feedback', element: <FeedbackList />, perm: 'feedback:view' },
   { path: '/messages', element: <MessagesList />, perm: 'message:view' },
   { path: '/search-keywords', element: <SearchKeywordsPage />, perm: 'dashboard:view' },
@@ -109,15 +99,15 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/menu-settings', element: <MenuSettingsPage />, perm: 'setting:view' },
   // 数据字典：业务枚举的类型与字典项；与菜单管理同属系统配置层
   { path: '/dicts', element: <DictionariesPage />, perm: 'setting:view' },
+  // IP 黑名单：运营级访问封禁，保存即时生效（独立授权面，2026-11-19）
+  { path: '/ip-blacklist', element: <IpBlacklistPage />, perm: 'ip_blacklist:view' },
   // 代码生成：表结构内省与生成物都属于数据外带，统一要求保存设置权限
   { path: '/codegen', element: <CodegenPage />, perm: 'setting:update' },
-  // 登录管理：从「系统设置 → 登录与短信」抽出的独立模块，权限码独立
+  // 登录管理：登录方式与人机验证开关的独立模块，权限码独立
   { path: '/login-settings', element: <LoginSettingsPage />, perm: 'login_setting:view' },
   // 法律文档：对外合规文本单独授权
   { path: '/legal-documents', element: <LegalDocumentsPage />, perm: 'legal_doc:view' },
-  // 支付与渠道：资金链路配置单独授权
-  { path: '/payment-settings', element: <PaymentSettingsPage />, perm: 'payment_setting:view' },
-  // 邮件通知：SMTP 通道（验证码发信），与短信同属通道型配置
+  // 邮件通知：SMTP 通道（验证码发信），通道型配置
   { path: '/mail-settings', element: <MailSettingsPage />, perm: 'mail_setting:view' },
   { path: '/ai-models', element: <AiModelsPage />, perm: 'ai_model:view' },
   // AI 写作：提示词是 AI 行为配置，与模型管理共用 ai_model:view
@@ -137,6 +127,12 @@ export const ADMIN_ROUTES: AdminRouteDef[] = [
   { path: '/monitor/online', element: <MonitorOnlinePage />, perm: 'dashboard:view' },
   { path: '/monitor/server', element: <MonitorServerPage />, perm: 'dashboard:view' },
   { path: '/monitor/cache', element: <MonitorCachePage />, perm: 'dashboard:view' },
+  // 系统错误日志：最近 ERROR 事件的环形缓冲（Redis），只读运维，复用 dashboard:view
+  { path: '/monitor/errors', element: <MonitorErrorsPage />, perm: 'dashboard:view' },
+  // 接口监控：调用量/错误率 Top + 慢接口明细（Redis 聚合，只读运维）
+  { path: '/monitor/api', element: <MonitorApiStatsPage />, perm: 'dashboard:view' },
+  // 登录日志：登录成功/失败/登出的安全遥测（独立权限码，2026-11-18）
+  { path: '/login-logs', element: <LoginLogsList />, perm: 'login_log:view' },
   { path: '/audit-logs', element: <AuditLogsList />, perm: 'audit:view' },
   { path: '/backups', element: <BackupsPage />, perm: 'setting:view' },
   // 回收站跨教程 / 评论 / 用户三个域：任一查看权限即可进入，类型由接口按权限裁剪

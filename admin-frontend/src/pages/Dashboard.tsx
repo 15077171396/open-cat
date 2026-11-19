@@ -2,12 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Row, Col, Card, Avatar, Button, Segmented, Result, Alert } from 'antd'
 import {
   TeamOutlined,
-  HddOutlined,
-  ThunderboltOutlined,
-  SafetyCertificateOutlined,
   UserOutlined,
-  RiseOutlined,
-  AuditOutlined,
   CommentOutlined,
   ReloadOutlined,
   BookOutlined,
@@ -19,17 +14,13 @@ import { greetingKey } from '../utils/greeting'
 import { useAuthStore } from '../store/authStore'
 import type {
   AiUsageData,
-  ContentAttributionData,
   DashboardData,
-  FunnelOverviewData,
   SystemStatusData,
   VersionData,
 } from '../types'
 import {
   normalizeAiUsage,
-  normalizeAttribution,
   normalizeDashboard,
-  normalizeFunnel,
   normalizeSystemStatus,
 } from '../components/dashboard/dashboardUtils'
 import MetricCard from '../components/dashboard/MetricCard'
@@ -38,15 +29,14 @@ import DonutChart from '../components/dashboard/DonutChart'
 import BarList from '../components/dashboard/BarList'
 import AiUsagePanel from '../components/dashboard/AiUsagePanel'
 import SystemStatusPanel from '../components/dashboard/SystemStatusPanel'
-import FunnelPanel from '../components/dashboard/FunnelPanel'
-import ContentAttributionPanel from '../components/dashboard/ContentAttributionPanel'
+import OpsMetricPanel from '../components/dashboard/OpsMetricPanel'
 import type { BarItem } from '../components/dashboard/BarList'
 
 /** 趋势图可切换的指标 */
-type TrendMetric = 'download' | 'registration'
+type TrendMetric = 'content' | 'registration'
 
 const TREND_METRICS: { value: TrendMetric; label: string; color: string }[] = [
-  { value: 'download', label: '下载量', color: 'var(--app-primary)' },
+  { value: 'content', label: '内容新增', color: 'var(--app-primary)' },
   { value: 'registration', label: '新增注册', color: 'var(--app-success)' },
 ]
 
@@ -71,10 +61,6 @@ export default function Dashboard() {
   const [aiFailed, setAiFailed] = useState(false)
   const [sysRaw, setSysRaw] = useState<SystemStatusData | null>(null)
   const [sysFailed, setSysFailed] = useState(false)
-  const [funnelRaw, setFunnelRaw] = useState<FunnelOverviewData | null>(null)
-  const [funnelFailed, setFunnelFailed] = useState(false)
-  const [attrRaw, setAttrRaw] = useState<ContentAttributionData | null>(null)
-  const [attrFailed, setAttrFailed] = useState(false)
   const [versionRaw, setVersionRaw] = useState<VersionData | null>(null)
   const [versionFailed, setVersionFailed] = useState(false)
   // 新接口 404 = 后端还是升级前的进程（最常见的原因：改了代码没重启后端）。
@@ -83,7 +69,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [updatedAt, setUpdatedAt] = useState('')
-  const [trendMetric, setTrendMetric] = useState<TrendMetric>('download')
+  const [trendMetric, setTrendMetric] = useState<TrendMetric>('content')
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -91,13 +77,13 @@ export default function Dashboard() {
     // 每次刷新都重置「后端是旧进程」的提示：否则重启后端后再点刷新，黄条会一直挂着
     setStaleBackend(false)
 
-    // ⚡ 6 个接口**并发**发出（2026-10-27，2026-10-30 增加版本接口）。
-    // 此前是 5 次串行 await：每个都是一次完整 HTTP 往返，生产环境（公网 + nginx + 2 worker）
+    // ⚡ 4 个接口**并发**发出（版本接口 2026-10-30 加入）。
+    // 此前是串行 await：每个都是一次完整 HTTP 往返，生产环境（公网 + nginx + 2 worker）
     // 光排队就能多花 0.5~1.5s，而它们之间**没有任何数据依赖**。
     //
     // 但「并发」不等于「一起等」：主数据（/admin/dashboard）一到就结束骨架，
-    // 否则只要有一块慢（漏斗冷缓存 / 归因 GROUP BY），整页骨架就会被它拖住。
-    // 所以先 await 主数据、再 await 其余五块 —— 请求是同时发出的，只是渲染分两批。
+    // 否则只要有一块慢，整页骨架就会被它拖住。
+    // 所以先 await 主数据、再 await 其余三块 —— 请求是同时发出的，只是渲染分两批。
     const settle = <T,>(p: Promise<T>) =>
       p.then(
         (value) => ({ ok: true as const, value }),
@@ -105,13 +91,11 @@ export default function Dashboard() {
       )
 
     const dashReq = settle(apiGet<DashboardData>('/admin/dashboard'))
-    // `as const` 让 Promise.all 保留**元组**类型：否则数组元素被推断成四者的联合，
-    // 后面 setFunnelRaw(union) 会直接类型报错（tsc 抓到的，vite build 不做类型检查）
+    // `as const` 让 Promise.all 保留**元组**类型：否则数组元素被推断成联合，
+    // 后面的 setter 会直接类型报错（tsc 抓到的，vite build 不做类型检查）
     const restReq = [
       settle(apiGet<AiUsageData>('/admin/ai-usage')),
       settle(apiGet<SystemStatusData>('/admin/system-status')),
-      settle(apiGet<FunnelOverviewData>('/admin/funnel?days=30')),
-      settle(apiGet<ContentAttributionData>('/admin/content-attribution?days=30&limit=10')),
       settle(apiGet<VersionData>('/admin/version')),
     ] as const
 
@@ -126,19 +110,15 @@ export default function Dashboard() {
     }
     setLoading(false)
 
-    // 五块附加数据各自降级：失败只让自己的卡片显示「数据异常」，不拖垮整页
-    const [ai, sys, funnel, attr, version] = await Promise.all(restReq)
-    for (const result of [ai, sys, funnel, attr, version]) {
+    // 三块附加数据各自降级：失败只让自己的卡片显示「数据异常」，不拖垮整页
+    const [ai, sys, version] = await Promise.all(restReq)
+    for (const result of [ai, sys, version]) {
       if (!result.ok && getApiErrorStatus(result.error) === 404) setStaleBackend(true)
     }
     setAiRaw(ai.ok ? ai.value : null)
     setAiFailed(!ai.ok)
     setSysRaw(sys.ok ? sys.value : null)
     setSysFailed(!sys.ok)
-    setFunnelRaw(funnel.ok ? funnel.value : null)
-    setFunnelFailed(!funnel.ok)
-    setAttrRaw(attr.ok ? attr.value : null)
-    setAttrFailed(!attr.ok)
     setVersionRaw(version.ok ? version.value : null)
     setVersionFailed(!version.ok)
   }, [])
@@ -175,17 +155,11 @@ export default function Dashboard() {
   // 系统状态同样先兜底：缺字段只表现为「未知」，不会让卡片崩掉
   const system = useMemo(() => normalizeSystemStatus(sysRaw), [sysRaw])
 
-  // 漏斗同样先兜底：缺字段只表现为「—」，不会让卡片崩掉
-  const funnel = useMemo(() => normalizeFunnel(funnelRaw), [funnelRaw])
-
-  // 归因同样先兜底：缺字段只表现为「—」，不会让卡片崩掉
-  const attribution = useMemo(() => normalizeAttribution(attrRaw), [attrRaw])
-
   const trend = useMemo(() => {
     const meta = TREND_METRICS.find((m) => m.value === trendMetric) ?? TREND_METRICS[0]
     return {
       meta,
-      points: trendMetric === 'download' ? data.download_trend : data.registration_trend,
+      points: trendMetric === 'content' ? data.content_trend : data.registration_trend,
     }
   }, [trendMetric, data])
 
@@ -250,10 +224,6 @@ export default function Dashboard() {
             <strong>{data.total_users}</strong>
           </div>
           <div className="dash-hero__stat">
-            <span>待审核</span>
-            <strong>{data.pending.auth_requests}</strong>
-          </div>
-          <div className="dash-hero__stat">
             <span>待处理反馈</span>
             <strong>{data.pending.feedbacks}</strong>
           </div>
@@ -263,9 +233,9 @@ export default function Dashboard() {
         </div>
       </Card>
 
-      {/* 第一行：今日核心指标 */}
+      {/* 第一行：规模与待办（待办卡按权限决定是否可点击） */}
       <Row gutter={[16, 16]}>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={24} sm={12} xl={8}>
           <MetricCard
             title="今日新增注册"
             value={data.today_registrations}
@@ -279,50 +249,7 @@ export default function Dashboard() {
             }
           />
         </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <MetricCard
-            title="今日下载量"
-            value={data.today_downloads}
-            icon={<HddOutlined />}
-            tone="purple"
-            loading={loading}
-            hint={
-              <span>
-                今日工具调用 <strong>{data.today_tool_usage}</strong> 次
-              </span>
-            }
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <MetricCard
-            title="体验转化率"
-            value={data.conversion_rate}
-            suffix="%"
-            icon={<ThunderboltOutlined />}
-            tone="orange"
-            loading={loading}
-            hint="免费时长耗尽后升级 VIP 的比例"
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <MetricCard
-            title="星球认证数"
-            value={data.approved_count}
-            icon={<SafetyCertificateOutlined />}
-            tone="green"
-            loading={loading}
-            hint={
-              <span>
-                待审核 <strong>{data.pending.auth_requests}</strong> 条
-              </span>
-            }
-          />
-        </Col>
-      </Row>
-
-      {/* 第二行：规模与待办（待办卡按权限决定是否可点击） */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={24} sm={12} xl={8}>
           <MetricCard
             title="总用户数"
             value={data.total_users}
@@ -337,28 +264,7 @@ export default function Dashboard() {
             }
           />
         </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <MetricCard
-            title="近 7 日活跃用户"
-            value={data.active_users_7d}
-            icon={<RiseOutlined />}
-            tone="cyan"
-            loading={loading}
-            hint="近 7 天产生过下载行为的用户"
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
-          <MetricCard
-            title="待审核认证"
-            value={data.pending.auth_requests}
-            icon={<AuditOutlined />}
-            tone="orange"
-            loading={loading}
-            onClick={can('auth_request:view') ? () => navigate('/auth-requests') : undefined}
-            hint={can('auth_request:view') ? '点击前往实名审核' : '无审核权限'}
-          />
-        </Col>
-        <Col xs={24} sm={12} xl={6}>
+        <Col xs={24} sm={12} xl={8}>
           <MetricCard
             title="待处理反馈"
             value={data.pending.feedbacks}
@@ -379,7 +285,7 @@ export default function Dashboard() {
           title="后端接口不存在（404）—— 当前运行的多半是升级前的旧进程"
           description={
             <span style={{ fontSize: 13 }}>
-              代码已更新，但正在运行的后端没有重启，所以新接口（漏斗 / 系统状态 / 内容归因）返回 404。
+              代码已更新，但正在运行的后端没有重启，所以新接口（系统状态 / 版本）返回 404。
               重启后端后刷新本页即可；若提示缺表，再执行一次 <code>alembic upgrade head</code>。
             </span>
           }
@@ -430,7 +336,7 @@ export default function Dashboard() {
         </Col>
       </Row>
 
-      {/* 第四行：内容资产 + 下载榜 */}
+      {/* 第三行之后：内容资产总览 + 系统指标趋势（每小时快照回看，独立降级） */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
         <Col xs={24} xl={12}>
           <Card
@@ -447,28 +353,12 @@ export default function Dashboard() {
             <BarList items={contentItems} loading={loading} emptyText="暂无内容" />
           </Card>
         </Col>
-      </Row>
-
-      {/* 第五行：转化漏斗 + 留存（商业模式的核心指标：哪一段在流失） */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={24}>
-          <FunnelPanel data={funnel} loading={loading} failed={funnelFailed} onRefresh={load} />
+        <Col xs={24} xl={12}>
+          <OpsMetricPanel />
         </Col>
       </Row>
 
-      {/* 第六行：内容归因（哪篇内容真的带来付费意愿） */}
-      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
-        <Col span={24}>
-          <ContentAttributionPanel
-            data={attribution}
-            loading={loading}
-            failed={attrFailed}
-            onRefresh={load}
-          />
-        </Col>
-      </Row>
-
-      {/* 第七行：AI 用量与成本护栏（台账 P1-2）
+      {/* 第四行：AI 用量与成本护栏（台账 P1-2）
           整宽单卡、内部三栏（今日 / 本月 / 近 30 天）：护栏的重点是「离上限还有多远」，
           拆成两张卡时水位与趋势互相看不见，窄栏里的 4 个 Statistic 还会把标签挤折行。 */}
       <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
@@ -483,7 +373,7 @@ export default function Dashboard() {
         </Col>
       </Row>
 
-      {/* 第八行（**页面最底部**）：系统状态（运维可见性）—— 与业务指标分开，出错时只影响自己这一块。
+      {/* 第五行（**页面最底部**）：系统状态（运维可见性）—— 与业务指标分开，出错时只影响自己这一块。
           放最下面的理由：它是「排查时才会看」的信息，不是每天要读的业务数字；
           放在业务指标中间会把真正的主指标挤开。定时任务明细已独立成「系统 → 定时任务」页，
           这里只留概览 + 入口。 */}

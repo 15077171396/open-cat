@@ -7,16 +7,10 @@ export interface PaginatedResponse<T> {
 }
 
 /** 用户角色 */
-export type UserRole = 'user' | 'vip' | 'admin'
+export type UserRole = 'user' | 'admin'
 
 /** 教程更新状态 */
 export type TutorialStatus = 'updating' | 'completed'
-
-/** 积分流水类型：consume=工具消耗 / admin_set=管理员设置 / admin_grant=管理员充值 / admin_deduct=管理员扣减 / redeem=兑换码充值 / invite=邀请奖励 */
-export type PointTxType = 'consume' | 'admin_set' | 'admin_grant' | 'admin_deduct' | 'redeem' | 'invite'
-
-/** 星球认证状态 */
-type AuthStatus = 'approved' | 'pending' | 'rejected'
 
 /** 用户反馈处理状态（与后端 FEEDBACK_STATUSES 对应） */
 export type FeedbackStatus = 'pending' | 'processing' | 'resolved' | 'closed'
@@ -37,17 +31,6 @@ export interface User {
   role: UserRole
   avatar_url: string | null
   created_at: string | null
-  vip_expire_time: string | null
-  /** 积分余额（运行积分工具时消耗） */
-  points?: number
-  /** 按自然时间倒计时计算的已用时长（封顶 3 小时）；VIP/admin 为实际学习统计 */
-  free_used_seconds: number
-  /** 剩余免费时长；VIP/admin 不限时为 null */
-  free_remaining_seconds: number | null
-  auth_status: AuthStatus | null
-  star_code: string | null
-  pending_auth_code: string | null
-  auth_history?: AuthHistoryItem[]
   /** RBAC：管理后台角色（决定后台菜单与操作权限） */
   rbac_roles?: { id: number; code: string; name: string }[]
   /** RBAC：部门归属 */
@@ -55,103 +38,6 @@ export interface User {
   department_name?: string | null
   /** 软删除时间：非空 = 该账号已注销/被删除（account_status=deleted|all 时才有值） */
   deleted_at?: string | null
-}
-
-/** 积分流水（管理后台视角，全站流水额外含 user_account） */
-export interface PointTransaction {
-  id: number
-  user_id: number
-  /** 全站流水接口返回的用户账号 */
-  user_account?: string
-  /** 变动值：正=获得，负=消耗 */
-  points: number
-  /** 变动后余额 */
-  balance_after: number
-  /** 类型（枚举见 PointTxType） */
-  type: PointTxType
-  description: string | null
-  operator_id: number | null
-  /** 全站流水接口返回的操作人账号（outer join 解析，系统写入或账号已删时为 null） */
-  operator_account?: string | null
-  created_at: string | null
-}
-
-/** 积分兑换码 */
-export interface RedemptionCode {
-  id: number
-  code: string
-  /** 每份兑换积分 */
-  points: number
-  /** 最大兑换人数（=1 单人码 / >1 多人限量码） */
-  max_uses: number
-  /** 已兑换人数 */
-  used_count: number
-  /** 数据库状态：active=启用 / disabled=已作废 */
-  status: 'active' | 'disabled'
-  /** 服务端计算的展示状态：active=进行中 / exhausted=已兑完 / expired=已过期 / disabled=已作废 */
-  eff_status: 'active' | 'exhausted' | 'expired' | 'disabled'
-  /** 是否单人码（max_uses === 1） */
-  is_single: boolean
-  /** 过期时间（null=永不过期） */
-  expires_at: string | null
-  note: string | null
-  created_at: string | null
-}
-
-/** 兑换记录 */
-export interface RedemptionRecordItem {
-  id: number
-  code_id: number
-  code: string
-  user_id: number
-  /** 兑换用户账号 */
-  user_account?: string
-  points: number
-  created_at: string | null
-}
-
-/** 认证历史记录 */
-export interface AuthHistoryItem {
-  status: AuthStatus
-  star_code: string
-  vip_duration: string | null
-  created_at: string | null
-  reviewed_at: string | null
-  reject_reason: string | null
-}
-
-/** 认证申请 */
-/** 认证申请（知识星球认证）；审核字段在 pending 时为空 */
-export interface AuthRequest {
-  id: number
-  user_id: number
-  account: string | null
-  star_code: string
-  /** pending / approved / rejected（中文名见 status_label） */
-  status: string
-  status_label?: string
-  vip_duration: string | null
-  vip_duration_label?: string | null
-  reviewed_by: number | null
-  /** 审核人账号（outer join 解析，账号已删时为 null，前端回落 #id） */
-  reviewer_account?: string | null
-  reviewed_at: string | null
-  reject_reason: string | null
-  created_at: string
-}
-
-/** 网盘链接 */
-export interface NetdiskLink {
-  platform: string
-  url: string
-  extract_code: string
-}
-
-/** 扩展来源 */
-export interface PluginSource {
-  source_name: string
-  url: string
-  extract_code: string
 }
 
 /** 教程 */
@@ -165,10 +51,6 @@ export interface Tutorial {
   content: string
   cover_image: string
   is_published: boolean
-  /** 阅读权限（均需登录）：free=免费阅读 / vip=会员专享 */
-  access_mode: 'free' | 'vip'
-  /** 会员教程积分购买价：>0 时非会员可积分购买后永久阅读 */
-  points_price: number
   /** 置顶：true 时前台教程列表最优先展示 */
   is_pinned: boolean
   /** 推荐：true 时前台卡片显示「推荐」角标且排序提前 */
@@ -182,123 +64,9 @@ export interface Tutorial {
   /** 最近更新时间（后台列表展示；前台不用） */
   updated_at?: string | null
   published_at: string | null
-  netdisk_links?: NetdiskLink[]
 }
 
-/** 资源 */
-export interface Resource {
-  id: number
-  name: string
-  description: string
-  content: string
-  resource_type: string
-  file_size: string
-  download_count: number
-  /** 精选推荐：true 时前台资源页优先展示 */
-  is_featured: boolean
-  /** 置顶：true 时前台资源列表最优先展示 */
-  is_pinned: boolean
-  /** 封面图 URL：前台卡片封面与详情页 Hero 背景 */
-  cover_image?: string | null
-  /** 预览量：前台资源卡片左侧展示的就是它（与扩展卡片同一形态） */
-  view_count?: number
-  /** 发布作者：前台展示；null = 未填写 */
-  author_name?: string | null
-  /** 作者头像 URL：null/空 = 前台用作者名首字兜底 */
-  author_avatar_url?: string | null
-  /** 资源标签（JSON 数组，后台灵活添加） */
-  tags?: string[]
-  /** SEO 信息：仅输出到详情页 meta 标签供搜索引擎抓取，前台页面不展示 */
-  seo_title?: string | null
-  seo_description?: string | null
-  seo_keywords?: string | null
-  is_published?: boolean
-  netdisk_links?: NetdiskLink[]
-}
-
-/** 知识节点 */
-export interface Node {
-  id: number
-  name: string
-  category: string
-  description: string
-  content: string
-  /** 封面图 URL：前台卡片左侧 1/3 的首图；null = 未上传（回退分类图标底色） */
-  cover_image?: string | null
-  /** 发布作者：前台卡片与详情页展示；null = 未填写 */
-  author_name?: string | null
-  /** 作者头像 URL：null/空 = 前台用作者名首字兜底 */
-  author_avatar_url?: string | null
-  /** 预览量（前台卡片展示；后台列表指标列） */
-  view_count?: number
-  /** 最近更新时间（后台列表展示；前台不用） */
-  updated_at?: string | null
-  /** SEO：仅写入详情页 meta 标签，前台不展示 */
-  seo_title?: string | null
-  seo_description?: string | null
-  seo_keywords?: string | null
-  is_published?: boolean
-}
-
-/** 工具 AI 配置 */
-interface ToolAiConfig {
-  model?: string
-  prompt_template?: string
-}
-
-/** 工具表单字段定义 */
-export interface ToolFormField {
-  name: string
-  label: string
-  type: string
-  placeholder?: string
-}
-
-/** 工具表单 schema */
-interface ToolFormSchema {
-  fields: ToolFormField[]
-}
-
-/** 在线工具 */
-export interface Tool {
-  id: number
-  name: string
-  description: string
-  category: string
-  tool_type: 'ai' | 'frontend'
-  ai_config?: ToolAiConfig | null
-  form_schema?: ToolFormSchema | null
-  usage_count: number
-  is_published: boolean
-  /** 使用权限：free=免费 / auth=需认证 / points=需积分（仅对 AI 工具生效） */
-  access_mode?: 'free' | 'auth' | 'points'
-  /** 积分模式下单次运行消耗的积分 */
-  points_cost?: number
-}
-
-/** 扩展 */
-export interface Plugin {
-  id: number
-  name: string
-  category: string
-  view_count: number
-  /** 发布作者（2026-10-12 新增）：前台扩展卡片与详情页展示；null = 未填写 */
-  author_name?: string | null
-  /** 作者头像 URL：null/空 = 前台用作者名首字兜底 */
-  author_avatar_url?: string | null
-  description: string
-  content: string
-  sources?: PluginSource[]
-  /** SEO：仅写入详情页 meta 标签，前台不展示 */
-  seo_title?: string | null
-  seo_description?: string | null
-  seo_keywords?: string | null
-  is_published?: boolean
-  /** 最近更新时间（后台列表展示；前台不用） */
-  updated_at?: string | null
-}
-
-/** 看板 7 日趋势点（下载量 / 新增注册共用同一结构） */
+/** 看板 7 日趋势点（内容新增 / 新增注册共用同一结构） */
 export interface DashboardTrendPoint {
   /** YYYY-MM-DD（UTC 口径，与后端统计一致） */
   date: string
@@ -313,11 +81,8 @@ export interface DashboardContentOverview {
 
 /** 看板待办计数 */
 export interface DashboardPending {
-  auth_requests: number
   feedbacks: number
 }
-
-/** 看板资源下载榜条目 */
 
 // AI 用量与成本护栏
 
@@ -416,23 +181,17 @@ export interface NormalizedAiUsage {
 }
 
 /**
- * Dashboard 数据（接口原始返回形态）：仅 5 个 KPI 与下载趋势为一直存在的必填字段，
+ * Dashboard 数据（接口原始返回形态）：KPI 与趋势为一直存在的必填字段，
  * 其余增强字段为可选（可能因旧缓存或旧版本后端缺失），页面统一经 normalizeDashboard() 兜底。
  */
 export interface DashboardData {
   today_registrations: number
-  today_downloads: number
-  conversion_rate: number
-  approved_count: number
-  download_trend: DashboardTrendPoint[]
-  // —— 后端早已返回、此前未在类型中声明（补齐以消除隐式 any） ——
   total_users?: number
   total_tutorials?: number
   registration_source?: { phone: number; email: number }
   // —— 看板增强字段 ——
   registration_trend?: DashboardTrendPoint[]
-  active_users_7d?: number
-  today_tool_usage?: number
+  content_trend?: DashboardTrendPoint[]
   content_overview?: Partial<DashboardContentOverview>
   pending?: Partial<DashboardPending>
 }
@@ -443,8 +202,7 @@ export interface NormalizedDashboard extends DashboardData {
   total_tutorials: number
   registration_source: { phone: number; email: number }
   registration_trend: DashboardTrendPoint[]
-  active_users_7d: number
-  today_tool_usage: number
+  content_trend: DashboardTrendPoint[]
   content_overview: DashboardContentOverview
   pending: DashboardPending
 }
@@ -762,67 +520,6 @@ export interface NormalizedScheduledJobs {
   groups: NormalizedScheduledJobGroup[]
 }
 
-// 转化漏斗与留存（GET /admin/funnel）
-//
-// 阶段口径是**嵌套**的：后一阶段只数走完了前面所有阶段的人，所以 count 单调递减。
-// count 为 null = 该阶段聚合失败（未知），**不是 0** —— 组件必须区分显示。
-
-export interface FunnelStage {
-  key?: string
-  label?: string
-  count?: number | null
-  /** 相对队列起点（注册）的累计转化率 0~1 */
-  rate_from_start?: number | null
-  /** 相对上一阶段的阶段间转化率 0~1（定位流失点的关键） */
-  rate_from_prev?: number | null
-}
-
-export interface FunnelData {
-  days?: number
-  since?: string
-  stages?: FunnelStage[]
-  approval_rate?: number | null
-  paid_rate?: number | null
-}
-
-export interface RetentionRow {
-  date?: string
-  cohort?: number
-  d1_active?: number | null
-  d7_active?: number | null
-  d1_rate?: number | null
-  d7_rate?: number | null
-}
-
-export interface FunnelOverviewData {
-  funnel?: FunnelData
-  retention?: { days?: number; rows?: RetentionRow[] }
-}
-
-/** 归一化后的漏斗：字段必定存在，组件内无需判空 */
-export interface NormalizedFunnel {
-  days: number
-  since: string
-  stages: {
-    key: string
-    label: string
-    count: number | null
-    rateFromStart: number | null
-    rateFromPrev: number | null
-  }[]
-  approvalRate: number | null
-  paidRate: number | null
-  retentionDays: number
-  retention: {
-    date: string
-    cohort: number
-    d1Active: number | null
-    d7Active: number | null
-    d1Rate: number | null
-    d7Rate: number | null
-  }[]
-}
-
 // 站内搜索词报告（GET /admin/search-keywords）
 
 export interface SearchKeywordRow {
@@ -849,40 +546,6 @@ export interface SearchKeywordReport {
   top?: SearchKeywordRow[]
   zero_result?: SearchZeroRow[]
   modules?: { module?: string; count?: number }[]
-}
-
-// 内容归因（GET /admin/content-attribution）
-//
-// 口径：看过该内容的登录用户中，有多少人在 ATTRIBUTION_WINDOW_DAYS（默认 7 天）内提交了认证申请。
-
-export interface AttributionItem {
-  target_type?: string
-  target_id?: number
-  title?: string
-  viewers?: number
-  converted?: number
-  /** 转化率 0~1；viewers 为 0 时为 null（不是 0） */
-  rate?: number | null
-}
-
-export interface ContentAttributionData {
-  days?: number
-  /** false = 还没采集到数据（或迁移未执行） */
-  available?: boolean
-  attribution_window_days?: number
-  total_views?: number
-  total_viewers?: number
-  items?: AttributionItem[]
-}
-
-/** 归一化后的归因数据：字段必定存在，组件内无需判空 */
-export interface NormalizedAttribution {
-  days: number
-  available: boolean
-  windowDays: number
-  totalViews: number
-  totalViewers: number
-  items: { type: string; id: number; title: string; viewers: number; converted: number; rate: number | null }[]
 }
 
 // RBAC 权限管理

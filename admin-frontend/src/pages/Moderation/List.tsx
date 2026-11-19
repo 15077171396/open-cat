@@ -12,6 +12,7 @@ import { formatTime } from '../../utils/datetime'
 import { toast } from '../../utils/toast'
 import PageHeader from '../../components/ui/PageHeader'
 import { DataTable, ListToolbar } from '../../components/ui'
+import WordsTab from './WordsTab'
 /**
  * 内容审核中心：机审留痕（纠正误报）与用户举报（处理）放同一页两个 Tab，
  * 两者看的是同一批 UGC 的不合规信号。查看与处理动作权限分开控制。
@@ -651,12 +652,13 @@ export default function ModerationList() {
   const [summary, setSummary] = useState({ pending_logs: 0, pending_reports: 0 })
   // Tab 与 URL 同步：顶栏待办可以直接深链到「用户举报」而不是只落到默认 Tab
   const [searchParams, setSearchParams] = useSearchParams()
-  const tab = searchParams.get('tab') === 'reports' ? 'reports' : 'logs'
+  const tabKey = searchParams.get('tab') ?? 'logs'
+  const tab = ['logs', 'reports', 'words'].includes(tabKey) ? tabKey : 'logs'
 
   const changeTab = (key: string) => {
     const next = new URLSearchParams(searchParams)
-    if (key === 'reports') next.set('tab', 'reports')
-    else next.delete('tab')
+    if (key === 'logs') next.delete('tab')
+    else next.set('tab', key)
     // replace：切 Tab 不该在浏览器历史里留下一步，否则「返回」会变成在两 Tab 间来回跳
     setSearchParams(next, { replace: true })
   }
@@ -694,6 +696,14 @@ export default function ModerationList() {
       ),
       children: <ReportTab onChanged={refreshSummary} />,
     },
+    {
+      key: 'words',
+      label: (
+        <Space size={6}>敏感词库</Space>
+      ),
+      // 懒加载在 WordsTab 内部处理：切到本 Tab 才拉词表
+      children: <WordsTab active={tab === 'words'} />,
+    },
   ]
 
   return (
@@ -711,8 +721,8 @@ export default function ModerationList() {
       <Tabs activeKey={tab} onChange={changeTab} items={tabItems} />
 
       <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-        <FlagOutlined /> 敏感词库由 <code>MODERATION_EXTRA_WORDS</code> 维护（部署配置，非数据库），
-        改后需重启后端生效；复核与处理动作均写入操作审计。
+        <FlagOutlined /> 词库在「敏感词库」Tab 维护（保存后立即生效，无需重启）；
+        复核与处理动作均写入操作审计。
       </Typography.Text>
     </div>
   )

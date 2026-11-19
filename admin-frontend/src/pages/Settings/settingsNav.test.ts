@@ -18,7 +18,7 @@ describe('buildNav', () => {
   })
 
   it('每个后端分组只出现一次（不重复、不丢失）', () => {
-    const keys = ['basic', 'business', 'invite', 'moderation', 'search', 'fetch', 'upload', 'storage']
+    const keys = ['basic', 'business', 'moderation', 'search', 'upload', 'image_search', 'storage']
     const nav = buildNav(keys.map(group))
     const flat = nav.flatMap((c) => c.groups.map((g) => g.key))
     expect(flat.sort()).toEqual([...keys].sort())

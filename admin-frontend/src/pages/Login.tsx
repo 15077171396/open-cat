@@ -109,6 +109,35 @@ export default function Login() {
     }
   }, [loadCaptcha])
 
+  // 品牌化（2026-11-19）：平台名称 / Logo / 副标题走站点配置（公开设置接口，
+  // 与邮件模板的 {{site_name}} 同源）。state 只存**站点配置值**（null = 未配置），
+  // 渲染时派生：配置优先，否则跟随当前 locale 的 i18n 文案 —— 语言切换实时跟随。
+  const [siteName, setSiteName] = useState<string | null>(null)
+  const [siteLogo, setSiteLogo] = useState<string | null>(null)
+  const [siteHeroDesc, setSiteHeroDesc] = useState<string | null>(null)
+
+  useEffect(() => {
+    let alive = true
+    void (async () => {
+      try {
+        const data = await apiGet<Record<string, string>>('/settings')
+        if (!alive) return
+        if (data.site_name) setSiteName(data.site_name)
+        if (data.site_logo) setSiteLogo(data.site_logo)
+        if (data.login_hero_desc) setSiteHeroDesc(data.login_hero_desc)
+      } catch {
+        // 公开设置拉不到：保持内置默认，登录主流程不受影响
+      }
+    })()
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const brandName = siteName ?? t('login.title')
+  const brandLogo = siteLogo ?? `${import.meta.env.BASE_URL}favicon-64.png`
+  const heroDesc = siteHeroDesc ?? t('login.heroDesc')
+
   const handleSubmit = async (values: LoginFormValues) => {
     const { account, password, totpCode, captchaCode } = values
     if (!account || !password) {
@@ -152,13 +181,13 @@ export default function Login() {
     <div className="login-page">
       <aside className="login-brand" aria-hidden="true">
         <div className="login-brand__logo">
-          <img src={`${import.meta.env.BASE_URL}favicon-64.png`} alt="" />
-          <span>{t('login.title')}</span>
+          <img src={brandLogo} alt="" />
+          <span>{brandName}</span>
         </div>
 
         <div className="login-brand__copy">
           <h1>{t('login.heroTitle')}</h1>
-          <p>{t('login.heroDesc')}</p>
+          <p>{heroDesc}</p>
         </div>
 
         <ul className="login-brand__features">
@@ -185,7 +214,7 @@ export default function Login() {
           </li>
         </ul>
 
-        <div className="login-brand__footer">© {year} AI学习猫</div>
+        <div className="login-brand__footer">© {year} Open Cat</div>
       </aside>
 
       <main className="login-main">
@@ -206,7 +235,7 @@ export default function Login() {
           <div className="login-card__head">
             <img
               className="login-card__logo"
-              src={`${import.meta.env.BASE_URL}favicon-64.png`}
+              src={brandLogo}
               alt=""
             />
             <Typography.Title level={3} style={{ margin: 0 }}>
@@ -316,7 +345,7 @@ export default function Login() {
           </Form>
         </div>
 
-        <div className="login-main__footer">© {year} AI学习猫</div>
+        <div className="login-main__footer">© {year} Open Cat</div>
       </main>
     </div>
   )

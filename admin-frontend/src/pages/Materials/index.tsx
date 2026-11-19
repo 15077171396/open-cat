@@ -43,8 +43,6 @@ const SOURCE_OPTIONS = [
   { value: 'giphy', label: 'GIPHY' },
   { value: 'tenor', label: 'Tenor 兼容' },
   { value: 'so360', label: '360 图片' },
-  { value: 'baidu', label: '百度图片' },
-  { value: 'sogou', label: '搜狗图片' },
   { value: 'duitang', label: '堆糖' },
   { value: 'doutupk', label: '斗图啦' },
   { value: 'adoutu', label: '爱斗图' },
@@ -56,8 +54,10 @@ const SOURCE_LABELS: Record<string, string> = {
   ...Object.fromEntries(
     SOURCE_OPTIONS.filter((item) => item.value).map((item) => [item.value, item.label]),
   ),
-  // 2026-10-29 起不再抓取 Bing 图片；历史素材仍按原名字展示，避免显示成裸 source 值。
+  // 已下线的抓取源：历史素材仍按原名字展示，避免显示成裸 source 值。
   bing: 'Bing 图片（已停用）',
+  baidu: '百度图片（已停用）',
+  sogou: '搜狗图片（已停用）',
 }
 
 function formatBytes(bytes: number): string {

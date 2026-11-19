@@ -38,7 +38,6 @@ import AiModelsPage from './AiModels'
 import LegalDocumentsPage from './LegalDocuments'
 import LoginSettingsPage from './LoginSettings'
 import MailSettingsPage from './MailSettings'
-import PaymentSettingsPage from './PaymentSettings'
 import SettingsPage from './Settings'
 
 const get = client.get as unknown as ReturnType<typeof vi.fn>
@@ -174,28 +173,23 @@ describe('设置类页面渲染冒烟', () => {
     await waitFor(() => expect(container.textContent || '').toContain('连通 120ms'))
   })
 
-  it('登录管理：默认落在渠道状态，点导航可切到短信通道', async () => {
+  it('登录管理：默认落在渠道状态，点导航可切到人机验证配置', async () => {
     get.mockResolvedValue({
       code: 0,
       data: {
         definitions: [
-          def('phone_login_enabled', '手机号登录', 'bool', 'auth_phone', '手机号验证码登录'),
-          def('sms_provider', '短信服务商', 'select', 'auth_sms', '短信通道'),
-          def('sms_tencent_secret_id', '腾讯云 SecretId', 'text', 'auth_sms', '短信通道'),
+          def('login_captcha_enabled', '登录图形验证码', 'bool', 'auth_captcha', '登录人机验证'),
         ],
-        groups: [
-          { key: 'auth_phone', label: '手机号验证码登录', description: '' },
-          { key: 'auth_sms', label: '短信通道', description: '' },
-        ],
+        groups: [{ key: 'auth_captcha', label: '登录人机验证', description: '账号密码登录的图形验证码开关' }],
         values: {},
         channels: [
-          { key: 'email', label: '邮箱密码登录', enabled: true, ready: true, detail: '', issues: [] },
+          { key: 'email', label: '邮箱密码登录', enabled: true, ready: true, detail: '基础登录方式，无开关', issues: [] },
           {
-            key: 'phone',
-            label: '手机号验证码登录',
+            key: 'captcha',
+            label: '登录图形验证码',
             enabled: false,
-            ready: false,
-            detail: '短信通道：Mock',
+            ready: true,
+            detail: '开启后登录必须先通过图形验证码',
             issues: [],
           },
         ],
@@ -206,14 +200,14 @@ describe('设置类页面渲染冒烟', () => {
         <LoginSettingsPage />
       </MemoryRouter>,
     )
-    // 默认：状态卡
+    // 默认：状态卡（邮箱密码 + 验证码两张卡都在）
     await waitFor(() => expect(container.textContent || '').toContain('邮箱密码登录'))
     expect(container.textContent).toContain('渠道状态')
+    expect(container.textContent).toContain('登录图形验证码')
 
-    // 切到「短信通道」：右侧换成该组字段 + 按服务商折叠的参数
-    fireEvent.click(screen.getByRole('button', { name: '短信通道' }))
-    await waitFor(() => expect(container.textContent || '').toContain('腾讯云 SMS 参数'))
-    expect(container.textContent).not.toContain('邮箱密码登录')
+    // 切到「登录人机验证」配置组：右侧换成该组的开关表单
+    fireEvent.click(screen.getByRole('button', { name: '登录人机验证' }))
+    await waitFor(() => expect(container.textContent || '').toContain('图形验证码开关'))
   })
 
   it('法律文档：文档导航（前台位置提示）', async () => {
@@ -238,37 +232,5 @@ describe('设置类页面渲染冒烟', () => {
       },
     })
     await expectText(<LegalDocumentsPage />, '前台页脚')
-  })
-
-  it('支付与渠道：总开关卡与渠道卡', async () => {
-    get.mockResolvedValue({
-      code: 0,
-      data: {
-        definitions: [
-          def('payment_enabled', '在线支付总开关', 'bool', 'payment_general', '支付开关与订单'),
-        ],
-        groups: [
-          { key: 'payment_general', label: '支付开关与订单', description: '总开关' },
-          { key: 'payment_wechat', label: '微信支付', description: 'v3 Native' },
-          { key: 'payment_alipay', label: '支付宝', description: '电脑网站支付' },
-        ],
-        values: {},
-        enabled: false,
-        env: 'development',
-        channels: [
-          {
-            key: 'mock',
-            label: '模拟支付',
-            enabled: false,
-            ready: false,
-            detail: '仅本地',
-            issues: [],
-          },
-        ],
-        warnings: [],
-      },
-    })
-    // 默认停在「渠道状态」：导航里三组配置都在，右侧是状态卡
-    await expectText(<PaymentSettingsPage />, '在线支付（总开关）')
   })
 })

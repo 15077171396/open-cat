@@ -1,7 +1,7 @@
 /**
  * 系统设置的**二级导航分类**（左侧栏）。
  *
- * 为什么不再用横排 tab：抽走 4 个模块后系统设置仍有 14 个分组，横向 tab 挤成一行小字，
+ * 为什么不再用横排 tab：系统设置仍有 10+ 个分组，横向 tab 挤成一行小字，
  * 找一项设置得先把整行扫一遍，靠位置的「记忆导航」已经失效 —— 分类竖排后每屏最多 6 项，
  * 且能显示「哪一栏里有未保存的修改」。
  *
@@ -27,14 +27,14 @@ export interface NavCategory<T extends { key: string } = NavGroup> {
 
 /** 分类声明（顺序即左侧栏顺序；分组按此处的顺序展示，而不是后端返回顺序） */
 export const NAV_CATEGORIES: { key: string; label: string; groups: string[] }[] = [
-  { key: 'basic', label: '基础', groups: ['basic', 'business', 'invite'] },
-  { key: 'content', label: '内容与检索', groups: ['moderation', 'search', 'fetch'] },
+  { key: 'basic', label: '基础', groups: ['basic', 'business'] },
+  { key: 'content', label: '内容与检索', groups: ['moderation', 'search'] },
   {
     key: 'media',
     label: '上传与素材',
-    groups: ['upload', 'image_search', 'storage', 'hero', 'default', 'qrcode', 'social'],
+    groups: ['upload', 'image_search', 'storage', 'default'],
   },
-  { key: 'ops', label: '安全与站点', groups: ['ratelimit', 'seo'] },
+  { key: 'ops', label: '安全与站点', groups: ['ratelimit', 'password_policy', 'notifications', 'seo'] },
   { key: 'ai', label: 'AI', groups: ['ai_writing'] },
 ]
 

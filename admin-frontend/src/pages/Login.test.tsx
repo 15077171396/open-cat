@@ -36,7 +36,7 @@ describe('Login 语言切换', () => {
 
   it('默认中文：标题、按钮与必填提示都是中文', async () => {
     renderLogin()
-    expect(screen.getByText('AI学习猫 管理后台')).toBeInTheDocument()
+    expect(screen.getByText('后台管理系统')).toBeInTheDocument()
     // antd 会给两个汉字之间自动加空格（登 录），按可访问名用正则匹配
     expect(screen.getByRole('button', { name: /登\s*录/ })).toBeInTheDocument()
 
@@ -55,7 +55,7 @@ describe('Login 语言切换', () => {
     await userEvent.click(screen.getByText('English'))
 
     expect(usePrefsStore.getState().locale).toBe('en-US')
-    expect(screen.getByText('AI Cat Admin')).toBeInTheDocument()
+    expect(screen.getByText('Admin Console')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Sign in' }))

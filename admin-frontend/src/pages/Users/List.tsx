@@ -2,15 +2,16 @@ import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { Avatar, Button, Input, Modal, Select, Space, Tag, Typography } from 'antd'
 import type { TableProps } from 'antd'
-import { DeleteOutlined, EyeOutlined, LogoutOutlined, MinusCircleOutlined, PlusOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
+import { DeleteOutlined, EyeOutlined, ImportOutlined, LogoutOutlined, PlusOutlined, SafetyCertificateOutlined, TeamOutlined, UndoOutlined, UserOutlined } from '@ant-design/icons'
 import { apiDelete, apiGet, apiPost, idempotentConfig, newIdempotencyKey } from '../../api/client'
 import { PermGuard } from '../../components/PermGuard'
-import UserDetailDrawer, { AUTH_STATUS_MAP, formatDuration } from './UserDetailDrawer'
+import ImportModal from './ImportModal'
+import UserDetailDrawer from './UserDetailDrawer'
 import UserEditModal from './UserEditModal'
 import CreateUserModal from './CreateUserModal'
 import UserRbacModal from './UserRbacModal'
 import { ROLE_META } from './roleMeta'
-import type { PointTransaction, User, UserRole } from '../../types'
+import type { User, UserRole } from '../../types'
 import { getErrorMessage } from '../../utils/error'
 import { formatDate } from '../../utils/datetime'
 import { shouldRetreatOnePage } from '../../utils/pagination'
@@ -24,7 +25,6 @@ import { DataTable, ListToolbar } from '../../components/ui'
 const ROLE_FILTER_OPTIONS = [
   { value: '', label: '全部角色' },
   { value: 'user', label: '普通用户' },
-  { value: 'vip', label: 'VIP 用户' },
   { value: 'admin', label: '管理员' },
 ]
 
@@ -55,11 +55,9 @@ export default function UsersList() {
   const [drawer, setDrawer] = useState<{ open: boolean; loading: boolean; user: User | null }>({
     open: false, loading: false, user: null,
   })
-  // 用户积分流水（详情抽屉内展示最近记录）
-  const [pointTxs, setPointTxs] = useState<PointTransaction[]>([])
-  const [pointTxsLoading, setPointTxsLoading] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [createOpen, setCreateOpen] = useState(false)
+  const [importOpen, setImportOpen] = useState(false)
   // RBAC 分配弹窗（目标用户单独持有，避免与详情抽屉耦合）
   const [rbacTarget, setRbacTarget] = useState<User | null>(null)
   const [rbacOpen, setRbacOpen] = useState(false)
@@ -207,13 +205,13 @@ export default function UsersList() {
   }
 
   /**
-   * 恢复已注销账号：只清软删除标记，积分/会员/收藏/学习记录全部保留。
+   * 恢复已注销账号：只清软删除标记，收藏/学习记录等历史数据全部保留。
    * 与「用户自己重新注册」的区别要写进确认文案 —— 后者会清空个人数据，两者不可混为一谈。
    */
   const handleRestore = (u: User) => {
     Modal.confirm({
       title: '恢复账号',
-      content: `确认恢复用户 ${u.account}？恢复后该账号可重新登录，积分、会员与历史数据全部保留。`,
+      content: `确认恢复用户 ${u.account}？恢复后该账号可重新登录，历史数据全部保留。`,
       okText: '恢复',
       cancelText: '取消',
       onOk: async () => {
@@ -265,40 +263,26 @@ export default function UsersList() {
     })
   }
 
-  /** 打开详情抽屉并拉取详情 + 最近积分流水 */
+  /** 打开详情抽屉并拉取详情 */
   const openDetail = async (u: User) => {
     setDrawer({ open: true, loading: true, user: null })
-    setPointTxs([])
     try {
       const data = await apiGet<User>(`/admin/users/${u.id}`)
       setDrawer({ open: true, loading: false, user: data })
-      // 并行拉取最近积分流水（失败不影响详情展示）
-      setPointTxsLoading(true)
-      apiGet<{ items: PointTransaction[] }>(`/admin/users/${u.id}/points`, { params: { page: 1, page_size: 10 } })
-        .then((d) => setPointTxs(d?.items || []))
-        .catch(() => setPointTxs([]))
-        .finally(() => setPointTxsLoading(false))
     } catch (err: unknown) {
       toast.error(getErrorMessage(err, '加载详情失败'))
       setDrawer({ open: false, loading: false, user: null })
     }
   }
 
-  /** 编辑保存后刷新抽屉详情与列表（调整过积分时同步刷新抽屉内流水） */
-  const handleEditSaved = async (pointsAdjusted: boolean) => {
+  /** 编辑保存后刷新抽屉详情与列表 */
+  const handleEditSaved = async () => {
     setEditOpen(false)
     const current = drawer.user
     if (current) {
       try {
         const data = await apiGet<User>(`/admin/users/${current.id}`)
         setDrawer({ open: true, loading: false, user: data })
-        if (pointsAdjusted) {
-          setPointTxsLoading(true)
-          apiGet<{ items: PointTransaction[] }>(`/admin/users/${current.id}/points`, { params: { page: 1, page_size: 10 } })
-            .then((d) => setPointTxs(d?.items || []))
-            .catch(() => {})
-            .finally(() => setPointTxsLoading(false))
-        }
       } catch (err: unknown) {
         toast.error(getErrorMessage(err, '刷新详情失败'))
       }
@@ -378,77 +362,6 @@ export default function UsersList() {
         ),
     },
     {
-      title: '星球认证',
-      key: 'auth',
-      width: 130,
-      render: (_: unknown, u: User) => {
-        const status = u.auth_status
-        if (!status) {
-          return (
-            <span className="adm-muted">
-              <MinusCircleOutlined /> 未申请
-            </span>
-          )
-        }
-        const cfg = AUTH_STATUS_MAP[status] || { color: 'default', text: status, icon: MinusCircleOutlined }
-        const Icon = cfg.icon
-        return (
-          <Space size={4}>
-            <Icon
-              style={{
-                color:
-                  cfg.color === 'success' ? 'var(--app-success)'
-                    : cfg.color === 'processing' ? 'var(--app-primary)'
-                      : cfg.color === 'error' ? 'var(--app-danger)' : 'var(--app-text-4)',
-              }}
-            />
-            <Tag color={cfg.color} style={{ margin: 0 }}>{cfg.text}</Tag>
-          </Space>
-        )
-      },
-    },
-    {
-      title: 'VIP 到期',
-      dataIndex: 'vip_expire_time',
-      key: 'vip_expire_time',
-      width: 110,
-      render: (v: string | null) =>
-        v ? <span className="adm-muted">{v.slice(0, 10)}</span> : <span className="adm-muted">—</span>,
-    },
-    {
-      title: '免费时长',
-      key: 'free_used_seconds',
-      width: 130,
-      render: (_: unknown, u: User) => {
-        if (u.role === 'vip' || u.role === 'admin') {
-          return <span className="adm-muted">不限时</span>
-        }
-        const remaining = u.free_remaining_seconds ?? 0
-        return (
-          <Space orientation="vertical" size={0} style={{ lineHeight: 1.4 }}>
-            <Typography.Text type={remaining === 0 ? 'danger' : undefined}>
-              {formatDuration(u.free_used_seconds)}
-            </Typography.Text>
-            <Typography.Text type="secondary" style={{ fontSize: 12 }}>
-              {remaining === 0 ? '已耗尽' : `剩 ${formatDuration(remaining)}`}
-            </Typography.Text>
-          </Space>
-        )
-      },
-    },
-    {
-      title: '积分',
-      dataIndex: 'points',
-      key: 'points',
-      width: 96,
-      align: 'right',
-      render: (v: number | undefined) => (
-        <span className="adm-metric">
-          <Typography.Text strong>{v ?? 0}</Typography.Text>
-        </span>
-      ),
-    },
-    {
       title: '注册时间',
       dataIndex: 'created_at',
       key: 'created_at',
@@ -517,7 +430,7 @@ export default function UsersList() {
       <PageHeader
         icon={<TeamOutlined />}
         title="用户管理"
-        subtitle="查看与维护账号、角色权限、会员与积分"
+        subtitle="查看与维护账号、角色与后台权限"
         count={{ total: total, unit: "人" }}
         actions={
           <>
@@ -530,6 +443,11 @@ export default function UsersList() {
               allowClear
             />
             <ExportButton url="/admin/export/users" params={exportParams} label="用户" fallbackName="users.csv" />
+            <PermGuard perm="user:create">
+              <Button icon={<ImportOutlined />} onClick={() => setImportOpen(true)}>
+                批量导入
+              </Button>
+            </PermGuard>
             <PermGuard perm="user:create">
               <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
                 新增用户
@@ -591,7 +509,7 @@ export default function UsersList() {
         columns={columns}
         rowKey="id"
         loading={loading}
-        scrollX={1412}
+        scrollX={1000}
         rowSelection={
         isDeletedView
         ? undefined
@@ -612,8 +530,6 @@ export default function UsersList() {
         open={drawer.open}
         loading={drawer.loading}
         user={drawer.user}
-        pointTxs={pointTxs}
-        pointTxsLoading={pointTxsLoading}
         onClose={() => setDrawer({ open: false, loading: false, user: null })}
         onEdit={() => setEditOpen(true)}
       />
@@ -638,6 +554,17 @@ export default function UsersList() {
           setPage(1)
           load({ page: 1, accountStatus: 'deleted', keyword: account })
           toast.info(`已切换到已注销账号，可直接恢复 ${account}`)
+        }}
+      />
+
+      {/* 批量导入（CSV）：授权面与单账号创建一致（user:create），原子导入 + 行级报告 */}
+      <ImportModal
+        open={importOpen}
+        onClose={() => setImportOpen(false)}
+        onImported={() => {
+          setImportOpen(false)
+          setPage(1)
+          load({ page: 1 })
         }}
       />
 
